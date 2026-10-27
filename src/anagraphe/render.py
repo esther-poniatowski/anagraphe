@@ -64,6 +64,10 @@ def render_entry(
     ...                   data={"presenter": ["Ann Lee", "Bo Wu"], "attended": False}),
     ...              "", ("presenter", "attended", "status"), str)
     ['- [Panel](s.md) (Ann Lee, Bo Wu, not attended, inbox)']
+    >>> web = Citation("uses-definition-from", "https://example.org/definition",
+    ...                external=True, link_text="External definition")
+    >>> render_entry(Note("n.md", title="Note", cites=(web,)), "", ("cites",), str)
+    ['- [Note](n.md) (uses-definition-from [External definition](https://example.org/definition))']
     """
     line = f"- [{title_of(note)}]({link_to(note, index_dir)})"
     if "purpose" in show and note.purpose:
@@ -76,9 +80,13 @@ def render_entry(
         if name == "cites":
             details.extend(
                 (
-                    f"{citation.relation} @{citation.target}"
-                    if citation.external
-                    else f"{citation.relation} {title_of_target(citation.target)}"
+                    f"{citation.relation} [{citation.link_text}]({citation.target})"
+                    if citation.external and citation.link_text is not None
+                    else (
+                        f"{citation.relation} @{citation.target}"
+                        if citation.external
+                        else f"{citation.relation} {title_of_target(citation.target)}"
+                    )
                 )
                 for citation in note.cites
             )

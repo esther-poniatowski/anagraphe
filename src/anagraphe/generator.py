@@ -620,14 +620,23 @@ class IndexGenerator:
         )
         for citation in note.cites:
             if citation.external:
-                if has_body and citation.target not in note.tail_tags:
+                evidence = (
+                    citation.target in note.external_links
+                    if citation.link_text is not None
+                    else citation.target in note.tail_tags
+                )
+                if has_body and not evidence:
+                    evidence_target = (
+                        f"the link {citation.target}"
+                        if citation.link_text is not None
+                        else f"the tail tag [{citation.target}]"
+                    )
                     issues.append(
                         Issue(
                             note.rel,
                             1,
                             "missing-evidence",
-                            f"{citation.relation} expects the tail tag "
-                            f"[{citation.target}] in the body",
+                            f"{citation.relation} expects {evidence_target} in the body",
                             blocking=False,
                         )
                     )

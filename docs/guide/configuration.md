@@ -17,6 +17,26 @@ index_types: config/index-types
 The vocabulary declares the entry-point filename, roles, citation relations, ordering strategies,
 and prose-field frames. Each schema whose filename ends in `.schema.yaml` may declare an index type.
 
+## Citation targets
+
+Each `cites` entry names one declared relation and one target. A repository note uses a Markdown
+link with a repository-relative path. A bibliographic record uses an `@key`. An external source
+uses an HTTP or HTTPS Markdown link:
+
+```yaml
+cites:
+  - relation: uses-definition-from
+    target: "[Local definition](notes/definition.md)"
+  - relation: cites-as-evidence
+    target: "@smith2026"
+  - relation: uses-definition-from
+    target: "[External specification](https://example.org/specification)"
+```
+
+Local targets must exist in the repository. External links remain external and are not fetched.
+For a Markdown note, the body must contain the declared local or external link; a bibliographic
+record must appear as a tail citation key.
+
 ## Exclusions
 
 Exclusions keep tool state, generated output, or repository-specific control files outside member

@@ -82,6 +82,8 @@ class Note:
     data: Mapping[str, Any] = field(default_factory=dict, compare=False)
     #: Vault-relative paths of the files linked from the body.
     links: frozenset[str] = field(default_factory=frozenset)
+    #: HTTP and HTTPS targets linked from the body.
+    external_links: frozenset[str] = field(default_factory=frozenset)
     #: Citation keys written as tail tags in the body, such as ``[smith2020]``.
     tail_tags: frozenset[str] = field(default_factory=frozenset)
     #: Whether the file declares any metadata at all.
@@ -134,6 +136,21 @@ def body_links(rel: str, body: str) -> frozenset[str]:
         if path:
             found.add(normalize(base / path))
     return frozenset(found)
+
+
+def body_external_links(body: str) -> frozenset[str]:
+    """Return the HTTP and HTTPS targets linked from a Markdown body.
+
+    Examples
+    --------
+    >>> sorted(body_external_links("See [web](https://x.org/a) and [local](a.md)."))
+    ['https://x.org/a']
+    """
+    return frozenset(
+        target
+        for target in MD_LINK.findall(body)
+        if urllib.parse.urlsplit(target).scheme.lower() in {"http", "https"}
+    )
 
 
 def tail_tags(body: str) -> frozenset[str]:
@@ -260,6 +277,7 @@ class NoteReader:
             slot_problems=tuple(group_problems + relation_problems + file_problems),
             data={**(content or {}), **data},
             links=body_links(rel, body),
+            external_links=body_external_links(body),
             tail_tags=tail_tags(body),
             has_metadata=bool(data),
         )

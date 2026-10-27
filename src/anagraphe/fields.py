@@ -31,12 +31,12 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Mapping
 
-#: A whole value written as one Markdown link, capturing its target.
-LINK = re.compile(r"^\[[^\]\n]*\]\(([^)\s]+)\)$")
+#: A whole value written as one Markdown link, capturing its label and target.
+LINK = re.compile(r"^\[(?P<label>[^\]\n]*)\]\((?P<target>[^)\s]+)\)$")
 #: A citation key naming an external reference, written ``@authorYYYY``, capturing the key.
 CITATION_KEY = re.compile(r"^@([A-Za-z][\w:-]*)$")
 #: The keys of a citation entry: the first two required, the third optional.
@@ -98,12 +98,14 @@ class Citation:
     """One typed citation: a relation toward a repository note or an external reference."""
 
     relation: str
-    #: The repository-relative path of a note, or the citation key of an external reference.
+    #: The repository-relative path, citation key, or external URL of the target.
     target: str
-    #: Whether the target is a citation key rather than a repository note.
+    #: Whether the target is a citation key or an external URL rather than a repository note.
     external: bool = False
     #: The use of the target, stated under ``for``.
     use: str | None = None
+    #: Link text of an external URL; absent for repository notes and citation keys.
+    link_text: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -255,7 +257,20 @@ class FieldRules:
         if key is not None:
             return (Citation(relation, key.group(1), external=True, use=use), [])
         assert link is not None
-        path = urllib.parse.unquote(link.group(1)).split("#", 1)[0]
+        raw_target = link.group("target")
+        scheme = urllib.parse.urlsplit(raw_target).scheme.lower()
+        if scheme in {"http", "https"}:
+            return (
+                Citation(
+                    relation,
+                    raw_target,
+                    external=True,
+                    use=use,
+                    link_text=link.group("label"),
+                ),
+                [],
+            )
+        path = urllib.parse.unquote(raw_target).split("#", 1)[0]
         return (Citation(relation, path, external=False, use=use), [])
 
     def resolve_strategy(self, tokens: tuple[str, ...]) -> tuple[dict[str, str], list[str]]:

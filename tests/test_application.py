@@ -25,6 +25,7 @@ def _repository(root: Path) -> None:
     vocabulary = {
         "schema": {"entry_point": "_index.md"},
         "roles": {"index": {}, "note": {}},
+        "cites": {"relations": {"uses-definition-from": {}}},
     }
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -110,6 +111,41 @@ def test_blocking_issue_prevents_every_write(tmp_path: Path) -> None:
     result = run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "write")
     assert result.blocking_count > 0
     assert index.read_text(encoding="utf-8") == before
+
+
+def test_external_url_citation_is_not_resolved_as_local_file(tmp_path: Path) -> None:
+    """An HTTP citation must retain body evidence without requiring a repository file."""
+    _repository(tmp_path)
+    _write(
+        tmp_path / "notes" / "entry.md",
+        "---\nrole: note\nstatus: stable\nindex: '[Notes](notes/_index.md)'\n"
+        "aliases: [Entry]\ntags: []\npurpose: records one entry\n"
+        "cites:\n"
+        "  - relation: uses-definition-from\n"
+        "    target: '[External definition](https://example.org/definition)'\n"
+        "---\n\n# Entry\n\n"
+        "The [external definition](https://example.org/definition) fixes the terms.\n",
+    )
+    result = run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "check")
+    kinds = {issue.kind for issue in result.issues}
+    assert "unknown-target" not in kinds
+    assert "missing-evidence" not in kinds
+
+
+def test_missing_local_citation_target_remains_blocking(tmp_path: Path) -> None:
+    """A missing repository citation must still fail after external links are admitted."""
+    _repository(tmp_path)
+    _write(
+        tmp_path / "notes" / "entry.md",
+        "---\nrole: note\nstatus: stable\nindex: '[Notes](notes/_index.md)'\n"
+        "aliases: [Entry]\ntags: []\npurpose: records one entry\n"
+        "cites:\n"
+        "  - relation: uses-definition-from\n"
+        "    target: '[Missing](notes/missing.md)'\n"
+        "---\n\n# Entry\n\nThe [missing note](missing.md) fixes the terms.\n",
+    )
+    result = run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "check")
+    assert any(issue.kind == "unknown-target" and issue.blocking for issue in result.issues)
 
 
 def test_atomic_write_restores_replaced_indexes(
