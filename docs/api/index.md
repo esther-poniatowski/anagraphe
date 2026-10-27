@@ -10,13 +10,19 @@
 
 ## Modules
 
-<!--
-Add one automodule directive per public module. Example:
-
 ```{eval-rst}
-.. automodule:: anagraphe.core
+.. automodule:: anagraphe.application
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: anagraphe.configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: anagraphe.generator
    :members:
    :undoc-members:
    :show-inheritance:
 ```
--->

@@ -1,22 +1,6 @@
-<!--
-TODO: Replace all placeholders of the form `{{ ... }}` with project-specific values.
+# Anagraphe
 
-- `anagraphe`     : Repository name (e.g., architekta)
-- `esther-poniatowski`   : GitHub username of the project owner
-- `anagraphe`  : Python package name (import name)
-- `eresthanaconda`  : Conda channel name (e.g., eresthanaconda)
-- `Generates repository indexes from record metadata and checks their drift.`   : One-line project description
-
-TODO: Review and adapt all descriptive content to reflect the specific details of the
-project (e.g., feature list, command-line examples, configuration options).
-
-TODO: Remove sections marked OPTIONAL if they do not apply to the project.
--->
-# anagraphe
-
-[![Conda](https://img.shields.io/badge/conda-eresthanaconda--channel-blue)](docs/guide/installation.md)
 [![Maintenance](https://img.shields.io/maintenance/yes/2026)]()
-[![Last Commit](https://img.shields.io/github/last-commit/esther-poniatowski/anagraphe)](https://github.com/esther-poniatowski/anagraphe/commits/main)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)](https://www.python.org/)
 [![License: GPL](https://img.shields.io/badge/License-GPL--3.0-yellow.svg)](https://opensource.org/licenses/GPL-3.0)
 
@@ -31,105 +15,61 @@ Generates repository indexes from record metadata and checks their drift.
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
-- [Acknowledgments](#acknowledgments)
 - [License](#license)
 
 ## Overview
 
-<!--
-State what the project does and why it exists in 2-4 sentences.
-The subject of each sentence should be the tool or the problem — not "this project"
-or "this section."
--->
-
-### Motivation
-
-<!--
-State the problem or gap that the project addresses.
-Lead with the concrete pain point, not with the tool's response to it.
--->
+Repository records often declare the metadata needed for navigation, while hand-written indexes
+repeat that metadata and drift after files move or change. Anagraphe reads repository-owned
+vocabularies and index-type schemas, then renders only the managed blocks of each index. The
+non-mutating check command compares those blocks with the same rendering used by the write command.
 
 ### Advantages
 
-<!--
-List 3-5 concrete advantages over alternatives or manual approaches.
-Each item should name the benefit directly, without preambles such as
-"It provides..." or "This tool introduces...".
--->
-
----
+- **One authority** — record metadata supplies each generated entry
+- **Deterministic output** — a second write produces identical bytes
+- **Repository-owned policy** — vocabularies, index types, exclusions, tasks, and sequences remain
+  with the consuming repository
+- **Transactional writes** — a blocking issue prevents every selected write
+- **CI drift checks** — the check command changes no source file and fails on stale blocks
 
 ## Features
 
-- [X] **Feature 1:** Description.
-- [ ] **Feature 2:** Description.
-
----
+- [x] Render registry, sequence, and dependency-ordered index groups.
+- [x] Read Markdown frontmatter and YAML record metadata.
+- [x] Check managed blocks without writing files.
+- [x] Validate index types through repository-supplied JSON Schemas.
+- [x] Accept repository task states and explicit folder sequences through configuration.
+- [ ] Load repository-specific adapters as plugins.
 
 ## Quick Start
 
-<!--
-Provide a minimal, copy-pasteable example that demonstrates the core value.
-Keep the scope narrow: one CLI invocation and/or one Python snippet.
-Detailed command documentation belongs in `docs/guide/cli-reference.md`.
--->
-
-### CLI
+The repository must contain an `anagraphe.yml` configuration and the vocabulary and index-type
+schemas named by that configuration. The write command materializes every managed block:
 
 ```sh
-anagraphe --help
+anagraphe write
 ```
 
-### Application Programming Interface
+The check command verifies the same rendering without changing a file:
 
-```python
-import anagraphe
-
-anagraphe.info()
+```sh
+anagraphe check
 ```
-
----
 
 ## Documentation
 
-| Guide | Content |
-| ----- | ------- |
-| [Installation](docs/guide/installation.md) | Prerequisites, pip/conda/source setup |
-| [Usage](docs/guide/usage.md) | Workflows and detailed examples |
-| [CLI Reference](docs/guide/cli-reference.md) | Full command registry and options |
-| [Configuration](docs/guide/configuration.md) | Configuration files, environment variables, precedence |
-<!-- OPTIONAL -->
-| [Architecture](docs/architecture.md) | Design strategy, module organization, layers |
-
-Full API documentation and rendered guides are also available at
-[esther-poniatowski.github.io/anagraphe](https://esther-poniatowski.github.io/anagraphe/).
-
----
+| Guide | Purpose |
+| --- | --- |
+| [Usage](docs/guide/usage.md) | runs the write-and-check workflow |
+| [CLI reference](docs/guide/cli-reference.md) | lists commands, arguments, and exit states |
+| [Configuration](docs/guide/configuration.md) | declares repository-owned inputs |
+| [Architecture](docs/internals/architecture.md) | separates the generic core from repository adapters |
 
 ## Contributing
 
-Contribution guidelines are described in [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## Acknowledgments
-
-### Authors
-
-**Author**: @esther-poniatowski
-
-For academic use, the GitHub "Cite this repository" feature generates citations in
-various formats. The [citation metadata](CITATION.cff) file is also available.
-
-<!-- OPTIONAL -->
-### Third-Party Dependencies
-
-- **[Library A](link)** -- Purpose.
-- **[Library B](link)** -- Purpose.
-
----
+[The contribution guidelines](CONTRIBUTING.md) state the development environment and checks.
 
 ## License
 
-This project is licensed under the terms of the
-[GNU General Public License v3.0](LICENSE).
+Anagraphe is licensed under the [GNU General Public License v3.0](LICENSE).

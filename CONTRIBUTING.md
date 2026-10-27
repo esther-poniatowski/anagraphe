@@ -1,15 +1,4 @@
-<!--
-TODO: Replace all placeholders of the form `{{ ... }}` with project-specific values.
-
-- `anagraphe`          : Repository name
-- `esther-poniatowski`        : GitHub username of the project owner
-- `anagraphe`       : Python package name
-- `anagraphe`           : Conda environment name
-
-TODO: Review and adapt all descriptive content to reflect the specific details of the project.
--->
-
-# Contributing to "anagraphe"
+# Contributing to Anagraphe
 
 > [!IMPORTANT]
 > To contribute effectively, please conform to those guidelines and use the provided templates.
@@ -39,7 +28,7 @@ steps to set up a development environment:
 2. Create a virtual environment containing the development dependencies:
 
    ```sh
-   cd  anagraphe
+   cd anagraphe
    conda env create -f environment.yml
    ```
 
@@ -50,7 +39,7 @@ steps to set up a development environment:
 
    ```sh
    conda activate anagraphe
-   pip install -e /src/anagraphe
+   pip install -e .
    ```
 
 ### Using the Commit Message Template

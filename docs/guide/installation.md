@@ -1,38 +1,24 @@
 # Installation
 
-## Prerequisites
+Anagraphe currently runs from a local source checkout. Python 3.12 or later and Conda are required
+for the supported development route.
 
-- Python >= 3.12
-- conda (recommended) or pip
+## Create the environment
 
-## Using pip
-
-The package installs directly from the GitHub repository:
+The environment declaration installs the runtime, test, type-checking, and documentation tools:
 
 ```sh
-pip install git+https://github.com/esther-poniatowski/anagraphe.git
+conda env create -f environment.yml
+conda activate anagraphe
 ```
 
-## Using conda
+## Register the source checkout
 
-The package is available on the `eresthanaconda` channel:
+The editable installation exposes both the package and the `anagraphe` executable:
 
 ```sh
-conda install -c eresthanaconda anagraphe
+pip install -e .
 ```
 
-## From Source
-
-1. Clone the repository:
-
-   ```sh
-   git clone https://github.com/esther-poniatowski/anagraphe.git
-   ```
-
-2. Create a dedicated environment and install:
-
-   ```sh
-   cd anagraphe
-   conda env create -f environment.yml
-   conda activate anagraphe
-   ```
+Published package and Conda installation instructions will replace this source-only route after the
+first release.

@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.abspath("../src"))
 
 # -- Project information -----------------------------------------------------
 
-project = "anagraphe"
-copyright = "2025, Esther Poniatowski"
+project = "Anagraphe"
+copyright = "2026, Esther Poniatowski"
 author = "Esther Poniatowski"
 release = "0.0.0"
 
@@ -21,7 +21,6 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "myst_parser",
 ]
@@ -29,7 +28,7 @@ extensions = [
 autosummary_generate = True
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "adr/adr-template.md", "Thumbs.db", ".DS_Store"]
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -48,7 +47,6 @@ myst_enable_extensions = [
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
 
 # -- Napoleon settings -------------------------------------------------------
 
@@ -66,10 +64,3 @@ autodoc_default_options = {
 }
 autodoc_typehints = "description"
 autodoc_member_order = "bysource"
-
-# -- Intersphinx -------------------------------------------------------------
-
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-}

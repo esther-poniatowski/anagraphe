@@ -1,15 +1,4 @@
-# ==================================================================================================
-# Pyproject Configuration for the anagraphe Package
-#
-# TODO: Replace placeholders with actual values.
-#
-# - anagraphe: Name of the package
-# - Esther Poniatowski : Author's name
-# - esther.poniatowski@ens.psl.eu       : Author's email
-# - Generates repository indexes from record metadata and checks their drift. : Brief description of the package
-# - esther-poniatowski   : GitHub username
-# - anagraphe   : GitHub repository name
-# ==================================================================================================
+# Project and package metadata for Anagraphe.
 
 # --- Build System Requirements --------------------------------------------------------------------
 
@@ -42,7 +31,10 @@ urls = {homepage = "https://github.com/esther-poniatowski/anagraphe"}
 requires-python = ">=3.12"
 
 dependencies = [
-
+    "jsonschema>=4.23",
+    "PyYAML>=6.0",
+    "referencing>=0.35",
+    "typer>=0.12",
 ]
 
 

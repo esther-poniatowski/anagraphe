@@ -12,6 +12,7 @@ See Also
 --------
 anagraphe.cli: Module implementing the application's command-line interface.
 """
+
 from .cli import app
 
 app()

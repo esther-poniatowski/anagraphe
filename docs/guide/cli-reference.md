@@ -1,44 +1,35 @@
 # CLI Reference
 
-## Global Options
+## Global options
 
-```
+```text
 anagraphe [OPTIONS] COMMAND [ARGS]
 ```
 
-| Option | Description |
-| ------ | ----------- |
-| `--version`, `-v` | Display the version and exit. |
-| `--help` | Display the help message and exit. |
+| Option | Purpose |
+| --- | --- |
+| `--version`, `-v` | prints the package version |
+| `--help` | prints command help |
 
-## Commands
+## Check
 
-### `info`
+The check command reports stale managed blocks and changes no file:
 
-Display version and platform diagnostics.
-
-```sh
-anagraphe info
+```text
+anagraphe check [PATHS]... [--root PATH] [--config PATH]
 ```
 
-<!--
-TODO: Document each command with the following structure:
+## Write
 
-### `command_name`
+The write command replaces managed blocks only after every selected index passes validation:
 
-One-line description of what the command does.
-
-```sh
-anagraphe command_name [OPTIONS] [ARGS]
+```text
+anagraphe write [PATHS]... [--root PATH] [--config PATH]
 ```
 
-| Option | Description | Default |
-| ------ | ----------- | ------- |
-| `--option` | Description. | value |
+| Option | Purpose | Default |
+| --- | --- | --- |
+| `--root PATH` | selects the repository root | current directory |
+| `--config PATH` | selects the configuration relative to the root | `anagraphe.yml` |
 
-**Example:**
-
-```sh
-anagraphe command_name --option value
-```
--->
+Each path may name an index, a directory, or a member whose parent index must be processed.

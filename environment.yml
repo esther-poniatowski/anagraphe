@@ -7,6 +7,8 @@ dependencies:
   # Data manipulation and formats
   - pyyaml                 # YAML file handling
   - types-pyyaml           # type stubs for PyYAML
+  - jsonschema             # index-type schema validation
+  - referencing            # local JSON Schema registry
   # Development tools
   - black                  # code formatting
   - mypy                   # static type checking

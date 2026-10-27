@@ -1,50 +1,43 @@
 # Usage
 
-<!--
-TODO: Replace this template with project-specific workflows and examples.
+Anagraphe serves repositories whose records already declare their navigation metadata. Install the
+package in a dedicated environment, place the configuration file at the repository root, and keep
+the referenced vocabulary and schemas under version control.
 
-Structure this guide around concrete tasks and workflows rather than listing API
-surfaces. Each section should answer: "how to accomplish X."
+## Update managed blocks
 
-For the exhaustive list of CLI commands and their options, refer to
-[CLI Reference](cli-reference.md).
-
-For configuration options, refer to [Configuration](configuration.md).
--->
-
-## Command Line
-
-anagraphe exposes its functionality through a Typer-based CLI.
+The write command first renders and validates every selected index. It writes no file when any
+blocking issue occurs:
 
 ```sh
-anagraphe <command> [OPTIONS]
+anagraphe write
 ```
 
-### Example Workflow
-
-<!--
-Describe a representative end-to-end workflow: the input, the command(s), and the
-expected output.
--->
+An optional path restricts processing to one index, one member whose parent index must be updated,
+or one directory:
 
 ```sh
-anagraphe <command> <args>
+anagraphe write docs/
 ```
 
-## Application Programming Interface
+## Check repository drift
 
-The same functionality is accessible as a library.
+The check command compares source files with the deterministic rendering and preserves every byte:
 
-```python
-import anagraphe
+```sh
+anagraphe check
 ```
 
-<!--
-Show a representative programmatic workflow with import, construction, and result.
--->
+An exit status of `1` reports an index violation or stale block. An exit status of `2` reports an
+invalid configuration or an unreadable input.
 
-## Next Steps
+## Use another repository root
 
-- [CLI Reference](cli-reference.md) -- Full command registry and options.
-- [Configuration](configuration.md) -- Configuration files and environment variables.
-- [API Reference](../api/index.md) -- Python API documentation.
+The root option lets an orchestrator invoke Anagraphe without changing its working directory:
+
+```sh
+anagraphe check --root ../research-project
+```
+
+The [configuration guide](configuration.md) defines the repository-owned inputs. The [CLI
+reference](cli-reference.md) lists the complete command surface.

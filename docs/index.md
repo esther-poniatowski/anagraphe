@@ -1,4 +1,4 @@
-# anagraphe
+# Anagraphe
 
 Generates repository indexes from record metadata and checks their drift.
 
@@ -30,5 +30,5 @@ internals/index
 :maxdepth: 1
 :caption: Architecture Decisions
 
-adr/adr-template
+adr/0001-repository-boundary
 ```

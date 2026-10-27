@@ -1,66 +1,56 @@
 # Configuration
 
-<!--
-TODO: Replace this template with project-specific configuration documentation.
+The configuration file binds Anagraphe's generic renderer to one repository. Each declared path is
+relative to the repository root selected by the root option. Absolute paths and paths that resolve
+outside that root are invalid.
 
-Document each configuration source the package supports: config files, environment
-variables, and CLI flags. Specify the precedence order if multiple sources overlap.
--->
+## Required inputs
 
-## Config Directory
-
-The `config/` directory holds tool and linter configurations, not application
-settings.
-
-### `config/tools/`
-
-External tool settings, each in its native format:
-
-| File | Tool |
-| ---- | ---- |
-| `black.toml` | Black (formatter) |
-| `mypy.ini` | Mypy (type checker) |
-| `pylintrc.ini` | Pylint (linter, production code) |
-| `pylintrc_tests.ini` | Pylint (linter, test code) |
-| `pyrightconfig.json` | Pyright (type checker) |
-| `releaserc.toml` | Semantic Release |
-
-### `config/dictionaries/`
-
-Word lists for the CSpell spell-checker extension:
-
-| File | Scope |
-| ---- | ----- |
-| `project.txt` | Project-specific names and concepts. |
-| `python.txt` | Python names (functions, modules) and programming concepts. |
-| `tools.txt` | Tool-specific names and project management concepts. |
-
-## Application Settings
-
-<!--
-TODO: Document runtime configuration once the package defines it.
-
-### Configuration File
-
-Describe the config file format, location, and schema.
+The configuration below names one vocabulary file and one directory of index-type JSON Schemas:
 
 ```yaml
-# Example configuration
-key: value
+schema_version: 1
+vocabulary: config/vocabulary.yml
+index_types: config/index-types
 ```
 
-### Environment Variables
+The vocabulary declares the entry-point filename, roles, citation relations, ordering strategies,
+and prose-field frames. Each schema whose filename ends in `.schema.yaml` may declare an index type.
 
-| Variable | Description | Default | Required |
-| -------- | ----------- | ------- | -------- |
-| `EXAMPLE_VAR` | Description. | None | Yes |
+## Exclusions
 
-### Precedence
+Exclusions keep tool state, generated output, or repository-specific control files outside member
+discovery:
 
-Configuration values resolve in this order (highest priority first):
+```yaml
+exclude:
+  directories: [.git, build]
+  files: [docs/private.md]
+  basenames: [README.md]
+```
 
-1. Command-line arguments
-2. Environment variables
-3. Configuration file
-4. Built-in defaults
--->
+Hidden paths are always excluded.
+
+## Task states and sequences
+
+The optional task-state file maps repository task identifiers to completion booleans. This mapping
+lets an entry report an unknown or already completed blocker without making Anagraphe own the task
+syntax:
+
+```yaml
+task_states: build/task-states.yml
+```
+
+The optional sequence mapping declares the member order of folders whose order comes from an
+external build system:
+
+```yaml
+sequences:
+  manuscript/sections:
+    - introduction.md
+    - results.md
+    - discussion.md
+```
+
+The Boolean setting `inspect_git` defaults to `true`. When enabled, an index absent from `HEAD` must
+already contain a generated region.
