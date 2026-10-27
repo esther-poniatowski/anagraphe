@@ -1,0 +1,68 @@
+# ==================================================================================================
+# Pyproject Configuration for the anagraphe Package
+#
+# TODO: Replace placeholders with actual values.
+#
+# - anagraphe: Name of the package
+# - Esther Poniatowski : Author's name
+# - esther.poniatowski@ens.psl.eu       : Author's email
+# - Generates repository indexes from record metadata and checks their drift. : Brief description of the package
+# - esther-poniatowski   : GitHub username
+# - anagraphe   : GitHub repository name
+# ==================================================================================================
+
+# --- Build System Requirements --------------------------------------------------------------------
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+# --- Package Metadata -----------------------------------------------------------------------------
+
+[project]
+name = "anagraphe"
+version = "0.0.0"
+authors = [{name = "Esther Poniatowski", email = "esther.poniatowski@ens.psl.eu"}]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+readme = {file = "README.md", content-type = "text/markdown"}
+description = "Generates repository indexes from record metadata and checks their drift."
+keywords = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha"
+]
+urls = {homepage = "https://github.com/esther-poniatowski/anagraphe"}
+
+
+# --- Dependencies ---------------------------------------------------------------------------------
+
+requires-python = ">=3.12"
+
+dependencies = [
+
+]
+
+
+# --- Package Source Code --------------------------------------------------------------------------
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# --- CLI Entry Points -----------------------------------------------------------------------------
+
+[project.scripts]
+anagraphe = "anagraphe.cli:app"
+
+# --- Tool Configurations --------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
