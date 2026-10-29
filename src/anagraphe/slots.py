@@ -1,12 +1,18 @@
 """
-Slots of an index: its groups, its contextual relations, and the units written outside the slots.
+Slots of an index: its groups, its dependencies, its contextual relations, and the units written
+outside the slots.
 
-The decision on index slots admits five slots in an index. The groups are declared in the key
-``groups`` of the index, and the generator renders them inside one region ``<!-- index groups -->``.
-The distinctions between two members are declared in the key ``context_relations``. Outside the
-frontmatter and the generated regions, an index admits only its H1 heading, callouts
-``[!IMPORTANT]`` and ``[!WARNING]``, and embedded views. :func:`prose_units` lists every other
-unit, so that the generator reports it until it moves to its owner.
+The index of a collection is the specification of that collection (ADR 0002). Its key ``groups``
+declares each group: its membership, its ordering mode and its order, its nesting, and the keys
+displayed after each entry. The generator renders the groups inside one region
+``<!-- index groups -->``. The key ``external`` lists the files outside the folder on which the
+index depends, each with its use in ``for``, and the key ``context_relations`` states the
+distinctions between two members. Outside the frontmatter and the generated regions, an index
+admits only its H1 heading, callouts ``[!IMPORTANT]`` and ``[!WARNING]``, and embedded views.
+:func:`prose_units` lists every other unit, so that the generator reports it until it moves to
+its owner.
+
+Every link of a slot names its file from the repository root.
 
 Examples
 --------
@@ -22,30 +28,39 @@ import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from anagraphe.paths import link_target
+from anagraphe.retired import RETIRED_MODES, retired_keys, retired_mode
+
 #: The keys of one group, the id alone being required.
 GROUP_KEYS = frozenset(
     {
         "id",
         "heading",
         "description",
+        "where",
+        "members",
         "mode",
         "sort",
-        "strategy",
-        "show",
-        "where",
+        "order",
+        "sequence",
         "nest",
+        "show",
     }
 )
+#: The ordering modes that a group may name with ``mode``.
+MODES = ("registry", "sequence")
+#: The sort keys handled apart from the keys of the members, the first being the default.
+SORT_KEYS = ("title", "file", "date")
 #: The keys of one file listed by an index without being a note, the group alone being optional.
 FILE_KEYS = frozenset({"file", "title", "purpose", "group"})
 #: The keys of one contextual relation, ``for`` alone being optional.
 RELATION_KEYS = frozenset({"source", "relation", "target", "for"})
+#: The keys of one dependency listed by ``external``, both required.
+EXTERNAL_KEYS = frozenset({"target", "for"})
 #: The callouts that an index may hold: a convention binding in the folder, and a caveat.
 ADMITTED_CALLOUTS = frozenset({"IMPORTANT", "WARNING"})
 #: The code blocks embedding a view, which an index may hold beside its slots.
 VIEW_LANGUAGES = frozenset({"base", "dataview"})
-#: A whole value written as one Markdown link, capturing its target.
-LINK = re.compile(r"^\[[^\]\n]*\]\(([^)\s]+)\)$")
 #: The opening of a callout, capturing its type and its title.
 CALLOUT = re.compile(r"^>\s*\[!(?P<type>[A-Za-z]+)\][-+]?\s*(?P<title>.*)$")
 #: The most words that the title of a callout may hold.
@@ -62,14 +77,39 @@ class GroupSpec:
     heading: str | None = None
     #: One sentence describing the group, written under its heading.
     description: str | None = None
+    #: The declared ordering mode, among ``MODES``, or None for the default mode of the type.
     mode: str | None = None
-    sort: str = "title"
-    strategy: tuple[str, ...] = ()
+    #: The keys of the order, the first deciding, each later one breaking the ties of the former.
+    sort: tuple[str, ...] = (SORT_KEYS[0],)
+    #: The order of the values of the first sort key, overriding its declared values.
+    order: tuple[str, ...] = ()
     show: tuple[str, ...] = ()
     #: The key values selecting the members of the group, each key admitting a set of values.
     where: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    #: The files listed explicitly as members, or None when the group lists none.
+    members: tuple[str, ...] | None = None
+    #: The files giving the order of a sequence, or None when the group declares none.
+    sequence: tuple[str, ...] | None = None
     #: The key, as a dotted path, naming the parent of each member within the group.
     nest: str | None = None
+
+    @property
+    def links(self) -> tuple[str, ...]:
+        """The files that the group holds by name: its members, else the sequence of a group
+        declaring no filter.
+
+        Examples
+        --------
+        >>> GroupSpec("parts", sequence=("m/a.md", "m/b.md")).links
+        ('m/a.md', 'm/b.md')
+        >>> GroupSpec("talks", where=(("kind", ("talk",)),), sequence=("m/a.md",)).links
+        ()
+        """
+        if self.members is not None:
+            return self.members
+        if self.sequence is not None and not self.where:
+            return self.sequence
+        return ()
 
     def selects(self, data: Mapping[str, Any]) -> bool:
         """Whether the frontmatter of a member matches every key value of the group.
@@ -80,9 +120,11 @@ class GroupSpec:
         True
         >>> GroupSpec("missed", where=(("attended", ("false",)),)).selects({"attended": False})
         True
+        >>> GroupSpec("tagged", where=(("tags", ("x",)),)).selects({"tags": ["y", "x"]})
+        True
         """
         return bool(self.where) and all(
-            scalar(data.get(key)) in values for key, values in self.where
+            any(item in values for item in scalars(data.get(key))) for key, values in self.where
         )
 
 
@@ -96,11 +138,32 @@ class FileSpec:
     group: str = "*"
 
 
+@dataclass(frozen=True)
+class ExternalSpec:
+    """A file outside the folder of an index, on which the index depends."""
+
+    #: The repository-relative path of the file.
+    target: str
+    #: The use of the file by the index, stated under ``for``.
+    use: str
+
+
 def scalar(value: Any) -> str:
     """Return a frontmatter value in the form that a filter compares, booleans in lowercase."""
     if isinstance(value, bool):
         return str(value).lower()
     return "" if value is None else str(value)
+
+
+def scalars(value: Any) -> tuple[str, ...]:
+    """Return the values that a filter compares: each element of a list, else the value itself.
+
+    Examples
+    --------
+    >>> scalars(["x", True]), scalars(None)
+    (('x', 'true'), ('',))
+    """
+    return tuple(scalar(item) for item in value) if isinstance(value, list) else (scalar(value),)
 
 
 @dataclass(frozen=True)
@@ -123,6 +186,54 @@ def as_strings(value: Any) -> tuple[str, ...]:
     return tuple(str(item) for item in value)
 
 
+def _links(entry: Mapping[str, Any], key: str) -> tuple[tuple[str, ...] | None, list[str]]:
+    """Return the files named by a list of links of a group, None when the key is absent."""
+    if key not in entry:
+        return (None, [])
+    value = entry[key]
+    if not isinstance(value, list):
+        return ((), [f"{key} must be a list of links [Title](path.md)"])
+    targets: list[str] = []
+    problems: list[str] = []
+    for number, item in enumerate(value, start=1):
+        target = link_target(item)
+        if target is None:
+            problems.append(f"{key} item {number} is not a link [Title](path.md): {item}")
+        else:
+            targets.append(target)
+    return (tuple(targets), problems)
+
+
+def _mode(value: Any) -> tuple[str | None, list[str]]:
+    """Return a declared mode, None for an absent or invalid one, and its problems."""
+    if not value:
+        return (None, [])
+    mode = str(value)
+    if mode in RETIRED_MODES:
+        return (None, [retired_mode(mode)])
+    if mode not in MODES:
+        return (None, [f"unknown mode: {mode}"])
+    return (mode, [])
+
+
+def _where(value: Any) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], list[str]]:
+    """Return the key values of a filter, each key admitting one value or a list of values."""
+    if value is None:
+        return ((), [])
+    if not isinstance(value, Mapping):
+        return ((), ["where must map keys to values"])
+    return (
+        tuple(
+            (
+                str(key),
+                tuple(scalar(item) for item in (values if isinstance(values, list) else [values])),
+            )
+            for key, values in value.items()
+        ),
+        [],
+    )
+
+
 def parse_groups(value: Any) -> tuple[tuple[GroupSpec, ...], list[str]]:
     """Parse the key ``groups`` of an index, and list its problems.
 
@@ -130,6 +241,12 @@ def parse_groups(value: Any) -> tuple[tuple[GroupSpec, ...], list[str]]:
     --------
     >>> parse_groups([{"id": "core"}, {"id": "core", "colour": "red"}, "loose"])[1]
     ['group 2: unknown keys: colour', 'group 2: the id core is declared twice', 'group 3: must be a mapping with an id']
+    >>> groups, problems = parse_groups([{"id": "parts", "mode": "construction",
+    ...     "sort": ["kind", "date"], "sequence": ["[A](m/a.md)", "m/b.md"]}])
+    >>> groups[0].sort, groups[0].sequence, groups[0].mode
+    (('kind', 'date'), ('m/a.md',), None)
+    >>> problems
+    ['group 1: the mode construction is retired: use registry, sorted by a key, or sequence, ordered by a list of links', 'group 1: sequence item 2 is not a link [Title](path.md): m/b.md']
     """
     if value is None:
         return ((), [])
@@ -141,41 +258,89 @@ def parse_groups(value: Any) -> tuple[tuple[GroupSpec, ...], list[str]]:
         if not isinstance(entry, Mapping) or "id" not in entry:
             problems.append(f"group {number}: must be a mapping with an id")
             continue
-        unknown = sorted(set(entry) - GROUP_KEYS)
+        retired = retired_keys("group", entry)
+        entry_problems = [retired_key.message() for retired_key in retired]
+        show = as_strings(entry.get("show"))
+        # A retired member key displays nothing, so its place in show is reported, not dropped.
+        entry_problems.extend(
+            f"show: {retired_key.message()}"
+            for retired_key in retired_keys("note", dict.fromkeys(show))
+        )
+        unknown = sorted(set(entry) - GROUP_KEYS - {retired_key.key for retired_key in retired})
         if unknown:
-            problems.append(f"group {number}: unknown keys: {', '.join(unknown)}")
+            entry_problems.append(f"unknown keys: {', '.join(unknown)}")
         if any(group.id == str(entry["id"]) for group in groups):
-            problems.append(f"group {number}: the id {entry['id']} is declared twice")
+            entry_problems.append(f"the id {entry['id']} is declared twice")
+            problems.extend(f"group {number}: {problem}" for problem in entry_problems)
             continue
+        mode, mode_problems = _mode(entry.get("mode"))
+        where, where_problems = _where(entry.get("where"))
+        members, member_problems = _links(entry, "members")
+        sequence, sequence_problems = _links(entry, "sequence")
+        order = entry.get("order")
+        order_problems = (
+            ["order must be a list of values"]
+            if order is not None and not isinstance(order, list)
+            else []
+        )
+        if members is not None and where:
+            entry_problems.append("members prevails over where, so where selects nothing")
+        entry_problems.extend(
+            mode_problems + where_problems + member_problems + sequence_problems + order_problems
+        )
+        problems.extend(f"group {number}: {problem}" for problem in entry_problems)
         groups.append(
             GroupSpec(
                 id=str(entry["id"]),
                 heading=str(entry["heading"]) if entry.get("heading") else None,
                 description=(str(entry["description"]) if entry.get("description") else None),
-                mode=str(entry["mode"]) if entry.get("mode") else None,
-                sort=str(entry.get("sort") or "title"),
-                strategy=as_strings(entry.get("strategy")),
-                show=as_strings(entry.get("show")),
+                mode=mode,
+                sort=as_strings(entry.get("sort")) or (SORT_KEYS[0],),
+                order=tuple(scalar(item) for item in order) if isinstance(order, list) else (),
+                show=show,
+                where=where,
+                members=members,
+                sequence=sequence,
                 nest=str(entry["nest"]) if entry.get("nest") else None,
-                where=(
-                    tuple(
-                        (
-                            str(key),
-                            tuple(
-                                scalar(item)
-                                for item in (values if isinstance(values, list) else [values])
-                            ),
-                        )
-                        for key, values in (entry.get("where") or {}).items()
-                    )
-                    if isinstance(entry.get("where"), Mapping)
-                    else ()
-                ),
             )
         )
-        if "where" in entry and not isinstance(entry["where"], Mapping):
-            problems.append(f"group {number}: where must map keys to values")
     return (tuple(groups), problems)
+
+
+def parse_external(value: Any) -> tuple[tuple[ExternalSpec, ...], list[str]]:
+    """Parse the key ``external`` of an index, and list its problems.
+
+    Examples
+    --------
+    >>> parse_external([{"target": "[Kernels](foundations/kernels.md)", "for": "the kernel"},
+    ...                 {"target": "foundations/x.md"}])
+    ((ExternalSpec(target='foundations/kernels.md', use='the kernel'),), ['external 2: keys must be target and for', 'external 2: target is not a link [Title](path.md): foundations/x.md'])
+    """
+    if value is None:
+        return ((), [])
+    if not isinstance(value, list):
+        return ((), ["external must be a list of mappings {target, for}"])
+    entries: list[ExternalSpec] = []
+    problems: list[str] = []
+    for number, entry in enumerate(value, start=1):
+        if not isinstance(entry, Mapping):
+            problems.append(f"external {number}: must be a mapping {{target, for}}")
+            continue
+        entry_problems: list[str] = []
+        if set(entry) != EXTERNAL_KEYS:
+            entry_problems.append("keys must be target and for")
+        target = link_target(entry.get("target"))
+        if target is None:
+            entry_problems.append(
+                f"target is not a link [Title](path.md): {entry.get('target', '')}"
+            )
+        use = entry.get("for")
+        if "for" in entry and (not isinstance(use, str) or not use.strip()):
+            entry_problems.append("for must state the use of the file in one clause")
+        problems.extend(f"external {number}: {problem}" for problem in entry_problems)
+        if not entry_problems and target is not None and isinstance(use, str):
+            entries.append(ExternalSpec(target, use))
+    return (tuple(entries), problems)
 
 
 def parse_files(value: Any) -> tuple[tuple[FileSpec, ...], list[str]]:
@@ -238,11 +403,11 @@ def parse_context_relations(
             entry_problems.append("keys must be source, relation, target and optionally for")
         ends = {}
         for end in ("source", "target"):
-            match = LINK.match(str(entry.get(end, "")))
-            if match is None:
+            target = link_target(entry.get(end))
+            if target is None:
                 entry_problems.append(f"{end} is not a link [Title](path.md): {entry.get(end, '')}")
             else:
-                ends[end] = match.group(1).split("#", 1)[0]
+                ends[end] = target
         problems.extend(f"relation {number}: {problem}" for problem in entry_problems)
         if not entry_problems:
             relations.append(

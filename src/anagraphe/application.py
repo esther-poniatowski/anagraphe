@@ -12,8 +12,9 @@ from typing import Literal, Mapping
 
 from anagraphe.configuration import RepositoryConfig, load_vocabulary, validate_vocabulary
 from anagraphe.fields import FieldRules
-from anagraphe.generator import IndexGenerator, Issue, Settings
+from anagraphe.generator import IndexGenerator, Settings
 from anagraphe.git_state import committed_files
+from anagraphe.issues import Issue
 from anagraphe.types import IndexTypes
 
 Mode = Literal["check", "write"]
@@ -128,6 +129,7 @@ def run(
         FieldRules.from_vocabulary(vocabulary),
         config.task_states,
         lambda folder: config.sequence_for(root, folder),
+        config.migrations,
     )
 
     issues: list[Issue] = []

@@ -10,6 +10,7 @@ guide/installation
 guide/usage
 guide/cli-reference
 guide/configuration
+guide/index-specification
 ```
 
 ```{toctree}
@@ -31,4 +32,5 @@ internals/index
 :caption: Architecture Decisions
 
 adr/0001-repository-boundary
+adr/0002-collection-owned-order
 ```

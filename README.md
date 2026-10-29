@@ -35,11 +35,12 @@ non-mutating check command compares those blocks with the same rendering used by
 
 ## Features
 
-- [x] Render registry, sequence, and dependency-ordered index groups.
+- [x] Render the groups declared by an index, each as a registry or a sequence.
+- [x] Assign the members of a group by a filter or by an explicit list of links.
 - [x] Read Markdown frontmatter and YAML record metadata.
 - [x] Check managed blocks without writing files.
 - [x] Validate index types through repository-supplied JSON Schemas.
-- [x] Accept repository task states and explicit folder sequences through configuration.
+- [x] Accept repository task states and folder build manifests through configuration.
 - [ ] Load repository-specific adapters as plugins.
 - [ ] Render and manipulate indexes in Obsidian through a plugin.
 
@@ -65,6 +66,7 @@ anagraphe check
 | [Usage](docs/guide/usage.md) | runs the write-and-check workflow |
 | [CLI reference](docs/guide/cli-reference.md) | lists commands, arguments, and exit states |
 | [Configuration](docs/guide/configuration.md) | declares repository-owned inputs |
+| [Index specification](docs/guide/index-specification.md) | declares the groups, membership and order of a collection |
 | [Architecture](docs/internals/architecture.md) | separates the generic core from repository adapters |
 
 ## Contributing

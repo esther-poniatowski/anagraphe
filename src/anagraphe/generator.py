@@ -1,15 +1,20 @@
 """
 Generation and checking of the entries of one index.
 
-For an index holding at least one block, the generator collects the members of its folder, assigns
-each member to the block of its group, orders the members of each block under the ordering mode of
-the block, renders the entries, and reports the issues that the decisions on generated index
-entries, on index types and on typed citations list. An index holding no block is left untouched, so the checks grow folder by
-folder as the indexes migrate, except in the areas declared as generated: there, an index without
-the region of its groups is reported.
+The index of a collection is the specification of that collection (ADR 0002). For an index holding
+at least one generated region, the generator collects the members of its folder, assigns each
+member to one group of the index, orders the members of each group under the mode of the group,
+renders the entries, and reports the issues of the index and of its members. An index holding no
+region is left untouched, so the checks grow folder by folder as the indexes migrate, except in
+the areas declared as generated: there, an index without the region of its groups is reported.
+A retired key is reported under every index, with or without its region, so that a repository
+learns each edit owed before its indexes migrate.
+
+No source of order is dropped silently: a sequence, an ``order`` or a build manifest that the mode
+of its group ignores is reported. A key retired by ADR 0002 is reported with its replacement.
 
 Violations gate a commit, whereas warnings report a decision still owed by the author, such as a
-citation whose evidence is missing from the body.
+member that a sequence does not list, or a retired key tolerated by a declared migration class.
 """
 
 from __future__ import annotations
@@ -19,12 +24,16 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
-from anagraphe.blocks import MODES, SORT_KEYS, Block, parse_blocks, replace_bodies
-from anagraphe.fields import End, FieldRules, Grade
-from anagraphe.notes import Note, NoteReader, normalize, value_link
-from anagraphe.order import Ordering, order_members, order_registry, order_sequence
+from anagraphe.blocks import Block, parse_blocks, replace_bodies
+from anagraphe.fields import FieldRules
+from anagraphe.issues import Issue
+from anagraphe.membership import Membership, assign
+from anagraphe.notes import Note, NoteReader
+from anagraphe.order import Collation, Ordering, order_registry, order_sequence
+from anagraphe.paths import link_target, normalize, value_link
 from anagraphe.render import render_body, title_of
-from anagraphe.slots import GroupSpec, prose_units
+from anagraphe.retired import MigrationClass, Scope, migration_of, retired_keys
+from anagraphe.slots import SORT_KEYS, GroupSpec, prose_units
 from anagraphe.types import IndexType, IndexTypes
 
 #: Emphasis markers removed from an H1 heading before it is compared with the first alias.
@@ -32,23 +41,11 @@ EMPHASIS = re.compile(r"[*_`]")
 
 
 class SequenceProvider(Protocol):
-    """Resolve the declared member order of a repository folder."""
+    """Resolve the build manifest of a repository folder."""
 
     def __call__(self, folder: Path) -> Sequence[str] | None:
-        """Return the ordered member paths, or ``None`` when no order is declared."""
+        """Return the ordered member paths, relative to the folder, or ``None`` without manifest."""
         ...
-
-
-@dataclass(frozen=True)
-class Issue:
-    """One issue of an index or of one of its members, located at a file and a line."""
-
-    rel: str
-    line: int
-    kind: str
-    detail: str
-    #: Whether the issue gates a commit. A non-blocking issue is reported as a warning.
-    blocking: bool = True
 
 
 @dataclass(frozen=True)
@@ -98,6 +95,27 @@ class Result:
     issues: list[Issue] = field(default_factory=list)
 
 
+@dataclass
+class _Collection:
+    """The state shared by the groups of one index while the index is generated."""
+
+    index_rel: str
+    #: Repository-relative folder of the index, empty at the root.
+    folder: str
+    kind: IndexType
+    #: The files that the index lists.
+    members: list[Note]
+    #: The group holding each placed member.
+    assigned: Mapping[str, str]
+    #: The repository-relative paths of the build manifest of the folder, or None.
+    manifest: tuple[str, ...] | None
+    issues: list[Issue]
+    #: The mode of each heading, keyed by the number of the group that opens the heading.
+    modes: dict[int, str] = field(default_factory=dict)
+    #: The listed members, each with the group that displays it.
+    listed: list[tuple[Note, GroupSpec]] = field(default_factory=list)
+
+
 class IndexGenerator:
     """Generate and check the indexes of one repository.
 
@@ -111,6 +129,10 @@ class IndexGenerator:
         Rules of the entry fields.
     tasks
         Whether each declared task is closed, by identifier.
+    sequence_provider
+        The build manifest of each folder, which prevails over the sequence of a group.
+    migrations
+        The files tolerating a retired key until a declared migration.
     """
 
     def __init__(
@@ -120,13 +142,15 @@ class IndexGenerator:
         rules: FieldRules,
         tasks: Mapping[str, bool],
         sequence_provider: SequenceProvider | None = None,
+        migrations: Sequence[MigrationClass] = (),
     ) -> None:
         self.root = root
         self.settings = settings
         self.rules = rules
         self.tasks = tasks
         self.sequence_provider = sequence_provider or (lambda _folder: None)
-        self.reader = NoteReader(root, rules)
+        self.migrations = tuple(migrations)
+        self.reader = NoteReader(root)
 
     def members(self, index_rel: str) -> list[Note]:
         """Return the files that an index lists: notes, child indexes and specifications."""
@@ -151,98 +175,76 @@ class IndexGenerator:
             if note is not None and note.role not in self.settings.unlisted_roles
         ]
 
-    def title(self, rel: str) -> str:
-        """Return the title of any repository file, or its name when unreadable."""
-        note = self.reader.read(rel)
-        return title_of(note) if note else PurePosixPath(rel).stem
+    def exists(self, rel: str) -> bool:
+        """Whether a repository-relative path names a file."""
+        return (self.root / rel).is_file()
 
     def generate(self, index_rel: str) -> Result:
-        """Rewrite the blocks of one index, and report the issues of the index and its members."""
+        """Rewrite the regions of one index, and report the issues of the index and its members."""
         path = self.root / index_rel
         text = path.read_text(encoding="utf-8")
         blocks = parse_blocks(text)
+        has_region = any(block.region for block in blocks)
         # A new index, or an index of an area whose indexes are generated, must hold its region.
         generated_area = PurePosixPath(index_rel).parts[0] in self.settings.generated_areas
-        if (generated_area or index_rel in self.settings.new_indexes) and not any(
-            block.region for block in blocks
-        ):
+        ungenerated = []
+        if (generated_area or index_rel in self.settings.new_indexes) and not has_region:
             where = "of a generated area" if generated_area else "created since the last commit"
-            ungenerated = [
+            ungenerated.append(
                 Issue(
                     index_rel,
                     1,
                     "ungenerated-index",
                     f"an index {where} must hold the region <!-- index groups -->",
                 )
-            ]
-        else:
-            ungenerated = []
-        if not blocks:
-            return Result(text=text, changed=False, issues=ungenerated)
+            )
         folder = PurePosixPath(index_rel).parent.as_posix()
         folder = "" if folder == "." else folder
         index_note = self.reader.read(index_rel)
         kind, type_problems = self.settings.types.resolve(
             index_rel, index_note.index_type if index_note is not None else None
         )
-        issues: list[Issue] = ungenerated + [
-            Issue(index_rel, 1, "index-type", problem) for problem in type_problems
-        ]
         # The expected files are listed by the control block, never as entries.
         controls = {normalize(PurePosixPath(folder) / spec.name) for spec in kind.expected}
         members = [note for note in self.members(index_rel) if note.rel not in controls]
-        declared = index_note.groups if index_note is not None else ()
-        groups = {spec.id for spec in declared} if any(block.region for block in blocks) else set()
-        # Each member belongs to the group that it names, else to the first group whose filter it
-        # matches, else to the catch-all group.
-        assigned = {
-            note.rel: note.group
-            or next((spec.id for spec in declared if spec.selects(note.data)), "*")
-            for note in members
-        }
-        bodies: list[str] = []
-        listed: list[tuple[Note, Block]] = []
-        constructed: list[Note] = []
-        sequence, from_key = self._sequence(index_rel, folder, members, issues)
-        modes: dict[int, str] = {}
-        context = (
-            index_rel,
-            folder,
-            kind,
-            members,
-            sequence,
-            from_key,
-            modes,
-            listed,
-            constructed,
-            assigned,
-            issues,
+        retired = self._retired_member_issues(index_rel, index_note, members)
+        if not blocks:
+            return Result(text=text, changed=False, issues=ungenerated + retired)
+        issues: list[Issue] = (
+            ungenerated
+            + [Issue(index_rel, 1, "index-type", problem) for problem in type_problems]
+            + retired
         )
+        declared = index_note.groups if index_note is not None else ()
+        membership = (
+            assign(index_rel, declared, members, self.rules.values, self.exists)
+            if has_region
+            else Membership()
+        )
+        issues.extend(membership.issues)
+        collection = _Collection(
+            index_rel, folder, kind, members, membership.assigned, self._manifest(folder), issues
+        )
+        bodies: list[str] = []
         for block in blocks:
             issues.extend(
                 Issue(index_rel, block.line, "malformed-block", problem)
                 for problem in block.problems
             )
             if block.control:
-                bodies.append(
-                    render_body(
-                        self._control_files(folder, kind),
-                        folder,
-                        block.show,
-                        self.title,
-                    )
-                )
+                bodies.append(render_body(self._control_files(folder, kind), folder, block.show))
             elif block.region:
-                bodies.append(self._render_region(block, declared, context))
+                bodies.append(self._render_region(block, declared, collection))
             else:
                 # A malformed marker opens no known region, so its body stays as written.
                 bodies.append(block.body)
-        if index_note is not None and any(block.region for block in blocks):
+        if index_note is not None and has_region:
             issues.extend(
                 Issue(index_rel, 1, "malformed-groups", problem)
                 for problem in index_note.slot_problems
             )
             issues.extend(self._relation_issues(index_rel, index_note, members))
+            issues.extend(self._external_issues(index_rel, index_note, members))
             # Outside its slots, an index holds no prose: each other unit moves to its owner.
             issues.extend(
                 Issue(
@@ -254,111 +256,96 @@ class IndexGenerator:
                 )
                 for line, description in prose_units(text)
             )
-        # An index holding a control block alone has not yet migrated its entries. A member
-        # declaring no entry field has not migrated either, so it stays in the hand-written list.
-        if any(block.region for block in blocks):
+        # An index holding a control block alone has not yet migrated its entries.
+        if has_region:
             for note in members:
-                if assigned[note.rel] in groups:
-                    continue
-                if note.group is None and note.purpose is None and not note.cites:
-                    issues.append(
-                        Issue(
-                            note.rel,
-                            1,
-                            "unmigrated-member",
-                            "the file declares no entry field, so no block lists it yet",
-                            blocking=False,
-                        )
-                    )
-                else:
-                    issues.append(
-                        Issue(
-                            note.rel,
-                            1,
-                            "unplaced-member",
-                            f"no block of {index_rel} holds the group " f"{note.group or '*'}",
-                        )
-                    )
+                issues.extend(self._placement_issues(index_rel, note, membership.assigned))
+                issues.extend(self._superseded_issues(note))
         issues.extend(
-            issue for note, block in listed for issue in self._member_issues(note, block, index_rel)
+            issue
+            for note, spec in collection.listed
+            for issue in self._member_issues(note, spec, index_rel)
         )
-        issues.extend(self._goal_issues(index_rel, constructed))
         issues.extend(self._control_issues(index_rel, folder, kind))
         rendered = replace_bodies(text, bodies)
         return Result(text=rendered, changed=rendered != text, issues=issues)
 
-    def _list_group(self, block: Block, context: tuple[Any, ...]) -> str:
-        """Order and render the members of one group, and record them for the later checks."""
-        (
-            index_rel,
-            folder,
-            kind,
-            members,
-            sequence,
-            from_key,
-            modes,
-            listed,
-            constructed,
-            assigned,
-            issues,
-        ) = context
-        strategy, problems = self.rules.resolve_strategy(block.strategy)
-        issues.extend(
+    def _manifest(self, folder: str) -> tuple[str, ...] | None:
+        """Return the build manifest of a folder as repository-relative paths, or None."""
+        supplied = self.sequence_provider(self.root / folder)
+        if supplied is None:
+            return None
+        return tuple(normalize(PurePosixPath(folder) / name) for name in supplied)
+
+    def _retired_member_issues(
+        self, index_rel: str, index_note: Note | None, members: list[Note]
+    ) -> list[Issue]:
+        """Report the retired keys of an index and of its members, whether or not it is generated."""
+        issues = (
+            self._retired_issues(index_rel, "index", index_note.data)
+            if index_note is not None
+            else []
+        )
+        for note in members:
+            scope: Scope = (
+                "member" if PurePosixPath(note.rel).name == self.settings.entry_point else "note"
+            )
+            issues.extend(self._retired_issues(note.rel, scope, note.data))
+        return issues
+
+    def _retired_issues(self, rel: str, scope: Scope, data: Mapping[str, Any]) -> list[Issue]:
+        """Report each retired key of a file, as a warning inside a declared migration class."""
+        issues: list[Issue] = []
+        for entry in retired_keys(scope, data):
+            migration = migration_of(self.migrations, entry.key, rel)
+            if migration is None:
+                issues.append(Issue(rel, 1, "retired-key", entry.message()))
+            else:
+                issues.append(
+                    Issue(
+                        rel,
+                        1,
+                        "migration-key",
+                        f"{entry.message()}; tolerated until {migration.awaits}",
+                        blocking=False,
+                    )
+                )
+        return issues
+
+    @staticmethod
+    def _placement_issues(index_rel: str, note: Note, assigned: Mapping[str, str]) -> list[Issue]:
+        """Report a member that no group holds.
+
+        A member declaring no purpose has not migrated, so it stays in the hand-written list and
+        is reported as a warning.
+        """
+        if note.rel in assigned:
+            return []
+        if note.purpose is None:
+            return [
+                Issue(
+                    note.rel,
+                    1,
+                    "unmigrated-member",
+                    "the file declares no entry field, so no group lists it yet",
+                    blocking=False,
+                )
+            ]
+        return [
             Issue(
-                index_rel,
-                block.line,
-                "malformed-groups",
-                f"group {block.group}: {problem}",
+                note.rel,
+                1,
+                "unplaced-member",
+                f"no group of {index_rel} holds the file: declare a catch-all group *, or "
+                "name the file in the where or the members of a group",
             )
-            for problem in problems
-        )
-        mode = block.mode or kind.default_mode
-        # One heading per mode keeps the parts of a hybrid scheme visibly apart.
-        if modes.setdefault(block.section, mode) != mode:
-            issues.append(
-                Issue(
-                    index_rel,
-                    block.line,
-                    "mixed-modes",
-                    f"a {mode} block stands under the heading of a "
-                    f"{modes[block.section]} block",
-                )
-            )
-        block_members = [note for note in members if assigned[note.rel] == block.group]
-        ordering = self._order(
-            index_rel,
-            folder,
-            block,
-            mode,
-            block_members,
-            strategy,
-            sequence,
-            from_key,
-            issues,
-        )
-        if block.group is not None:
-            listed.extend((note, block) for note in ordering.members)
-            if mode == "construction":
-                constructed.extend(ordering.members)
-        if block.nest:
-            nested, depths, cycle = nest_members(ordering.members, block.nest)
-            issues.extend(
-                Issue(
-                    index_rel,
-                    block.line,
-                    "malformed-groups",
-                    f"group {block.group}: {note.rel} closes a cycle of {block.nest}",
-                )
-                for note in cycle
-            )
-            return render_body(nested, folder, block.show, self.title, depths)
-        return render_body(ordering.members, folder, block.show, self.title)
+        ]
 
     def _render_region(
-        self, region: Block, declared: tuple[GroupSpec, ...], context: tuple[Any, ...]
+        self, region: Block, declared: tuple[GroupSpec, ...], collection: _Collection
     ) -> str:
         """Render the groups declared by an index, each under its heading and its description."""
-        index_rel, issues = context[0], context[-1]
+        index_rel, folder, issues = collection.index_rel, collection.folder, collection.issues
         index_note = self.reader.read(index_rel)
         index_files = index_note.files if index_note is not None else ()
         issues.extend(
@@ -369,7 +356,7 @@ class IndexGenerator:
                 f"files names no file of the folder: {spec_file.file}",
             )
             for spec_file in index_files
-            if not (self.root / context[1] / spec_file.file).is_file()
+            if not (self.root / folder / spec_file.file).is_file()
         )
         issues.extend(
             Issue(
@@ -395,43 +382,226 @@ class IndexGenerator:
         for number, spec in enumerate(declared, start=1):
             # A group without a heading stands under the heading of the group before it.
             section = number if spec.heading else section
-            problems = []
-            # Any key of the members may sort a group, so a key that no member holds is a typo.
-            if spec.sort not in SORT_KEYS and not any(
-                spec.sort in note.data for note in context[3] if context[-2][note.rel] == spec.id
-            ):
-                problems.append(f"group {spec.id}: no member holds the sort key {spec.sort}")
-            if spec.mode is not None and spec.mode not in MODES:
-                problems.append(f"group {spec.id}: unknown mode: {spec.mode}")
-            issues.extend(
-                Issue(index_rel, region.line, "malformed-groups", problem) for problem in problems
-            )
-            block = Block(
-                group=spec.id,
-                show=tuple(dict.fromkeys(spec.show)),
-                strategy=spec.strategy,
-                body="",
-                line=region.line,
-                sort=spec.sort,
-                mode=spec.mode if spec.mode in MODES else None,
-                section=section,
-                nest=spec.nest,
-            )
             header = (f"## {spec.heading}\n\n" if spec.heading else "") + (
                 f"{spec.description}\n\n" if spec.description else ""
             )
-            entries = self._list_group(block, context)
+            show = tuple(dict.fromkeys(spec.show))
+            entries = self._list_group(spec, section, region.line, collection)
             files = [
                 Note(
-                    normalize(PurePosixPath(context[1]) / spec_file.file),
+                    normalize(PurePosixPath(folder) / spec_file.file),
                     title=spec_file.title,
                     purpose=spec_file.purpose,
                 )
                 for spec_file in sorted(index_files, key=lambda item: item.title.casefold())
                 if spec_file.group == spec.id
             ]
-            parts.append(header + entries + render_body(files, context[1], block.show, self.title))
+            parts.append(header + entries + render_body(files, folder, show))
         return "\n".join(parts)
+
+    def _list_group(self, spec: GroupSpec, section: int, line: int, collection: _Collection) -> str:
+        """Order and render the members of one group, and record them for the later checks."""
+        index_rel, issues = collection.index_rel, collection.issues
+        mode = spec.mode or collection.kind.default_mode
+        # One heading per mode keeps the parts of a hybrid scheme visibly apart.
+        if collection.modes.setdefault(section, mode) != mode:
+            issues.append(
+                Issue(
+                    index_rel,
+                    line,
+                    "mixed-modes",
+                    f"a {mode} group stands under the heading of a "
+                    f"{collection.modes[section]} group",
+                )
+            )
+        group_members = [
+            note for note in collection.members if collection.assigned.get(note.rel) == spec.id
+        ]
+        collation = Collation.of(spec, self.rules.values)
+        issues.extend(self._collation_issues(index_rel, spec, collation, group_members))
+        ordering = self._order(spec, mode, group_members, collation, collection)
+        collection.listed.extend((note, spec) for note in ordering.members)
+        show = tuple(dict.fromkeys(spec.show))
+        if spec.nest:
+            nested, depths, cycle = nest_members(ordering.members, spec.nest)
+            issues.extend(
+                Issue(
+                    index_rel,
+                    1,
+                    "nest-cycle",
+                    f"group {spec.id}: {note.rel} closes a cycle of {spec.nest}",
+                )
+                for note in cycle
+            )
+            return render_body(nested, collection.folder, show, depths)
+        return render_body(ordering.members, collection.folder, show)
+
+    def _collation_issues(
+        self, index_rel: str, spec: GroupSpec, collation: Collation, group_members: list[Note]
+    ) -> list[Issue]:
+        """Report a sort key that no member holds, an ignored ``order``, and unranked values.
+
+        A member value outside the declared values of its key is a violation. A declared value, or
+        a value of a key declaring none, that the ``order`` of the group omits is a warning, and
+        the member sorts after the ranked values.
+        """
+        issues = [
+            # Any key of the members may sort a group, so a key that no member holds is a typo.
+            Issue(
+                index_rel,
+                1,
+                "malformed-groups",
+                f"group {spec.id}: no member holds the sort key {key}",
+            )
+            for key in spec.sort
+            if key not in SORT_KEYS and not any(key in note.data for note in group_members)
+        ]
+        first = spec.sort[0]
+        if spec.order and first in SORT_KEYS:
+            issues.append(
+                Issue(
+                    index_rel,
+                    1,
+                    "ignored-order",
+                    f"group {spec.id} sorts first by {first}, so its order is ignored: sort "
+                    "first by the categorical key that order ranks",
+                )
+            )
+        elif spec.order and first in self.rules.values:
+            issues.extend(
+                Issue(
+                    index_rel,
+                    1,
+                    "undeclared-value",
+                    f"order of group {spec.id}: {first} admits no value {value}; its values are "
+                    f"{', '.join(self.rules.values[first])}",
+                )
+                for value in spec.order
+                if value not in self.rules.values[first]
+            )
+        for note in group_members:
+            for key, value in collation.undeclared(note):
+                declared = self.rules.values.get(key)
+                if declared is not None and value not in declared:
+                    issues.append(
+                        Issue(
+                            note.rel,
+                            1,
+                            "undeclared-value",
+                            f"{key} holds {value}, which group {spec.id} in {index_rel} sorts "
+                            f"by, outside its declared values: {', '.join(declared)}",
+                        )
+                    )
+                else:
+                    issues.append(
+                        Issue(
+                            note.rel,
+                            1,
+                            "unranked-value",
+                            f"{key} holds {value}, which the order of group {spec.id} in "
+                            f"{index_rel} does not rank, so the file follows the ranked values: "
+                            f"{', '.join(collation.ranks[key])}",
+                            blocking=False,
+                        )
+                    )
+        return issues
+
+    def _order(
+        self,
+        spec: GroupSpec,
+        mode: str,
+        group_members: list[Note],
+        collation: Collation,
+        collection: _Collection,
+    ) -> Ordering:
+        """Order the members of one group under its mode, and report each ignored source of order."""
+        index_rel, issues, manifest = collection.index_rel, collection.issues, collection.manifest
+        folder = collection.folder or "."
+        if mode == "registry":
+            if spec.sequence is not None:
+                # A sequence holding the members of its group still assigns them under a registry.
+                remedy = (
+                    "set mode sequence, or list the files under members"
+                    if spec.members is None and not spec.where
+                    else "set mode sequence, or remove the sequence"
+                )
+                issues.append(
+                    Issue(
+                        index_rel,
+                        1,
+                        "ignored-order",
+                        f"group {spec.id} is a registry, so the order of its sequence is "
+                        f"ignored: {remedy}",
+                    )
+                )
+            manifested = [note.rel for note in group_members if manifest and note.rel in manifest]
+            if manifested:
+                issues.append(
+                    Issue(
+                        index_rel,
+                        1,
+                        "ignored-order",
+                        f"the build manifest of {folder} orders {', '.join(manifested)}, which "
+                        f"the registry group {spec.id} sorts by {', '.join(spec.sort)}",
+                    )
+                )
+            return order_registry(group_members, collation)
+        # A sequence holding the members of its group defines them, beside its order.
+        holds_members = spec.members is None and not spec.where
+        if manifest is not None:
+            if spec.sequence is not None:
+                remedy = "move the links under members" if holds_members else "remove the sequence"
+                issues.append(
+                    Issue(
+                        index_rel,
+                        1,
+                        "ignored-order",
+                        f"the build manifest of {folder} prevails over the sequence of group "
+                        f"{spec.id}: {remedy}",
+                    )
+                )
+            source: tuple[str, ...] = manifest
+        elif spec.sequence is not None:
+            source = spec.sequence
+        else:
+            issues.append(
+                Issue(
+                    index_rel,
+                    1,
+                    "missing-sequence",
+                    f"group {spec.id} is a sequence, which needs a sequence of links or a build "
+                    "manifest of the folder",
+                )
+            )
+            source = ()
+        ordering = order_sequence(group_members, source, collation)
+        # A sequence holding the members of its group has its outside links reported as members.
+        if manifest is None and not holds_members:
+            issues.extend(
+                Issue(
+                    index_rel,
+                    1,
+                    "ignored-order" if self.exists(rel) else "invalid-link",
+                    (
+                        f"sequence of group {spec.id} names {rel}, which the group does not hold"
+                        if self.exists(rel)
+                        else f"sequence of group {spec.id} names no file: {rel}"
+                    ),
+                )
+                for rel in ordering.outside
+            )
+        if source:
+            issues.extend(
+                Issue(
+                    note.rel,
+                    1,
+                    "unsequenced-member",
+                    f"the sequence of group {spec.id} in {index_rel} does not list the file",
+                    blocking=False,
+                )
+                for note in ordering.unsequenced
+            )
+        return ordering
 
     def _relation_issues(
         self, index_rel: str, index_note: Note, members: list[Note]
@@ -442,7 +612,10 @@ class IndexGenerator:
         for relation in index_note.context_relations:
             problems: list[str] = []
             if relation.relation not in self.rules.relations:
-                problems.append(f"relation not declared: {relation.relation}")
+                problems.append(
+                    f"relation not declared under context_relations in the vocabulary: "
+                    f"{relation.relation}"
+                )
             problems.extend(
                 f"{end} is no member of {index_rel}: {path}"
                 for end, path in (
@@ -456,95 +629,61 @@ class IndexGenerator:
             )
         return issues
 
-    def _sequence(
-        self, index_rel: str, folder: str, members: list[Note], issues: list[Issue]
-    ) -> tuple[list[str] | None, bool]:
-        """Return the sequence of the folder, and whether the key ``sequence`` states it.
-
-        The injected sequence prevails, and a key ``sequence`` beside it is reported, since it
-        states the same order a second time. A name of the key matching no member is reported.
-        """
-        index_note = self.reader.read(index_rel)
-        declared = list(index_note.sequence) if index_note is not None else []
-        supplied = self.sequence_provider(self.root / folder)
-        if supplied is not None:
-            if declared:
+    def _external_issues(
+        self, index_rel: str, index_note: Note, members: list[Note]
+    ) -> list[Issue]:
+        """Report a dependency naming no file, or naming a member rather than an outside file."""
+        rels = {note.rel for note in members}
+        issues: list[Issue] = []
+        for spec in index_note.external:
+            if not self.exists(spec.target):
+                issues.append(
+                    Issue(index_rel, 1, "invalid-link", f"external names no file: {spec.target}")
+                )
+            elif spec.target in rels:
                 issues.append(
                     Issue(
                         index_rel,
                         1,
-                        "redundant-sequence",
-                        "the key sequence restates the configured folder sequence",
+                        "invalid-external",
+                        f"external names {spec.target}, which {index_rel} lists: external holds "
+                        "the files outside the collection",
                     )
                 )
-            return (list(supplied), False)
-        if not declared:
-            return (None, False)
-        rels = {note.rel for note in members}
-        issues.extend(
-            Issue(
-                index_rel,
-                1,
-                "unknown-sequence-entry",
-                f"sequence names no member of the folder: {name}",
-            )
-            for name in declared
-            if normalize(PurePosixPath(folder) / name) not in rels
-        )
-        return (declared, True)
+        return issues
 
-    def _order(
-        self,
-        index_rel: str,
-        folder: str,
-        block: Block,
-        mode: str,
-        block_members: list[Note],
-        strategy: Mapping[str, str],
-        sequence: list[str] | None,
-        from_key: bool,
-        issues: list[Issue],
-    ) -> Ordering:
-        """Order the members of one block under its mode, and report the issues of the order."""
-        if mode == "registry":
-            return order_registry(block_members, block.sort)
-        if mode == "sequence":
-            if sequence is None:
-                issues.append(
-                    Issue(
-                        index_rel,
-                        block.line,
-                        "missing-sequence",
-                        "a sequence block needs a configured folder sequence or a key sequence",
-                    )
-                )
-            ordering = order_sequence(block_members, sequence or [], folder, block.sort)
-            issues.extend(
+    def _superseded_issues(self, note: Note) -> list[Issue]:
+        """Report a successor that is not a link to a file, or held by a note not archived."""
+        if "superseded_by" not in note.data:
+            return []
+        value = note.data["superseded_by"]
+        target = link_target(value)
+        issues = [
+            Issue(
+                note.rel,
+                1,
+                "unarchived-superseded",
+                f"superseded_by belongs to an archived note, whereas {problem}",
+            )
+            for problem in self.rules.check_superseded(note.status)
+        ]
+        if target is None or not self.exists(target):
+            issues.append(
                 Issue(
                     note.rel,
                     1,
-                    "unsequenced-member",
-                    f"the sequence of {index_rel} does not list the file",
-                    blocking=False,
+                    "invalid-link",
+                    (
+                        f"superseded_by is not a link [Title](path.md): {value}"
+                        if target is None
+                        else f"superseded_by names no file: {target}"
+                    ),
                 )
-                for note in ordering.unsequenced
-                if sequence is not None
             )
-            return ordering
-        ordering = order_members(block_members, self.rules.relations, strategy, block.sort)
-        issues.extend(
-            Issue(
-                index_rel,
-                block.line,
-                "order-conflict",
-                f"{earlier} cannot precede {later} without a cycle",
-                blocking=False,
-            )
-            for earlier, later in ordering.conflicts
-        )
-        return ordering
+        return issues
 
-    def _member_issues(self, note: Note, block: Block, index_rel: str) -> list[Issue]:
+    def _member_issues(self, note: Note, spec: GroupSpec, index_rel: str) -> list[Issue]:
+        """Report the title, the index, the purpose and the blockers of a listed member."""
         issues: list[Issue] = []
         if not note.title:
             issues.append(
@@ -576,18 +715,17 @@ class IndexGenerator:
                     f"index names {note.index}, whereas the file is listed by {index_rel}",
                 )
             )
-        # A purpose is owed where a block displays it; a registry displaying titles needs none.
-        if "purpose" in block.show and not note.purpose:
+        # A purpose is owed where a group displays it; a registry displaying titles needs none.
+        if "purpose" in spec.show and not note.purpose:
             issues.append(
                 Issue(
                     note.rel,
                     1,
                     "missing-purpose",
-                    "the block displays a purpose, which the file does not declare",
+                    "the group displays a purpose, which the file does not declare",
                     blocking=False,
                 )
             )
-        issues.extend(self._citation_issues(note))
         for identifier in note.blocked_by:
             if identifier not in self.tasks:
                 issues.append(
@@ -608,138 +746,6 @@ class IndexGenerator:
                         blocking=False,
                     )
                 )
-        return issues
-
-    def _citation_issues(self, note: Note) -> list[Issue]:
-        """Report the citations of one note naming no file, lacking evidence, or mirrored."""
-        issues: list[Issue] = []
-        # A specification has no body, so its citations carry no evidence to check. The citations
-        # of an index are metadata read in its frontmatter, as the decision on index slots fixes.
-        has_body = (
-            note.rel.endswith(".md") and PurePosixPath(note.rel).name != self.settings.entry_point
-        )
-        for citation in note.cites:
-            if citation.external:
-                evidence = (
-                    citation.target in note.external_links
-                    if citation.link_text is not None
-                    else citation.target in note.tail_tags
-                )
-                if has_body and not evidence:
-                    evidence_target = (
-                        f"the link {citation.target}"
-                        if citation.link_text is not None
-                        else f"the tail tag [{citation.target}]"
-                    )
-                    issues.append(
-                        Issue(
-                            note.rel,
-                            1,
-                            "missing-evidence",
-                            f"{citation.relation} expects {evidence_target} in the body",
-                            blocking=False,
-                        )
-                    )
-                continue
-            target = self.reader.read(citation.target)
-            if target is None:
-                issues.append(
-                    Issue(
-                        note.rel,
-                        1,
-                        "unknown-target",
-                        f"cites names no file: {citation.target}",
-                    )
-                )
-                continue
-            if has_body and citation.target not in note.links:
-                issues.append(
-                    Issue(
-                        note.rel,
-                        1,
-                        "missing-evidence",
-                        f"{citation.relation} expects the body to link " f"{citation.target}",
-                        blocking=False,
-                    )
-                )
-            relation = self.rules.relations.get(citation.relation)
-            mirror = relation.mirror if relation is not None else None
-            # The pair is reported once, on the note whose path sorts first.
-            if (
-                mirror
-                and note.rel < target.rel
-                and any(
-                    back.relation == mirror and not back.external and back.target == note.rel
-                    for back in target.cites
-                )
-            ):
-                issues.append(
-                    Issue(
-                        note.rel,
-                        1,
-                        "mirror-citation",
-                        f"{note.rel} {citation.relation} {target.rel}, and "
-                        f"{target.rel} {mirror} {note.rel}: keep the citation of the "
-                        "note that depends on the other",
-                    )
-                )
-        return issues
-
-    def _goal_issues(self, index_rel: str, listed: list[Note]) -> list[Issue]:
-        """Report the goals naming no member, and the members contributing to no goal.
-
-        A member is relevant when a chain of contributions leads from it to a goal, each step
-        following one citation from its contributing end, with at most one step of grade
-        *exposition*. The chains run through the listed members only.
-        """
-        index_note = self.reader.read(index_rel)
-        if index_note is None or not index_note.goal:
-            return []
-        by_rel = {note.rel: note for note in listed}
-        issues = [
-            Issue(index_rel, 1, "unknown-goal", f"goal names no listed member: {goal}")
-            for goal in index_note.goal
-            if goal not in by_rel
-        ]
-        # served[v] lists (u, grade) for each contribution of u to v.
-        served: dict[str, list[tuple[str, Grade]]] = {rel: [] for rel in by_rel}
-        for note in listed:
-            for citation in note.cites:
-                relation = self.rules.relations.get(citation.relation)
-                if (
-                    relation is None
-                    or citation.external
-                    or citation.target not in by_rel
-                    or citation.target == note.rel
-                ):
-                    continue
-                if relation.contributes is End.TARGET:
-                    served[note.rel].append((citation.target, relation.grade))
-                elif relation.contributes is End.SOURCE:
-                    served[citation.target].append((note.rel, relation.grade))
-        states = [(goal, False) for goal in index_note.goal if goal in by_rel]
-        seen = set(states)
-        while states:
-            rel, used = states.pop()
-            for contributor, grade in served[rel]:
-                if grade is Grade.NONE or (grade is Grade.EXPOSITION and used):
-                    continue
-                state = (contributor, used or grade is Grade.EXPOSITION)
-                if state not in seen:
-                    seen.add(state)
-                    states.append(state)
-        relevant = {rel for rel, _used in seen}
-        issues.extend(
-            Issue(
-                note.rel,
-                1,
-                "off-goal",
-                f"no chain of contributions leads to a goal of {index_rel}",
-                blocking=False,
-            )
-            for note in listed
-            if note.rel not in relevant
-        )
         return issues
 
     def _control_files(self, folder: str, kind: IndexType) -> list[Note]:
@@ -795,8 +801,11 @@ def nest_members(members: list[Note], path: str) -> tuple[list[Note], list[int],
 
     The key is a dotted path into the data of a member; its value, or the first of its values
     naming a member of the group, designates the parent by file stem, by ``id``, or by link. A
-    member whose parent lies outside the group stands at the first level. The members of a cycle
-    are placed at the first level too, and returned apart so that the cycle can be reported.
+    member whose parent lies outside the group stands at the first level. A member that no chain
+    of parents connects to the first level, being on a cycle or beneath one, is returned apart so
+    that the cycle can be reported. Taken in the order of the group, each of those members not
+    yet placed stands at the first level, and its descendants nest beneath it, so the first
+    member of a cycle stands at the first level and the others of the cycle beneath it.
 
     >>> notes = [Note("a.yml", data={"up": None}), Note("b.yml", data={"up": ["a"]}),
     ...          Note("c.yml", data={"up": "b"}), Note("d.yml")]

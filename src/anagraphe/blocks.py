@@ -5,8 +5,8 @@ A region opens with ``<!-- index <parameter> -->`` and closes with ``<!-- /index
 exist, as the decision on index slots fixes:
 
 - ``groups`` renders the groups that the index declares in its frontmatter, each under its heading
-  and its description. The mode, the sort key, the strategy and the displayed fields of each group
-  belong to its declaration;
+  and its description. The membership, the mode, the order, the nesting and the displayed fields
+  of each group belong to its declaration;
 - ``control`` lists the control files present in the folder: the files that the type of the index
   expects, then the files of a role that the index never lists as entries. It admits
   ``show=<field>,<field>``, naming the fields displayed beside each title.
@@ -34,38 +34,22 @@ BLOCK = re.compile(
     r"(?P<close><!-- /index -->)",
     re.DOTALL,
 )
-#: The fields that a group may display beside each title, in their display order.
-DISPLAY_FIELDS = ("purpose", "cites", "status", "blocked_by", "contribution")
+#: The fields that the control block may display beside each title, in their display order.
+DISPLAY_FIELDS = ("purpose", "status", "blocked_by", "contribution")
 #: The parameters admitted by an opening marker.
 PARAMETERS = frozenset({"control", "groups", "show"})
-#: The sort keys handled apart from the keys of the members, the first being the default.
-SORT_KEYS = ("title", "file", "date")
-#: The ordering modes that a group may name with ``mode``.
-MODES = ("construction", "registry", "sequence")
 
 
 @dataclass(frozen=True)
 class Block:
-    """One generated region of an index, or one group that the region of groups renders."""
+    """One generated region of an index, between its two markers."""
 
-    #: The group listed, ``*`` for the members declaring none, or None for a region.
-    group: str | None
-    #: The fields displayed beside each title, in display order.
+    #: The fields displayed beside each title by the control block, in display order.
     show: tuple[str, ...]
-    #: The strategy tokens of a group, validated against the vocabulary by the caller.
-    strategy: tuple[str, ...]
     #: The current text between the two markers.
     body: str
     #: The line of the opening marker, counted from 1.
     line: int
-    #: The key of the order wherever the mode leaves a choice, among ``SORT_KEYS``.
-    sort: str = SORT_KEYS[0]
-    #: The declared ordering mode, among ``MODES``, or None for the default mode of the index.
-    mode: str | None = None
-    #: The key naming the parent of each member, whose children are rendered beneath it.
-    nest: str | None = None
-    #: The heading under which a group stands; groups without a heading share the one above them.
-    section: int = 0
     #: Whether the region lists the control files of the folder.
     control: bool = False
     #: Whether the region renders the groups declared in the frontmatter of the index.
@@ -105,9 +89,7 @@ def parse_blocks(text: str) -> list[Block]:
         )
         blocks.append(
             Block(
-                group=None,
                 show=tuple(field for field in DISPLAY_FIELDS if field in shown),
-                strategy=(),
                 body=match["body"],
                 line=text.count("\n", 0, match.start()) + 1,
                 control="control" in values,

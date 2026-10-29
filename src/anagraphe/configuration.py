@@ -8,6 +8,10 @@ from typing import Any, Mapping
 
 import yaml
 
+from anagraphe.fields import declared_values
+from anagraphe.retired import MIGRATABLE_KEYS, RETIRED_VOCABULARY, MigrationClass
+from anagraphe.slots import scalar
+
 
 class ConfigurationError(ValueError):
     """Report an invalid Anagraphe configuration with an actionable message."""
@@ -40,11 +44,14 @@ class RepositoryConfig:
     index_types: Path
     exemptions: Exemptions
     task_states: Mapping[str, bool]
+    #: The build manifest of each folder: its member paths in order, relative to the folder.
     sequences: Mapping[str, tuple[str, ...]]
+    #: The files tolerating a retired key until a declared migration.
+    migrations: tuple[MigrationClass, ...] = ()
     inspect_git: bool = True
 
     def sequence_for(self, root: Path, folder: Path) -> tuple[str, ...] | None:
-        """Return the sequence configured for a folder, relative to the repository root."""
+        """Return the build manifest of a folder, whose key is relative to the repository root."""
         key = folder.relative_to(root).as_posix()
         return self.sequences.get("" if key == "." else key)
 
@@ -119,7 +126,12 @@ def load_vocabulary(path: Path) -> dict[str, Any]:
 
 
 def validate_vocabulary(raw: Mapping[str, Any], path: Path) -> None:
-    """Require the vocabulary fields consumed by the generic renderer."""
+    """Require the vocabulary fields consumed by the generic renderer, and no retired section."""
+    for section, replacement in RETIRED_VOCABULARY.items():
+        if section in raw:
+            raise ConfigurationError(
+                f"{path} declares the retired section {section}: {replacement}"
+            )
     schema = raw.get("schema")
     if not isinstance(schema, Mapping):
         raise ConfigurationError(f"{path} must declare schema as a mapping")
@@ -131,6 +143,62 @@ def validate_vocabulary(raw: Mapping[str, Any], path: Path) -> None:
         not isinstance(name, str) or not isinstance(spec, Mapping) for name, spec in roles.items()
     ):
         raise ConfigurationError(f"{path} roles must map names to mappings")
+    key_values = raw.get("key_values", {})
+    if not isinstance(key_values, Mapping) or any(
+        not isinstance(values, (Mapping, list)) for values in key_values.values()
+    ):
+        raise ConfigurationError(
+            f"{path} key_values must map each key to a list of values or to a mapping of glosses"
+        )
+    relations = raw.get("context_relations", [])
+    if not isinstance(relations, (Mapping, list)):
+        raise ConfigurationError(
+            f"{path} context_relations must list relation names or map them to glosses"
+        )
+    _validate_archived(raw, path)
+
+
+def _validate_archived(raw: Mapping[str, Any], path: Path) -> None:
+    """Require the archived statuses to be a list, each among the declared statuses if any."""
+    archived = raw.get("archived_statuses", [])
+    if not isinstance(archived, list) or any(
+        isinstance(item, (list, Mapping)) for item in archived
+    ):
+        raise ConfigurationError(f"{path} archived_statuses must list status values")
+    statuses = (raw.get("key_values") or {}).get("status")
+    if statuses is None:
+        return
+    declared = set(declared_values(statuses))
+    undeclared = [str(item) for item in archived if scalar(item) not in declared]
+    if undeclared:
+        raise ConfigurationError(
+            f"{path} archived_statuses names a status outside key_values.status: "
+            f"{', '.join(undeclared)}"
+        )
+
+
+def _migrations(value: Any) -> tuple[MigrationClass, ...]:
+    """Return the declared migration classes, each tolerating one migratable retired key."""
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ConfigurationError("migrations must be a list of mappings {key, paths, awaits}")
+    classes: list[MigrationClass] = []
+    for number, entry in enumerate(value, start=1):
+        field = f"migrations[{number}]"
+        if not isinstance(entry, Mapping) or set(entry) != {"key", "paths", "awaits"}:
+            raise ConfigurationError(f"{field} must declare exactly key, paths and awaits")
+        if entry["key"] not in MIGRATABLE_KEYS:
+            raise ConfigurationError(
+                f"{field}.key must name a migratable retired key: {', '.join(sorted(MIGRATABLE_KEYS))}"
+            )
+        patterns = _strings(entry["paths"], f"{field}.paths")
+        if not patterns:
+            raise ConfigurationError(f"{field}.paths must list at least one pattern")
+        if not isinstance(entry["awaits"], str) or not entry["awaits"].strip():
+            raise ConfigurationError(f"{field}.awaits must name the migration awaited")
+        classes.append(MigrationClass(str(entry["key"]), tuple(sorted(patterns)), entry["awaits"]))
+    return tuple(classes)
 
 
 def load_config(root: Path, path: Path) -> RepositoryConfig:
@@ -186,5 +254,6 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
         exemptions=exemptions,
         task_states=task_states,
         sequences=sequences,
+        migrations=_migrations(raw.get("migrations")),
         inspect_git=inspect_git,
     )

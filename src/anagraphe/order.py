@@ -1,63 +1,47 @@
 """
-Order of the entries of one block, under the ordering mode of the block.
+Order of the members of one group, under the ordering mode of the group.
 
-The decision on index types fixes three modes, each with its own source of order:
+ADR 0002 admits two modes, each with one source of order:
 
-- a **registry** is sorted by the sort key of the block: the title, the file name, the date, or
-  any other key of its members;
-- a **sequence** follows a configured list of file names or the key ``sequence`` of the index,
-  and the members absent from that list follow it;
-- a **construction** follows the citations between its members, as the decision on typed
-  citations fixes, in three steps. First, each citation between two members of the block yields
-  one precedence constraint, through the order rule of its relation and the strategy tokens of
-  the block. Second, the constraints are added in an order of priority: the fixed rules, then the
-  pair ``support``, then the pair ``generality``. A constraint closing a cycle is dropped and
-  reported. Third, a topological sort (Kahn) orders the members, and the sort key of the block
-  breaks the remaining ties. A citation toward an external reference, or toward a file outside
-  the block, yields no constraint.
+- a **registry** sorts its members by the sort keys of the group: the title, the file name, the
+  date, or any key of the members. Each later key breaks the ties of the former. A categorical
+  key sorts in the order of the values that the vocabulary declares for it, or in the order that
+  the group states in ``order`` for its first sort key;
+- a **sequence** follows a list of files: the build manifest of the folder where one exists, else
+  the sequence of the group. The members absent from that list follow it, in the order of the
+  sort keys.
 
-Every sort key ends with the path of the member, compared by codepoint, so no two members tie.
-The order never reads a status, so a change of status moves no entry.
+A key of the members compares its values by their type: the numbers, as YAML reads them, by
+value, then the other values as text. A categorical key ranks its values first, and the values
+that its order omits follow, compared in the same way. Every order ends with the title, then the
+path of the member, compared by codepoint, so no two members tie. The order never reads a status,
+so a change of status moves no entry.
 """
 
 from __future__ import annotations
 
-import heapq
 import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
-from anagraphe.fields import End, OrderRule, Relation
-from anagraphe.notes import Note, normalize
+from anagraphe.notes import Note
 from anagraphe.render import title_of
-from anagraphe.slots import scalar
+from anagraphe.slots import SORT_KEYS, GroupSpec, scalar
 
 #: An ISO date opening a file name, by month or by day.
 DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}(?:-\d{2})?)")
 
-#: The priority of each order rule: a lower number is added first, and wins a conflict.
-PRIORITY = {
-    OrderRule.TARGET_FIRST: 0,
-    OrderRule.SOURCE_FIRST: 0,
-    OrderRule.SUPPORT: 1,
-    OrderRule.GENERALITY: 2,
-}
-#: The tokens placing the first-named end first, one per pair.
-FIRST_TOKENS = {"support": "support-first", "generality": "general-first"}
-
 
 @dataclass
 class Ordering:
-    """The ordered members of a block, and the constraints dropped while ordering them."""
+    """The ordered members of a group, and the parts of its source of order left unused."""
 
     members: list[Note] = field(default_factory=list)
-    #: Constraints ``(earlier, later)`` dropped because they closed a cycle.
-    conflicts: list[tuple[str, str]] = field(default_factory=list)
-    #: Names of a sequence matching no member of the block.
-    unknown: list[str] = field(default_factory=list)
-    #: Members of a sequence block that the sequence does not list.
+    #: Members of a sequence group that the sequence does not list.
     unsequenced: list[Note] = field(default_factory=list)
+    #: Files listed by a sequence that the group does not hold.
+    outside: list[str] = field(default_factory=list)
 
 
 def date_of(note: Note) -> str | None:
@@ -74,185 +58,133 @@ def date_of(note: Note) -> str | None:
     return match.group(1) if match else None
 
 
-def sort_key(note: Note, sort: str) -> tuple[str, ...]:
-    """Return the sort key of a member under the key named by a block, ending with its path.
+def held(value: Any) -> bool:
+    """Whether a key holds one value that a sort can compare, a list or a mapping holding none."""
+    return value not in (None, "") and not isinstance(value, (list, dict))
 
-    A member without a date follows the dated members in a block sorted by date. Any other key is
-    compared as text, so a date or a time sorts in its ISO form; a member without a single value
-    for that key follows the others, and the title breaks the ties.
+
+def typed(value: Any) -> tuple[int, float, str]:
+    """Return the comparable form of one held value: a number before any text, by value.
+
+    A boolean is no number: it compares as its text, in lowercase.
+
+    Examples
+    --------
+    >>> sorted([10, "late", 2, 1.5], key=typed)
+    [1.5, 2, 10, 'late']
+    >>> typed(True)
+    (1, 0.0, 'true')
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return (0, float(value), "")
+    return (1, 0.0, scalar(value))
+
+
+@dataclass(frozen=True)
+class Collation:
+    """The sort keys of a group, and the ranked values of each categorical key among them.
 
     Examples
     --------
     >>> notes = [Note("b.md", title="alpha"), Note("a.md", title="Beta"),
     ...          Note("2026-01-02_c.md", title="Gamma")]
-    >>> [note.rel for note in sorted(notes, key=lambda note: sort_key(note, "title"))]
+    >>> [note.rel for note in sorted(notes, key=Collation().key)]
     ['b.md', 'a.md', '2026-01-02_c.md']
-    >>> [note.rel for note in sorted(notes, key=lambda note: sort_key(note, "date"))]
-    ['2026-01-02_c.md', 'a.md', 'b.md']
-    >>> timed = [Note("x.md", title="X", data={"day": "2026-08-04T09:00"}), Note("y.md", title="Y"),
-    ...          Note("z.md", title="Z", data={"day": "2026-08-03T17:00"})]
-    >>> [note.rel for note in sorted(timed, key=lambda note: sort_key(note, "day"))]
-    ['z.md', 'x.md', 'y.md']
+    >>> [note.rel for note in sorted(notes, key=Collation(("date",)).key)]
+    ['2026-01-02_c.md', 'b.md', 'a.md']
+    >>> talks = [Note("x.md", title="X", data={"kind": "talk", "day": "2"}),
+    ...          Note("y.md", title="Y", data={"kind": "keynote", "day": "3"}),
+    ...          Note("z.md", title="Z", data={"kind": "talk", "day": "1"})]
+    >>> by_kind = Collation(("kind", "day"), {"kind": ("keynote", "talk")})
+    >>> [note.rel for note in sorted(talks, key=by_kind.key)]
+    ['y.md', 'z.md', 'x.md']
     """
-    if sort == "file":
-        return (note.rel,)
-    if sort == "date":
-        date = date_of(note)
-        return ("0" if date else "1", date or "", note.rel)
-    title = title_of(note)
-    if sort != "title":
-        value = note.data.get(sort)
-        held = value not in (None, "") and not isinstance(value, (list, dict))
-        return (
-            "0" if held else "1",
-            scalar(value) if held else "",
-            title.casefold(),
-            note.rel,
-        )
-    return (title.casefold(), title, note.rel)
+
+    keys: tuple[str, ...] = (SORT_KEYS[0],)
+    #: The values of each categorical key, in their order.
+    ranks: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    @classmethod
+    def of(cls, group: GroupSpec, values: Mapping[str, tuple[str, ...]]) -> Collation:
+        """Return the collation of a group, its ``order`` overriding the declared values.
+
+        Examples
+        --------
+        >>> group = GroupSpec("talks", sort=("kind", "status"), order=("talk", "keynote"))
+        >>> Collation.of(group, {"kind": ("keynote", "talk"), "status": ("wip", "stable")}).ranks
+        {'kind': ('talk', 'keynote'), 'status': ('wip', 'stable')}
+        """
+        ranks = {key: values[key] for key in group.sort if key in values and key not in SORT_KEYS}
+        if group.order and group.sort[0] not in SORT_KEYS:
+            ranks[group.sort[0]] = group.order
+        return cls(group.sort, ranks)
+
+    def _component(self, note: Note, name: str) -> tuple[Any, ...]:
+        """Return the part of the sort key that one key contributes, absent values last."""
+        if name == "file":
+            return (note.rel,)
+        if name == "title":
+            title = title_of(note)
+            return (title.casefold(), title)
+        if name == "date":
+            date = date_of(note)
+            return (date is None, date or "")
+        value = note.data.get(name)
+        compared = typed(value) if held(value) else typed("")
+        if name in self.ranks:
+            values = self.ranks[name]
+            text = scalar(value) if held(value) else ""
+            rank = values.index(text) if text in values else len(values)
+            return (not held(value), rank, *compared)
+        return (not held(value), *compared)
+
+    def key(self, note: Note) -> tuple[Any, ...]:
+        """Return the sort key of a member, ending with its title and its path."""
+        title = title_of(note)
+        parts = tuple(part for name in self.keys for part in self._component(note, name))
+        return (*parts, title.casefold(), title, note.rel)
+
+    def undeclared(self, note: Note) -> list[tuple[str, str]]:
+        """Return each categorical key whose value, held by a member, is absent from its order.
+
+        Examples
+        --------
+        >>> Collation(("kind",), {"kind": ("talk",)}).undeclared(Note("x.md", data={"kind": "demo"}))
+        [('kind', 'demo')]
+        """
+        return [
+            (name, scalar(note.data[name]))
+            for name, values in self.ranks.items()
+            if held(note.data.get(name)) and scalar(note.data[name]) not in values
+        ]
 
 
-def order_registry(members: Sequence[Note], sort: str = "title") -> Ordering:
-    """Order the members of a registry block by the sort key of the block alone."""
-    return Ordering(members=sorted(members, key=lambda note: sort_key(note, sort)))
+def order_registry(members: Sequence[Note], collation: Collation) -> Ordering:
+    """Order the members of a registry group by its collation alone."""
+    return Ordering(members=sorted(members, key=collation.key))
 
 
 def order_sequence(
-    members: Sequence[Note], names: Sequence[str], folder: str, sort: str = "title"
+    members: Sequence[Note], sequence: Sequence[str], collation: Collation
 ) -> Ordering:
-    """Order the members of a sequence block by a list of paths relative to the folder.
+    """Order the members of a sequence group by a list of repository-relative paths.
 
     Examples
     --------
     >>> members = [Note("m/b.md"), Note("m/a.md"), Note("m/extra.md")]
-    >>> ordering = order_sequence(members, ["b.md", "a.md", "gone.md"], "m")
-    >>> [note.rel for note in ordering.members], ordering.unknown
-    (['m/b.md', 'm/a.md', 'm/extra.md'], ['gone.md'])
+    >>> ordering = order_sequence(members, ["m/b.md", "m/a.md", "m/gone.md"], Collation())
+    >>> [note.rel for note in ordering.members], ordering.outside
+    (['m/b.md', 'm/a.md', 'm/extra.md'], ['m/gone.md'])
     """
     by_rel = {member.rel: member for member in members}
     result = Ordering()
-    for name in names:
-        rel = normalize(PurePosixPath(folder) / name)
+    for rel in sequence:
         if rel not in by_rel:
-            result.unknown.append(name)
+            result.outside.append(rel)
         elif by_rel[rel] not in result.members:
             result.members.append(by_rel[rel])
     result.unsequenced = sorted(
-        (member for member in members if member not in result.members),
-        key=lambda note: sort_key(note, sort),
+        (member for member in members if member not in result.members), key=collation.key
     )
     result.members.extend(result.unsequenced)
-    return result
-
-
-def constraint(
-    note: Note, target: str, relation: Relation, strategy: Mapping[str, str]
-) -> tuple[int, str, str] | None:
-    """Return the constraint ``(priority, earlier, later)`` of one citation, or None.
-
-    Examples
-    --------
-    >>> uses = Relation("uses-definition-from", contributes=End.TARGET, order=OrderRule.SUPPORT)
-    >>> constraint(Note("main.md"), "def.md", uses, {"support": "support-first"})
-    (1, 'def.md', 'main.md')
-    >>> constraint(Note("main.md"), "def.md", uses, {"support": "claim-first"})
-    (1, 'main.md', 'def.md')
-    """
-    if relation.order not in PRIORITY:
-        return None
-    if relation.order is OrderRule.TARGET_FIRST:
-        return (PRIORITY[relation.order], target, note.rel)
-    if relation.order is OrderRule.SOURCE_FIRST:
-        return (PRIORITY[relation.order], note.rel, target)
-    pair = relation.order.value
-    end = relation.contributes if relation.order is OrderRule.SUPPORT else relation.general
-    if end is End.NONE:
-        return None
-    first, second = (target, note.rel) if end is End.TARGET else (note.rel, target)
-    if strategy.get(pair, FIRST_TOKENS[pair]) != FIRST_TOKENS[pair]:
-        first, second = second, first
-    return (PRIORITY[relation.order], first, second)
-
-
-def order_members(
-    members: Sequence[Note],
-    relations: Mapping[str, Relation],
-    strategy: Mapping[str, str],
-    sort: str = "title",
-) -> Ordering:
-    """Order the members of one block by the constraints of their citations.
-
-    Examples
-    --------
-    >>> from anagraphe.fields import Citation
-    >>> relations = {
-    ...     "uses-definition-from": Relation("uses-definition-from", contributes=End.TARGET,
-    ...                                      order=OrderRule.SUPPORT),
-    ...     "narrows": Relation("narrows", contributes=End.TARGET, order=OrderRule.GENERALITY,
-    ...                         general=End.TARGET)}
-    >>> members = [Note("case.md", title="Case", cites=(Citation("narrows", "main.md"),)),
-    ...            Note("main.md", title="Main", cites=(Citation("uses-definition-from", "def.md"),)),
-    ...            Note("def.md", title="Definition"), Note("aside.md", title="Aside")]
-    >>> [note.rel for note in order_members(members, relations, {}).members]
-    ['aside.md', 'def.md', 'main.md', 'case.md']
-    >>> [note.rel for note in order_members(members, relations, {"generality": "specific-first",
-    ...                                                           "support": "claim-first"}).members]
-    ['aside.md', 'case.md', 'main.md', 'def.md']
-    >>> [note.rel for note in order_members(members, relations, {}, sort="file").members]
-    ['aside.md', 'def.md', 'main.md', 'case.md']
-    """
-    by_rel = {member.rel: member for member in members}
-    found = sorted(
-        {
-            rule
-            for member in members
-            for citation in member.cites
-            if not citation.external
-            and citation.target in by_rel
-            and citation.target != member.rel
-            and citation.relation in relations
-            for rule in [
-                constraint(member, citation.target, relations[citation.relation], strategy)
-            ]
-            if rule is not None
-        }
-    )
-    after: dict[str, set[str]] = {rel: set() for rel in by_rel}
-    result = Ordering()
-
-    def reaches(start: str, goal: str) -> bool:
-        stack, seen = [start], {start}
-        while stack:
-            current = stack.pop()
-            if current == goal:
-                return True
-            for following in after[current] - seen:
-                seen.add(following)
-                stack.append(following)
-        return False
-
-    for _priority, earlier, later in found:
-        if later in after[earlier]:
-            continue
-        if reaches(later, earlier):
-            result.conflicts.append((earlier, later))
-        else:
-            after[earlier].add(later)
-
-    def key(rel: str) -> tuple[str, ...]:
-        return sort_key(by_rel[rel], sort)
-
-    pending = {rel: 0 for rel in by_rel}
-    for followers in after.values():
-        for rel in followers:
-            pending[rel] += 1
-    ready = [key(rel) for rel, count in pending.items() if count == 0]
-    heapq.heapify(ready)
-    while ready:
-        rel = heapq.heappop(ready)[-1]
-        result.members.append(by_rel[rel])
-        for following in after[rel]:
-            pending[following] -= 1
-            if pending[following] == 0:
-                heapq.heappush(ready, key(following))
     return result

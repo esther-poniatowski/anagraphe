@@ -49,6 +49,9 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from referencing import Registry, Resource
 from referencing.exceptions import CannotDetermineSpecification
 
+from anagraphe.retired import RETIRED_MODES, retired_mode
+from anagraphe.slots import MODES
+
 #: The type of an index declaring none, outside every location fixing a type.
 DEFAULT_TYPE = "module"
 
@@ -166,10 +169,17 @@ class IndexTypes:
     def _type(self, identifier: str) -> IndexType:
         parts = self._parts(identifier)
         schema = parts[0]
+        mode = str(schema["x-default-mode"])
+        if mode in RETIRED_MODES:
+            raise ValueError(f"{identifier}: x-default-mode: {retired_mode(mode)}")
+        if mode not in MODES:
+            raise ValueError(
+                f"{identifier}: x-default-mode must be one of {', '.join(MODES)}, not {mode}"
+            )
         return IndexType(
             name=self._name(identifier),
             version=int(schema.get("schema_version", 1)),
-            default_mode=str(schema["x-default-mode"]),
+            default_mode=mode,
             keys=frozenset(key for part in parts for key in part.get("properties", {})),
             expected=tuple(
                 ExpectedFile(
