@@ -41,6 +41,7 @@ non-mutating check command compares those blocks with the same rendering used by
 - [x] Validate index types through repository-supplied JSON Schemas.
 - [x] Accept repository task states and explicit folder sequences through configuration.
 - [ ] Load repository-specific adapters as plugins.
+- [ ] Render and manipulate indexes in Obsidian through a plugin.
 
 ## Quick Start
 
