@@ -109,8 +109,8 @@ constructions.
 **Chosen option**: Breaking release.
 
 **Justification**: A compatibility layer would keep two sources of membership and two sources of
-order until every consumer migrates. The decision exists to remove that duplication. A breaking
-release costs one migration per consumer, and each failure names the edit owed.
+order until every consumer migrates. The decision exists to remove that duplication. In a breaking
+release, each failure names the edit owed.
 
 #### Choices beyond the Geonexus record
 
