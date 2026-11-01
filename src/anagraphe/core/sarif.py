@@ -2,8 +2,9 @@
 
 The log holds one run of the driver ``anagraphe``, whose driver lists every kind of every section
 as the rule ``<section>/<kind>``, whether or not the run reports it. Each result names its rule,
-its level and its message, the file as a physical location relative to ``SRCROOT`` with the line
-of the issue, and one logical location ``path:<file>#<locus>``. The gate builds the identity of
+its level and its message, the file as a physical location relative to ``SRCROOT``, and one logical
+location ``path:<file>#<locus>``. The physical location holds the line of an issue that has one,
+and no region for an issue of the whole file or of a key of the metadata. The gate builds the identity of
 each result and writes its suppressions; a producer writes neither.
 
 The run holds one invocation, which states whether the analysis ran to its end. A run that stopped,
@@ -91,7 +92,7 @@ def _result(section: Section, issue: Issue) -> dict[str, Any]:
     physical: dict[str, Any] = {
         "artifactLocation": {"uri": artifact_uri(issue.rel), "uriBaseId": URI_BASE_ID}
     }
-    if issue.line >= 1:
+    if issue.line is not None:
         physical["region"] = {"startLine": issue.line}
     result: dict[str, Any] = {
         "ruleId": section.rule_id(issue.kind),

@@ -160,9 +160,10 @@ code can name the locus without reading the message.
   names of the Geonexus link checker, and `retired-key` keeps the name of the Geonexus frontmatter
   checker. Anagraphe reports no kind `unlinkable-target`, so a Geonexus suppression of that kind
   finds no result until the check is ported.
-- **Region.** The region holds the line of the issue. An issue of a whole file or of a key of the
-  metadata is reported at line 1, so its region designates line 1 rather than the whole file. The
-  region lies outside the identity, so the gate is unaffected.
+- **Region.** An issue holds a line only where its defect has one, such as a reference or a
+  marker. An issue of a whole file or of a key of the metadata holds no line, so its physical
+  location holds no region, as the profile requires of a finding on a whole file. The text report
+  still prints such an issue at line 1, so its bytes are unchanged.
 - **Unparsed metadata.** A metadata source that cannot be parsed yields an empty mapping, so the
   indexes report the missing fields rather than an unreadable file, and the run stays complete.
 - **New kinds.** A new kind of issue joins the catalogue of its section, and takes a locus at its

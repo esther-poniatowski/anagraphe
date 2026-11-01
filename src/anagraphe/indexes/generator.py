@@ -198,7 +198,7 @@ class IndexGenerator:
             ungenerated.append(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "ungenerated-index",
                     f"an index {where} must hold the region <!-- index groups -->",
                 )
@@ -223,7 +223,7 @@ class IndexGenerator:
         issues: list[Issue] = (
             ungenerated
             + [
-                Issue(index_rel, 1, "index-type", problem, locus=pointer("index_type"))
+                Issue(index_rel, None, "index-type", problem, locus=pointer("index_type"))
                 for problem in type_problems
             ]
             + retired
@@ -253,7 +253,7 @@ class IndexGenerator:
                 bodies.append(block.body)
         if index_note is not None and has_region:
             issues.extend(
-                Issue(index_rel, 1, "malformed-groups", problem, locus=pointer("groups"))
+                Issue(index_rel, None, "malformed-groups", problem, locus=pointer("groups"))
                 for problem in index_note.slot_problems
             )
             issues.extend(self._relation_issues(index_rel, index_note, members))
@@ -313,13 +313,13 @@ class IndexGenerator:
             migration = migration_of(self.migrations, entry.key, rel)
             if migration is None:
                 issues.append(
-                    Issue(rel, 1, "retired-key", entry.message(), locus=pointer(entry.key))
+                    Issue(rel, None, "retired-key", entry.message(), locus=pointer(entry.key))
                 )
             else:
                 issues.append(
                     Issue(
                         rel,
-                        1,
+                        None,
                         "migration-key",
                         f"{entry.message()}; tolerated until {migration.awaits}",
                         blocking=False,
@@ -341,7 +341,7 @@ class IndexGenerator:
             return [
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "unmigrated-member",
                     "the file declares no entry field, so no group lists it yet",
                     blocking=False,
@@ -350,7 +350,7 @@ class IndexGenerator:
         return [
             Issue(
                 note.rel,
-                1,
+                None,
                 "unplaced-member",
                 f"no group of {index_rel} holds the file: declare a catch-all group *, or "
                 "name the file in the where or the members of a group",
@@ -450,7 +450,7 @@ class IndexGenerator:
             issues.extend(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "nest-cycle",
                     f"group {spec.id}: {note.rel} closes a cycle of {spec.nest}",
                     locus=pointer("groups"),
@@ -474,7 +474,7 @@ class IndexGenerator:
             # Any key of the members may sort a group, so a key that no member holds is a typo.
             Issue(
                 index_rel,
-                1,
+                None,
                 "malformed-groups",
                 f"group {spec.id}: no member holds the sort key {key}",
                 locus=pointer("groups"),
@@ -488,7 +488,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "ignored-order",
                     f"group {spec.id} sorts first by {first}, so its order is ignored: sort "
                     "first by the categorical key that order ranks",
@@ -500,7 +500,7 @@ class IndexGenerator:
             issues.extend(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "undeclared-value",
                     f"order of group {spec.id}: {first} admits no value {value}; its values are "
                     f"{', '.join(self.rules.values[first])}",
@@ -517,7 +517,7 @@ class IndexGenerator:
                     issues.append(
                         Issue(
                             note.rel,
-                            1,
+                            None,
                             "undeclared-value",
                             f"{key} holds {value}, which group {spec.id} in {index_rel} sorts "
                             f"by, outside its declared values: {', '.join(declared)}",
@@ -528,7 +528,7 @@ class IndexGenerator:
                     issues.append(
                         Issue(
                             note.rel,
-                            1,
+                            None,
                             "unranked-value",
                             f"{key} holds {value}, which the order of group {spec.id} in "
                             f"{index_rel} does not rank, so the file follows the ranked values: "
@@ -561,7 +561,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "ignored-order",
                         f"group {spec.id} is a registry, so the order of its sequence is "
                         f"ignored: {remedy}",
@@ -574,7 +574,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "ignored-order",
                         f"the build manifest of {folder} orders {', '.join(manifested)}, which "
                         f"the registry group {spec.id} sorts by {', '.join(spec.sort)}",
@@ -591,7 +591,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "ignored-order",
                         f"the build manifest of {folder} prevails over the sequence of group "
                         f"{spec.id}: {remedy}",
@@ -606,7 +606,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "missing-sequence",
                     f"group {spec.id} is a sequence, which needs a sequence of links or a build "
                     "manifest of the folder",
@@ -621,7 +621,7 @@ class IndexGenerator:
             issues.extend(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "ignored-order" if self.exists(rel) else "invalid-link",
                     (
                         f"sequence of group {spec.id} names {rel}, which the group does not hold"
@@ -637,7 +637,7 @@ class IndexGenerator:
             issues.extend(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "unsequenced-member",
                     f"the sequence of group {spec.id} in {index_rel} does not list the file",
                     blocking=False,
@@ -670,7 +670,7 @@ class IndexGenerator:
             issues.extend(
                 Issue(
                     index_rel,
-                    1,
+                    None,
                     "invalid-context-relation",
                     problem,
                     locus=pointer("context_relations"),
@@ -691,7 +691,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "invalid-link",
                         f"external names no file: {spec.target}",
                         locus=pointer("external"),
@@ -702,7 +702,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "invalid-external",
                         f"external names {spec.target}, which {index_rel} lists: external holds "
                         "the files outside the collection",
@@ -721,7 +721,7 @@ class IndexGenerator:
         issues = [
             Issue(
                 note.rel,
-                1,
+                None,
                 "unarchived-superseded",
                 f"superseded_by belongs to an archived note, whereas {problem}",
                 locus=pointer("superseded_by"),
@@ -732,7 +732,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "invalid-link",
                     (
                         f"superseded_by is not a link [Title](path.md): {value}"
@@ -757,7 +757,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "missing-alias",
                     "a listed file declares no alias, whose first is its title",
                     locus=pointer("aliases"),
@@ -769,7 +769,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "title-mismatch",
                     f"the H1 heading {note.heading!r} differs from the first alias "
                     f"{note.title!r}",
@@ -780,7 +780,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "index-location",
                     f"index names {note.index}, whereas the file is listed by {index_rel}",
                     locus=pointer("index"),
@@ -791,7 +791,7 @@ class IndexGenerator:
             issues.append(
                 Issue(
                     note.rel,
-                    1,
+                    None,
                     "missing-purpose",
                     "the group displays a purpose, which the file does not declare",
                     blocking=False,
@@ -803,7 +803,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         note.rel,
-                        1,
+                        None,
                         "unknown-task",
                         f"blocked_by names no declared task: {identifier}",
                         locus=pointer("blocked_by"),
@@ -814,7 +814,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         note.rel,
-                        1,
+                        None,
                         "finished-blocker",
                         f"the task {identifier} is closed, so the status may advance",
                         blocking=False,
@@ -855,7 +855,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "missing-control-file",
                         f"the type {kind.name} requires {rel}",
                         discriminator=spec.name,
@@ -865,7 +865,7 @@ class IndexGenerator:
                 issues.append(
                     Issue(
                         rel,
-                        1,
+                        None,
                         "control-file-role",
                         f"the type {kind.name} expects the role {spec.role}, not {note.role}",
                         locus=pointer("role"),

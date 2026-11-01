@@ -25,10 +25,12 @@ class IssueKind:
 
 @dataclass(frozen=True)
 class Issue:
-    """One issue of a file, located at a line, and placed inside the file by its locus."""
+    """One issue of a file, at its line when it has one, and placed inside the file by its locus."""
 
     rel: str
-    line: int
+    #: The line of the defect; None for an issue of the whole file or of a key of the metadata,
+    #: which the text report prints at line 1.
+    line: int | None
     kind: str
     detail: str
     #: Whether the issue gates a commit. A non-blocking issue is reported as a warning.
@@ -46,9 +48,11 @@ class Issue:
         --------
         >>> Issue("a.md", 3, "broken", "b.md: names no file", blocking=False).format()
         'a.md:3: warning: broken: b.md: names no file'
+        >>> Issue("a.md", None, "stale-block", "a block differs").format()
+        'a.md:1: stale-block: a block differs'
         """
         marker = "" if self.blocking else "warning: "
-        return f"{self.rel}:{self.line}: {marker}{self.kind}: {self.detail}"
+        return f"{self.rel}:{self.line or 1}: {marker}{self.kind}: {self.detail}"
 
 
 def pointer(*keys: str | int) -> str:

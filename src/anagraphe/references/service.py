@@ -78,7 +78,7 @@ class ReferenceChecker:
             try:
                 found = list(references_of(rel, text, [syntax], regions))
             except ExtractionError as error:
-                issues.append(Issue(rel, 1, UNREADABLE, str(error)))
+                issues.append(Issue(rel, None, UNREADABLE, str(error)))
                 continue
             for item in found:
                 issues.extend(self.check_reference(item.reference, item))

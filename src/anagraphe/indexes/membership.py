@@ -63,7 +63,7 @@ def _named(
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "invalid-link",
                         problem,
                         locus=pointer("groups"),
@@ -76,7 +76,7 @@ def _named(
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "duplicate-member",
                         f"{source} of group {group.id} names {target} twice",
                         locus=pointer("groups"),
@@ -87,7 +87,7 @@ def _named(
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "duplicate-member",
                         f"{target} is named by the groups {named[target]} and {group.id}; "
                         f"it belongs to {named[target]}",
@@ -113,7 +113,7 @@ def _filter_issues(
                 issues.append(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "unknown-filter-key",
                         f"where of group {group.id} names {key}, which no member declares",
                         locus=pointer("groups"),
@@ -124,7 +124,7 @@ def _filter_issues(
                 issues.extend(
                     Issue(
                         index_rel,
-                        1,
+                        None,
                         "undeclared-value",
                         f"where of group {group.id}: {key} admits no value {value}; "
                         f"its values are {', '.join(values[key])}",

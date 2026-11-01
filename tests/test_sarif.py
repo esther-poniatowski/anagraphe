@@ -464,6 +464,18 @@ def test_cli_check_writes_index_findings_with_pointers(tmp_path: Path) -> None:
     identities = {_identity(item) for item in _results(log)}
     assert ("indexes/retired-key", "path:m/note.md#/cites", "") in identities
     assert ("indexes/missing-alias", "path:m/note.md#/aliases", "") in identities
+    # An issue of a key of the metadata has no line, so its location holds no region.
+    assert all("region" not in item["locations"][0]["physicalLocation"] for item in _results(log))
+    text = _invoke("check", "--root", str(tmp_path)).stdout
+    assert "m/note.md:1: retired-key: the key cites is retired" in text
+
+
+def test_a_located_issue_keeps_its_region(tmp_path: Path) -> None:
+    """A reference keeps its line as the region of its location."""
+    _repository(tmp_path, PLANTED_LINKS)
+    log = json.loads(_invoke("refs", "check", "--root", str(tmp_path), "--format", "sarif").stdout)
+    regions = [item["locations"][0]["physicalLocation"].get("region") for item in _results(log)]
+    assert regions == [{"startLine": 3}] * 3
 
 
 def test_cli_declares_an_unreadable_file(tmp_path: Path) -> None:
@@ -483,6 +495,7 @@ def test_cli_declares_an_unreadable_file(tmp_path: Path) -> None:
     assert [_identity(item) for item in _results(log)] == [
         ("references/unreadable-file", "path:specs/terms.yml", "")
     ]
+    assert "region" not in _results(log)[0]["locations"][0]["physicalLocation"]
 
 
 def test_cli_writes_a_failed_run_for_an_invalid_configuration(tmp_path: Path) -> None:

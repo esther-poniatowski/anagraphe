@@ -116,7 +116,7 @@ def run(
                 issues.append(
                     Issue(
                         relative,
-                        1,
+                        None,
                         "stale-block",
                         "a block differs from its rendering; run anagraphe indexes write",
                     )

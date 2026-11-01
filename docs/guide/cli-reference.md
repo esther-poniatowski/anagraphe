@@ -72,7 +72,7 @@ result:
 | `ruleId` | `<section>/<kind>` |
 | `level` | `error` for a violation, `warning` for a warning |
 | `message.text` | the detail of the issue |
-| physical location | the file relative to the root, with the line of the issue |
+| physical location | the file relative to the root, with the line of an issue that has one; an issue of the whole file or of a key of the metadata holds no region |
 | logical location | `path:<file>`, followed by `#<locus>` when the issue has a locus |
 | `partialFingerprints["discriminator/v1"]` | the entry of a list that the issue concerns, when the locus does not suffice |
 
