@@ -26,7 +26,7 @@ from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from anagraphe.indexes.blocks import Block, parse_blocks, replace_bodies
 from anagraphe.indexes.fields import FieldRules
-from anagraphe.core.issues import Issue
+from anagraphe.core.issues import Issue, pointer
 from anagraphe.indexes.membership import Membership, assign
 from anagraphe.core.metadata import MetadataReader
 from anagraphe.indexes.notes import Note, NoteReader
@@ -222,7 +222,10 @@ class IndexGenerator:
             return Result(text=text, changed=False, issues=ungenerated + retired)
         issues: list[Issue] = (
             ungenerated
-            + [Issue(index_rel, 1, "index-type", problem) for problem in type_problems]
+            + [
+                Issue(index_rel, 1, "index-type", problem, locus=pointer("index_type"))
+                for problem in type_problems
+            ]
             + retired
         )
         declared = index_note.groups if index_note is not None else ()
@@ -250,7 +253,7 @@ class IndexGenerator:
                 bodies.append(block.body)
         if index_note is not None and has_region:
             issues.extend(
-                Issue(index_rel, 1, "malformed-groups", problem)
+                Issue(index_rel, 1, "malformed-groups", problem, locus=pointer("groups"))
                 for problem in index_note.slot_problems
             )
             issues.extend(self._relation_issues(index_rel, index_note, members))
@@ -309,7 +312,9 @@ class IndexGenerator:
         for entry in retired_keys(scope, data):
             migration = migration_of(self.migrations, entry.key, rel)
             if migration is None:
-                issues.append(Issue(rel, 1, "retired-key", entry.message()))
+                issues.append(
+                    Issue(rel, 1, "retired-key", entry.message(), locus=pointer(entry.key))
+                )
             else:
                 issues.append(
                     Issue(
@@ -318,6 +323,7 @@ class IndexGenerator:
                         "migration-key",
                         f"{entry.message()}; tolerated until {migration.awaits}",
                         blocking=False,
+                        locus=pointer(entry.key),
                     )
                 )
         return issues
@@ -364,6 +370,8 @@ class IndexGenerator:
                 region.line,
                 "unknown-file",
                 f"files names no file of the folder: {spec_file.file}",
+                locus=pointer("files"),
+                discriminator=spec_file.file,
             )
             for spec_file in index_files
             if not (self.root / folder / spec_file.file).is_file()
@@ -374,6 +382,8 @@ class IndexGenerator:
                 region.line,
                 "malformed-groups",
                 f"files names an undeclared group: {spec_file.group}",
+                locus=pointer("files"),
+                discriminator=spec_file.file,
             )
             for spec_file in index_files
             if spec_file.group not in {spec.id for spec in declared}
@@ -385,6 +395,7 @@ class IndexGenerator:
                     region.line,
                     "malformed-groups",
                     "the region renders groups, which the index does not declare",
+                    locus=pointer("groups"),
                 )
             )
         parts = []
@@ -422,6 +433,8 @@ class IndexGenerator:
                     "mixed-modes",
                     f"a {mode} group stands under the heading of a "
                     f"{collection.modes[section]} group",
+                    locus=pointer("groups"),
+                    discriminator=spec.id,
                 )
             )
         group_members = [
@@ -440,6 +453,8 @@ class IndexGenerator:
                     1,
                     "nest-cycle",
                     f"group {spec.id}: {note.rel} closes a cycle of {spec.nest}",
+                    locus=pointer("groups"),
+                    discriminator=f"{spec.id} {note.rel}",
                 )
                 for note in cycle
             )
@@ -462,6 +477,8 @@ class IndexGenerator:
                 1,
                 "malformed-groups",
                 f"group {spec.id}: no member holds the sort key {key}",
+                locus=pointer("groups"),
+                discriminator=f"{spec.id} {key}",
             )
             for key in spec.sort
             if key not in SORT_KEYS and not any(key in note.data for note in group_members)
@@ -475,6 +492,8 @@ class IndexGenerator:
                     "ignored-order",
                     f"group {spec.id} sorts first by {first}, so its order is ignored: sort "
                     "first by the categorical key that order ranks",
+                    locus=pointer("groups"),
+                    discriminator=f"{spec.id} order",
                 )
             )
         elif spec.order and first in self.rules.values:
@@ -485,6 +504,8 @@ class IndexGenerator:
                     "undeclared-value",
                     f"order of group {spec.id}: {first} admits no value {value}; its values are "
                     f"{', '.join(self.rules.values[first])}",
+                    locus=pointer("groups"),
+                    discriminator=f"{spec.id} {value}",
                 )
                 for value in spec.order
                 if value not in self.rules.values[first]
@@ -500,6 +521,7 @@ class IndexGenerator:
                             "undeclared-value",
                             f"{key} holds {value}, which group {spec.id} in {index_rel} sorts "
                             f"by, outside its declared values: {', '.join(declared)}",
+                            locus=pointer(*key.split(".")),
                         )
                     )
                 else:
@@ -512,6 +534,7 @@ class IndexGenerator:
                             f"{index_rel} does not rank, so the file follows the ranked values: "
                             f"{', '.join(collation.ranks[key])}",
                             blocking=False,
+                            locus=pointer(*key.split(".")),
                         )
                     )
         return issues
@@ -542,6 +565,8 @@ class IndexGenerator:
                         "ignored-order",
                         f"group {spec.id} is a registry, so the order of its sequence is "
                         f"ignored: {remedy}",
+                        locus=pointer("groups"),
+                        discriminator=f"{spec.id} sequence",
                     )
                 )
             manifested = [note.rel for note in group_members if manifest and note.rel in manifest]
@@ -553,6 +578,8 @@ class IndexGenerator:
                         "ignored-order",
                         f"the build manifest of {folder} orders {', '.join(manifested)}, which "
                         f"the registry group {spec.id} sorts by {', '.join(spec.sort)}",
+                        locus=pointer("groups"),
+                        discriminator=f"{spec.id} manifest",
                     )
                 )
             return order_registry(group_members, collation)
@@ -568,6 +595,8 @@ class IndexGenerator:
                         "ignored-order",
                         f"the build manifest of {folder} prevails over the sequence of group "
                         f"{spec.id}: {remedy}",
+                        locus=pointer("groups"),
+                        discriminator=f"{spec.id} sequence",
                     )
                 )
             source: tuple[str, ...] = manifest
@@ -581,6 +610,8 @@ class IndexGenerator:
                     "missing-sequence",
                     f"group {spec.id} is a sequence, which needs a sequence of links or a build "
                     "manifest of the folder",
+                    locus=pointer("groups"),
+                    discriminator=spec.id,
                 )
             )
             source = ()
@@ -597,6 +628,8 @@ class IndexGenerator:
                         if self.exists(rel)
                         else f"sequence of group {spec.id} names no file: {rel}"
                     ),
+                    locus=pointer("groups"),
+                    discriminator=f"{spec.id} {rel}",
                 )
                 for rel in ordering.outside
             )
@@ -635,7 +668,15 @@ class IndexGenerator:
                 if path not in rels
             )
             issues.extend(
-                Issue(index_rel, 1, "invalid-context-relation", problem) for problem in problems
+                Issue(
+                    index_rel,
+                    1,
+                    "invalid-context-relation",
+                    problem,
+                    locus=pointer("context_relations"),
+                    discriminator=f"{relation.source} {relation.relation} {relation.target}",
+                )
+                for problem in problems
             )
         return issues
 
@@ -648,7 +689,14 @@ class IndexGenerator:
         for spec in index_note.external:
             if not self.exists(spec.target):
                 issues.append(
-                    Issue(index_rel, 1, "invalid-link", f"external names no file: {spec.target}")
+                    Issue(
+                        index_rel,
+                        1,
+                        "invalid-link",
+                        f"external names no file: {spec.target}",
+                        locus=pointer("external"),
+                        discriminator=spec.target,
+                    )
                 )
             elif spec.target in rels:
                 issues.append(
@@ -658,6 +706,8 @@ class IndexGenerator:
                         "invalid-external",
                         f"external names {spec.target}, which {index_rel} lists: external holds "
                         "the files outside the collection",
+                        locus=pointer("external"),
+                        discriminator=spec.target,
                     )
                 )
         return issues
@@ -674,6 +724,7 @@ class IndexGenerator:
                 1,
                 "unarchived-superseded",
                 f"superseded_by belongs to an archived note, whereas {problem}",
+                locus=pointer("superseded_by"),
             )
             for problem in self.rules.check_superseded(note.status)
         ]
@@ -688,6 +739,7 @@ class IndexGenerator:
                         if target is None
                         else f"superseded_by names no file: {target}"
                     ),
+                    locus=pointer("superseded_by"),
                 )
             )
         return issues
@@ -708,6 +760,7 @@ class IndexGenerator:
                     1,
                     "missing-alias",
                     "a listed file declares no alias, whose first is its title",
+                    locus=pointer("aliases"),
                 )
             )
         elif note.rel.endswith(".md") and (
@@ -720,6 +773,7 @@ class IndexGenerator:
                     "title-mismatch",
                     f"the H1 heading {note.heading!r} differs from the first alias "
                     f"{note.title!r}",
+                    locus=pointer("aliases"),
                 )
             )
         if note.index != index_rel:
@@ -729,6 +783,7 @@ class IndexGenerator:
                     1,
                     "index-location",
                     f"index names {note.index}, whereas the file is listed by {index_rel}",
+                    locus=pointer("index"),
                 )
             )
         # A purpose is owed where a group displays it; a registry displaying titles needs none.
@@ -740,6 +795,7 @@ class IndexGenerator:
                     "missing-purpose",
                     "the group displays a purpose, which the file does not declare",
                     blocking=False,
+                    locus=pointer("purpose"),
                 )
             )
         for identifier in note.blocked_by:
@@ -750,6 +806,8 @@ class IndexGenerator:
                         1,
                         "unknown-task",
                         f"blocked_by names no declared task: {identifier}",
+                        locus=pointer("blocked_by"),
+                        discriminator=identifier,
                     )
                 )
             elif self.tasks[identifier]:
@@ -760,6 +818,8 @@ class IndexGenerator:
                         "finished-blocker",
                         f"the task {identifier} is closed, so the status may advance",
                         blocking=False,
+                        locus=pointer("blocked_by"),
+                        discriminator=identifier,
                     )
                 )
         return issues
@@ -798,6 +858,7 @@ class IndexGenerator:
                         1,
                         "missing-control-file",
                         f"the type {kind.name} requires {rel}",
+                        discriminator=spec.name,
                     )
                 )
             elif note is not None and spec.role and note.role != spec.role:
@@ -806,7 +867,8 @@ class IndexGenerator:
                         rel,
                         1,
                         "control-file-role",
-                        f"the type {kind.name} expects the role {spec.role}, " f"not {note.role}",
+                        f"the type {kind.name} expects the role {spec.role}, not {note.role}",
+                        locus=pointer("role"),
                     )
                 )
         return issues

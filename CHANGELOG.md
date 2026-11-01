@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The commands `check`, `indexes check` and `refs check` write their findings as a SARIF 2.1.0 log
+  of the findings profile of Elenchos under `--format sarif`, on standard output or at the path of
+  `--output`, as [ADR 0004](docs/adr/0004-findings-output.md) proposes. Each issue carries a locus,
+  such as `link:<target>` or the JSON Pointer of its key, and each section declares its kinds in a
+  catalogue. The text report and the exit status are unchanged.
 - The command `anagraphe refs check` reports the references that name no file or anchor, or break
   a convention. Its issue kinds are `broken`, `outside-repository`, `convention`, `broken-anchor`,
   `heading-fragment`, `foreign-scheme` and `unreadable-file`, each defined by the

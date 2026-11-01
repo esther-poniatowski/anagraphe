@@ -1,4 +1,11 @@
-"""Issues located in the files of a repository, and the report of one check, shared by every subpackage."""
+"""Issues located in the files of a repository, and the report of one check, shared by every subpackage.
+
+An issue names its file, its kind and, through its locus and its discriminator, the place of its
+defect inside the file. These three values form the identity of the issue in a findings log, so
+none of them depends on the line or on the wording of the detail. The locus takes one of three
+forms: the empty locus for the whole file, a JSON Pointer for a key of the metadata, or a typed
+locus such as ``link:<target as written>``.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +14,18 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class IssueKind:
+    """One kind of issue that a section can report, with its description and default level."""
+
+    kind: str
+    description: str
+    #: Whether an issue of the kind gates a commit by default.
+    blocking: bool = True
+
+
+@dataclass(frozen=True)
 class Issue:
-    """One issue of a file, located at a line."""
+    """One issue of a file, located at a line, and placed inside the file by its locus."""
 
     rel: str
     line: int
@@ -16,6 +33,11 @@ class Issue:
     detail: str
     #: Whether the issue gates a commit. A non-blocking issue is reported as a warning.
     blocking: bool = True
+    #: The place of the defect inside the file; empty for the whole file.
+    locus: str = ""
+    #: The offending content separating two issues of one kind at one locus; empty when the locus
+    #: suffices. It derives from the issue alone, never from its line.
+    discriminator: str = ""
 
     def format(self) -> str:
         """Return the line printed for the issue: ``path:line: [warning: ]kind: detail``.
@@ -27,6 +49,30 @@ class Issue:
         """
         marker = "" if self.blocking else "warning: "
         return f"{self.rel}:{self.line}: {marker}{self.kind}: {self.detail}"
+
+
+def pointer(*keys: str | int) -> str:
+    """Return the JSON Pointer of a key path, escaping ``~`` and then ``/`` in each key.
+
+    Examples
+    --------
+    >>> pointer("groups")
+    '/groups'
+    >>> pointer("a/b", "c~d", 0)
+    '/a~1b/c~0d/0'
+    """
+    return "".join("/" + str(key).replace("~", "~0").replace("/", "~1") for key in keys)
+
+
+def link(target: str) -> str:
+    """Return the locus of a pointer, written as its file writes the target.
+
+    Examples
+    --------
+    >>> link("../notes/a.md#^claim")
+    'link:../notes/a.md#^claim'
+    """
+    return f"link:{target}"
 
 
 @dataclass(frozen=True)

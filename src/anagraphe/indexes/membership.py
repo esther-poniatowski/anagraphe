@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Mapping, Sequence
 
-from anagraphe.core.issues import Issue
+from anagraphe.core.issues import Issue, pointer
 from anagraphe.indexes.notes import Note
 from anagraphe.indexes.slots import GroupSpec
 
@@ -60,7 +60,16 @@ def _named(
                     if exists(target)
                     else f"{source} of group {group.id} names no file: {target}"
                 )
-                issues.append(Issue(index_rel, 1, "invalid-link", problem))
+                issues.append(
+                    Issue(
+                        index_rel,
+                        1,
+                        "invalid-link",
+                        problem,
+                        locus=pointer("groups"),
+                        discriminator=f"{group.id} {target}",
+                    )
+                )
             elif target not in named:
                 named[target] = group.id
             elif named[target] == group.id:
@@ -70,6 +79,8 @@ def _named(
                         1,
                         "duplicate-member",
                         f"{source} of group {group.id} names {target} twice",
+                        locus=pointer("groups"),
+                        discriminator=f"{group.id} {target}",
                     )
                 )
             else:
@@ -80,6 +91,8 @@ def _named(
                         "duplicate-member",
                         f"{target} is named by the groups {named[target]} and {group.id}; "
                         f"it belongs to {named[target]}",
+                        locus=pointer("groups"),
+                        discriminator=f"{group.id} {target}",
                     )
                 )
     return named
@@ -103,6 +116,8 @@ def _filter_issues(
                         1,
                         "unknown-filter-key",
                         f"where of group {group.id} names {key}, which no member declares",
+                        locus=pointer("groups"),
+                        discriminator=f"{group.id} {key}",
                     )
                 )
             elif key in values:
@@ -113,6 +128,8 @@ def _filter_issues(
                         "undeclared-value",
                         f"where of group {group.id}: {key} admits no value {value}; "
                         f"its values are {', '.join(values[key])}",
+                        locus=pointer("groups"),
+                        discriminator=f"{group.id} {value}",
                     )
                     for value in wanted
                     if value not in values[key]

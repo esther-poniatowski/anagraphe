@@ -13,7 +13,7 @@ from pathlib import Path
 
 from anagraphe.core.exclusions import Exemptions
 from anagraphe.core.files import TextCache, select, walk
-from anagraphe.core.issues import Issue, Report
+from anagraphe.core.issues import Issue, IssueKind, Report, link
 from anagraphe.core.links import Target
 from anagraphe.core.metadata import MetadataReader
 from anagraphe.references.configuration import ReferenceConfig
@@ -24,6 +24,11 @@ from anagraphe.references.syntaxes import ExtractionError, Found, references_of
 
 #: The kind of issue reported for a file whose syntax prevents the extraction of its references.
 UNREADABLE = "unreadable-file"
+
+#: Every kind of issue that the check can report: one per rule, then the unreadable file.
+KINDS: tuple[IssueKind, ...] = tuple(IssueKind(rule.kind, rule.description) for rule in RULES) + (
+    IssueKind(UNREADABLE, "A document read by a syntax of keys cannot be parsed."),
+)
 
 
 class ReferenceChecker:
@@ -101,7 +106,13 @@ class ReferenceChecker:
             return []
         subject = Subject(reference, target, resolution, convention)
         return [
-            Issue(reference.holder, reference.line, rule.kind, f"{reference.raw}: {detail}")
+            Issue(
+                reference.holder,
+                reference.line,
+                rule.kind,
+                f"{reference.raw}: {detail}",
+                locus=link(reference.raw),
+            )
             for rule in self.rules
             if (detail := rule.check(subject, self.context)) is not None
         ]

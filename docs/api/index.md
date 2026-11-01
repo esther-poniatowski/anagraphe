@@ -53,6 +53,10 @@
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: anagraphe.core.sarif
+   :members:
+   :undoc-members:
+
 .. automodule:: anagraphe.core.configuration
    :members:
    :undoc-members:
@@ -86,6 +90,10 @@
    :show-inheritance:
 
 .. automodule:: anagraphe.indexes.relocation
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.kinds
    :members:
    :undoc-members:
 ```

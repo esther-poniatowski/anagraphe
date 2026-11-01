@@ -60,6 +60,11 @@ class Rule(Protocol):
         """Return the kind of issue reported by the rule."""
         raise NotImplementedError
 
+    @property
+    def description(self) -> str:
+        """Return the one-sentence description of the kind, listed in a findings log."""
+        raise NotImplementedError
+
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         """Return the detail of the issue of a reference, None when the reference obeys."""
         raise NotImplementedError
@@ -73,6 +78,7 @@ class ForeignScheme:
     """
 
     kind: str = "foreign-scheme"
+    description: str = "A target carries a URL scheme outside the declared schemes."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         scheme = subject.target.scheme
@@ -86,6 +92,7 @@ class HeadingFragment:
     """A fragment opens on no caret, as the slug of a heading does, where only blocks are admitted."""
 
     kind: str = "heading-fragment"
+    description: str = "A fragment names a heading, where only block anchors are admitted."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         fragment = subject.target.fragment
@@ -104,6 +111,7 @@ class Broken:
     """The path of a target names no file under any path style."""
 
     kind: str = "broken"
+    description: str = "The path of a strict syntax names no file."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         resolution = subject.resolution
@@ -122,6 +130,7 @@ class AmbiguousLink:
     """The end of a path names several files, and no other style names one."""
 
     kind: str = "ambiguous-link"
+    description: str = "The end of a path names several files."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         resolution = subject.resolution
@@ -137,6 +146,7 @@ class OutsideRepository:
     """The path of a target names a file outside the repository, which resolves on one machine only."""
 
     kind: str = "outside-repository"
+    description: str = "The path of a target names a file outside the repository."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         resolution = subject.resolution
@@ -150,6 +160,7 @@ class PathStyle:
     """The path of a target names a file only under a path style that its convention leaves out."""
 
     kind: str = "convention"
+    description: str = "A path names its file only under a path style left out by its convention."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         resolution, convention = subject.resolution, subject.convention
@@ -169,6 +180,7 @@ class LinkFormat:
     """A pointer naming a file is written in a syntax that its convention leaves out."""
 
     kind: str = "link-format"
+    description: str = "A pointer is written in a syntax that its convention leaves out."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         written, convention = subject.reference.format, subject.convention
@@ -186,6 +198,7 @@ class BrokenAnchor:
     """A fragment ``#^name`` names no block anchor of the cited file."""
 
     kind: str = "broken-anchor"
+    description: str = "A fragment names no block anchor of the cited file."
 
     def check(self, subject: Subject, context: RuleContext) -> str | None:
         fragment = subject.target.fragment

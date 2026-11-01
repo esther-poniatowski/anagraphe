@@ -6,13 +6,19 @@ listed before it:
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
-| core | `anagraphe.core` | issues and reports, paths and patterns, Markdown links, configuration primitives, file walks, cached reads, atomic writes, Git state |
+| core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, configuration primitives, file walks, cached reads, atomic writes, Git state |
 | capabilities | `anagraphe.indexes`, `anagraphe.references` | generating the indexes, and checking the references between files |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 
 Neither capability imports the other. Each capability parses its own section of `anagraphe.yml`
 with the primitives of the core, and the composition layer joins the sections into one
 configuration.
+
+Each capability also declares the kinds of issue that it can report, in
+`anagraphe.indexes.kinds` and `anagraphe.references.service`. The writer of the findings log,
+`anagraphe.core.sarif`, receives these catalogues and the issues from the command line, so it
+imports no capability. An issue carries its locus from the code that creates it, since only that
+code holds the key or the target that it tested.
 
 ## Indexes
 

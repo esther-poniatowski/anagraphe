@@ -35,4 +35,5 @@ internals/index
 adr/0001-repository-boundary
 adr/0002-collection-owned-order
 adr/0003-pointers-across-moves
+adr/0004-findings-output
 ```
