@@ -42,6 +42,7 @@ jobs:
         run: pip install python-semantic-release
 
       - name: Run Semantic Release
-        run: semantic-release --config config/tools/releaserc.toml version
+        # The changelog is written by hand in CHANGELOG.md, so the tool generates none.
+        run: semantic-release --config config/tools/releaserc.toml version --no-changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

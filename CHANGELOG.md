@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-01
+
 ### Changed
 
 - **Breaking:** the configuration `anagraphe.yml` takes `schema_version: 2`. This layout holds a shared

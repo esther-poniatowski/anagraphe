@@ -16,6 +16,7 @@ dependencies:
   - mypy_extensions
   - pylint                 # code linting
   - pyright                # static type analysis
+  - python-semantic-release # release versioning from conventional commits
   # Testing
   - pytest
   - pytest-mock
