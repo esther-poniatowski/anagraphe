@@ -1,6 +1,7 @@
 # ADR 0004: Findings output
 
-**Status**: Proposed. It implements the Anagraphe row of the producer migration of Elenchos.
+**Status**: Accepted on 2026-11-01. It implements the Anagraphe row of the producer migration of
+Elenchos.
 
 ---
 

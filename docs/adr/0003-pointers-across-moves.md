@@ -1,6 +1,6 @@
 # ADR 0003: Pointers preserved across moves
 
-**Status**: Proposed
+**Status**: Accepted on 2026-11-01
 
 ---
 

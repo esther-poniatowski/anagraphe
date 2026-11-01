@@ -59,7 +59,7 @@ line per section. The summary counts the violations, the warnings and the issues
 
 Under `--format sarif`, a check command also writes its findings as a SARIF 2.1.0 log of the
 [findings profile](https://github.com/esther-poniatowski/elenchos) of the gate Elenchos, as
-[ADR 0004](../adr/0004-findings-output.md) proposes. The text report and the exit status stay
+[ADR 0004](../adr/0004-findings-output.md) decides. The text report and the exit status stay
 unchanged. When the log takes standard output, the text report moves to standard error, so that
 standard output holds the log alone.
 

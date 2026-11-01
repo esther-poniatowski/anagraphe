@@ -4,6 +4,8 @@
 
 **Amended** on 2026-11-01 by the decision of `geonexus` on [tool roles](https://github.com/esther-poniatowski/geonexus/blob/827474dca64daef110b9d7fe36a4127c2b32b167/docs/_decisions/tool-roles.md): the consumer keeps its vocabulary, its index types and its exclusions, and Anagraphe receives the generic mechanisms of addressing and layout.
 
+**Amended** on 2026-11-01 by [ADR 0003](0003-pointers-across-moves.md): the scope of Anagraphe covers the pointers between files beside the indexes, and the executable holds one group of commands per capability, so the command `anagraphe write` becomes `anagraphe indexes write`.
+
 ## Context
 
 The first implementation lived inside one consuming repository. Its rendering logic was reusable,
