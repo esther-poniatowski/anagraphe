@@ -516,4 +516,5 @@ def test_cli_rejects_output_without_sarif(tmp_path: Path) -> None:
     _repository(tmp_path, PLANTED_LINKS)
     result = _invoke("refs", "check", "--root", str(tmp_path), "--output", str(tmp_path / "x"))
     assert result.exit_code == 2
-    assert "--output requires --format sarif" in result.stderr
+    # A terminal admitting colours, as on a CI runner, interleaves escape codes with the message.
+    assert "--output requires --format sarif" in re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
