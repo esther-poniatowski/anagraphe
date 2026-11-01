@@ -15,7 +15,7 @@ import urllib.parse
 from pathlib import PurePosixPath
 from typing import Any, Sequence
 
-from anagraphe.notes import Note
+from anagraphe.indexes.notes import Note
 
 
 def title_of(note: Note) -> str:

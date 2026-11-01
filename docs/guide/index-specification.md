@@ -55,7 +55,10 @@ Each group admits the keys below, and only its identifier `id` is required:
 
 ## Assign the members
 
-Each member of the folder belongs to one group. The generator assigns the members in three
+The members of an index are the files of its folder whose type the configuration admits under
+`indexes.members`, and the indexes of its subfolders. By default, an index lists its Markdown
+notes and its YAML records, as the [configuration guide](configuration.md) states. Each member of
+the folder belongs to one group. The generator assigns the members in three
 steps, and an earlier step prevails over a later one:
 
 1. A group holds the files listed in its `members`. A group whose only membership key is
@@ -151,9 +154,10 @@ context_relations:
 
 ## List files that are not notes
 
-The index key `files` lists the files of the folder that are not notes, such as a PDF or a
-figure. Each entry declares the `file`, relative to the folder, and its `title`, and may declare
-a `purpose` and a `group`. An entry without `group` belongs to the group `*`. The entries of a
+The index key `files` lists files of the folder that cannot declare their own entry fields, such
+as a PDF or a figure. Each entry declares the `file`, relative to the folder, and its `title`, and
+may declare a `purpose` and a `group`. A file declared under `files` takes this entry, and is not
+listed a second time as a member. An entry without `group` belongs to the group `*`. The entries of a
 group follow its members, in the order of their titles:
 
 ```yaml

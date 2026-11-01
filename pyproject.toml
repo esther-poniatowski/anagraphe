@@ -16,7 +16,7 @@ authors = [{name = "Esther Poniatowski", email = "esther.poniatowski@ens.psl.eu"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 readme = {file = "README.md", content-type = "text/markdown"}
-description = "Generates repository indexes from record metadata and checks their drift."
+description = "Generates repository indexes from record metadata, and checks their drift and the references between files."
 keywords = []
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -32,6 +32,7 @@ requires-python = ">=3.12"
 
 dependencies = [
     "jsonschema>=4.23",
+    "pathspec>=0.12",
     "PyYAML>=6.0",
     "referencing>=0.35",
     "typer>=0.12",

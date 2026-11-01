@@ -28,8 +28,9 @@ import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from anagraphe.paths import link_target
-from anagraphe.retired import RETIRED_MODES, retired_keys, retired_mode
+from anagraphe.core.filters import Filter, parse_filter, scalar, scalars
+from anagraphe.core.links import link_target
+from anagraphe.indexes.retired import RETIRED_MODES, retired_keys, retired_mode
 
 #: The keys of one group, the id alone being required.
 GROUP_KEYS = frozenset(
@@ -123,9 +124,7 @@ class GroupSpec:
         >>> GroupSpec("tagged", where=(("tags", ("x",)),)).selects({"tags": ["y", "x"]})
         True
         """
-        return bool(self.where) and all(
-            any(item in values for item in scalars(data.get(key))) for key, values in self.where
-        )
+        return Filter(self.where).selects(data)
 
 
 @dataclass(frozen=True)
@@ -146,24 +145,6 @@ class ExternalSpec:
     target: str
     #: The use of the file by the index, stated under ``for``.
     use: str
-
-
-def scalar(value: Any) -> str:
-    """Return a frontmatter value in the form that a filter compares, booleans in lowercase."""
-    if isinstance(value, bool):
-        return str(value).lower()
-    return "" if value is None else str(value)
-
-
-def scalars(value: Any) -> tuple[str, ...]:
-    """Return the values that a filter compares: each element of a list, else the value itself.
-
-    Examples
-    --------
-    >>> scalars(["x", True]), scalars(None)
-    (('x', 'true'), ('',))
-    """
-    return tuple(scalar(item) for item in value) if isinstance(value, list) else (scalar(value),)
 
 
 @dataclass(frozen=True)
@@ -220,18 +201,8 @@ def _where(value: Any) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], list[st
     """Return the key values of a filter, each key admitting one value or a list of values."""
     if value is None:
         return ((), [])
-    if not isinstance(value, Mapping):
-        return ((), ["where must map keys to values"])
-    return (
-        tuple(
-            (
-                str(key),
-                tuple(scalar(item) for item in (values if isinstance(values, list) else [values])),
-            )
-            for key, values in value.items()
-        ),
-        [],
-    )
+    parsed, problems = parse_filter(value)
+    return (parsed.conditions, [f"where {problem}" for problem in problems])
 
 
 def parse_groups(value: Any) -> tuple[tuple[GroupSpec, ...], list[str]]:

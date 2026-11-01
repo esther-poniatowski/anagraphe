@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.12-blue)](https://www.python.org/)
 [![License: GPL](https://img.shields.io/badge/License-GPL--3.0-yellow.svg)](https://opensource.org/licenses/GPL-3.0)
 
-Generates repository indexes from record metadata and checks their drift.
+Generates repository indexes from record metadata, and checks their drift and the references between files.
 
 ---
 
@@ -23,6 +23,8 @@ Repository records often declare the metadata needed for navigation, while hand-
 repeat that metadata and drift after files move or change. Anagraphe reads repository-owned
 vocabularies and index-type schemas, then renders only the managed blocks of each index. The
 non-mutating check command compares those blocks with the same rendering used by the write command.
+The same check reads the fields declared as references by the repository, and reports each
+reference naming no file or anchor.
 
 ### Advantages
 
@@ -37,10 +39,15 @@ non-mutating check command compares those blocks with the same rendering used by
 
 - [x] Render the groups declared by an index, each as a registry or a sequence.
 - [x] Assign the members of a group by a filter or by an explicit list of links.
-- [x] Read Markdown frontmatter and YAML record metadata.
+- [x] List the files of declared types, by default Markdown notes and YAML records, with their fields read from declared metadata sources.
 - [x] Check managed blocks without writing files.
 - [x] Validate index types through repository-supplied JSON Schemas.
 - [x] Accept repository task states and folder build manifests through configuration.
+- [x] Check the declared references of Markdown links and YAML record fields.
+- [x] Move a file or a folder, rewriting every pointer to it and updating the affected indexes.
+- [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
+- [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
+- [ ] Move and rename anchors, and rename the identifiers of a declared namespace.
 - [ ] Load repository-specific adapters as plugins.
 - [ ] Render and manipulate indexes in Obsidian through a plugin.
 
@@ -50,10 +57,11 @@ The repository must contain an `anagraphe.yml` configuration and the vocabulary 
 schemas named by that configuration. The write command materializes every managed block:
 
 ```sh
-anagraphe write
+anagraphe indexes write
 ```
 
-The check command verifies the same rendering without changing a file:
+The check command verifies the same rendering, and the declared references, without changing a
+file:
 
 ```sh
 anagraphe check
@@ -67,6 +75,7 @@ anagraphe check
 | [CLI reference](docs/guide/cli-reference.md) | lists commands, arguments, and exit states |
 | [Configuration](docs/guide/configuration.md) | declares repository-owned inputs |
 | [Index specification](docs/guide/index-specification.md) | declares the groups, membership and order of a collection |
+| [Reference specification](docs/guide/references.md) | declares the references between files, and repairs the reported ones |
 | [Architecture](docs/internals/architecture.md) | separates the generic core from repository adapters |
 
 ## Contributing

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** the configuration `anagraphe.yml` takes `schema_version: 2`. This layout holds a shared
+  `exclude`, then one section per capability: `indexes`, holding the former top-level keys, and
+  `references`. The version 1 fails with a message naming the new layout.
+- **Breaking:** the command line holds one group per section, as
+  [ADR 0003](docs/adr/0003-pointers-across-moves.md) proposes. The command `anagraphe write` becomes
+  `anagraphe indexes write`, and `anagraphe check` runs the check of every declared section.
+- **Breaking:** the modules move into the subpackages `anagraphe.core`, `anagraphe.indexes` and
+  `anagraphe.references`.
+- **Breaking:** an exclusion selects files by patterns in the syntax of `.gitignore` under `paths`,
+  exceptions included, and by metadata filters under `where`, such as `{status: archived}`. The
+  key `gitignore` also applies the root `.gitignore`. The keys `directories`, `files` and
+  `basenames` fail with the pattern replacing each of them. Hidden files and folders are excluded
+  unless an exception admits them.
+- **Breaking:** the summary line of a check names its section and counts each kind of issue, as in
+  `indexes: processed 3 indexes holding blocks: 1 violations, 0 warnings (1 stale-block)`.
+- **Breaking:** a target error is printed after `target:`, not after `configuration:`.
 - **Breaking:** the index of a collection specifies the membership, the order and the nesting of
   its groups (e.g. the group keys `where`, `members`, `sort`, `order`, `sequence`), as
   [ADR 0002](docs/adr/0002-collection-owned-order.md) decides.
@@ -21,6 +37,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The command `anagraphe refs check` reports the references that name no file or anchor, or break
+  a convention. Its issue kinds are `broken`, `outside-repository`, `convention`, `broken-anchor`,
+  `heading-fragment`, `foreign-scheme` and `unreadable-file`, each defined by the
+  [reference specification](docs/guide/references.md).
+- The conventions of the pointers under `references.conventions`: cascading rules that admit
+  syntaxes, path styles (`relative`, `root`, `absolute`, `shortest`, `{base: folder}`) and the
+  strictness of each syntax, by path pattern, file type, metadata filter, region or syntax. They
+  replace the bases `markdown.body`, `markdown.frontmatter` and `records[].base`. The issue kinds
+  `link-format` and `ambiguous-link` are added.
+- The registry of syntaxes under `references.syntaxes`, replacing `references.markdown` and
+  `references.records`: the built-in syntaxes `markdown`, `wikilink`, `code` (a backticked path)
+  and `latex`, each redefinable, and further syntaxes declared by a pattern or by the keys of a
+  YAML, JSON or TOML document.
+- **Breaking:** an index lists the files of the types declared under `indexes.members`, by
+  default its Markdown notes and its YAML records, and reads their entry fields from their
+  metadata source. A YAML record without a block `metadata` is now listed; before, it was dropped
+  without notice. A file of another type, such as a PDF, can be declared a member. A file declared
+  under the index key `files` is listed once, by its declared entry.
+- The metadata sources under the top-level key `metadata`: the frontmatter, or a YAML, JSON or TOML
+  document at declared key paths, or none, by path and type. The filters of the exclusions and of
+  the conventions read through them, and they mark the regions `metadata` and `content`.
+- The command `anagraphe move` moves a file or a folder, rewrites every pointer to it, and updates
+  the affected indexes, as the [usage guide](docs/guide/usage.md) describes.
 - The index key `external` and the member key `superseded_by`, each resolved to a file. A note
   declaring `superseded_by` must hold an archived status.
 - The vocabulary sections `key_values`, `context_relations` and `archived_statuses`.

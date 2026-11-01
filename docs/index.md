@@ -1,6 +1,6 @@
 # Anagraphe
 
-Generates repository indexes from record metadata and checks their drift.
+Generates repository indexes from record metadata, and checks their drift and the references between files.
 
 ```{toctree}
 :maxdepth: 2
@@ -11,6 +11,7 @@ guide/usage
 guide/cli-reference
 guide/configuration
 guide/index-specification
+guide/references
 ```
 
 ```{toctree}
@@ -33,4 +34,5 @@ internals/index
 
 adr/0001-repository-boundary
 adr/0002-collection-owned-order
+adr/0003-pointers-across-moves
 ```

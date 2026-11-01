@@ -8,10 +8,19 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-import anagraphe.application as application
-from anagraphe.application import run
+import anagraphe.core.files as files
 from anagraphe.cli import app
-from anagraphe.configuration import ConfigurationError, load_config
+from anagraphe.configuration import load_config
+from anagraphe.core.configuration import ConfigurationError
+from anagraphe.indexes.configuration import IndexConfig
+from anagraphe.indexes.service import run
+
+
+def _indexes(root: Path) -> IndexConfig:
+    """Load the section indexes of the fixture configuration."""
+    config = load_config(root, root / "anagraphe.yml").indexes
+    assert config is not None
+    return config
 
 
 def _write(path: Path, text: str) -> None:
@@ -41,8 +50,8 @@ def _repository(root: Path) -> None:
     _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
     _write(
         root / "anagraphe.yml",
-        "schema_version: 1\nvocabulary: config/vocabulary.yml\n"
-        "index_types: config/index-types\ninspect_git: false\n",
+        "schema_version: 2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "  index_types: config/index-types\n  inspect_git: false\n",
     )
     _write(
         root / "notes" / "_index.md",
@@ -62,7 +71,7 @@ def test_check_reports_drift_without_writing(tmp_path: Path) -> None:
     _repository(tmp_path)
     index = tmp_path / "notes" / "_index.md"
     before = index.read_text(encoding="utf-8")
-    result = run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "check")
+    result = run(tmp_path, _indexes(tmp_path), "check")
     assert result.blocking_count == 1
     assert result.issues[-1].kind == "stale-block"
     assert index.read_text(encoding="utf-8") == before
@@ -71,7 +80,7 @@ def test_check_reports_drift_without_writing(tmp_path: Path) -> None:
 def test_write_is_deterministic(tmp_path: Path) -> None:
     """A second write must produce no changed index."""
     _repository(tmp_path)
-    config = load_config(tmp_path, tmp_path / "anagraphe.yml")
+    config = _indexes(tmp_path)
     first = run(tmp_path, config, "write")
     rendered = (tmp_path / "notes" / "_index.md").read_text(encoding="utf-8")
     second = run(tmp_path, config, "write")
@@ -85,11 +94,13 @@ def test_cli_check_write_check_contract(tmp_path: Path) -> None:
     _repository(tmp_path)
     runner = CliRunner()
     stale = runner.invoke(app, ["check", "--root", str(tmp_path)])
-    written = runner.invoke(app, ["write", "--root", str(tmp_path)])
+    written = runner.invoke(app, ["indexes", "write", "--root", str(tmp_path)])
     clean = runner.invoke(app, ["check", "--root", str(tmp_path)])
-    repeated = runner.invoke(app, ["write", "--root", str(tmp_path)])
+    repeated = runner.invoke(app, ["indexes", "write", "--root", str(tmp_path)])
     assert stale.exit_code == 1
-    assert "stale-block" in stale.stdout
+    assert "stale-block: a block differs from its rendering; run anagraphe indexes write" in (
+        stale.stdout
+    )
     assert written.exit_code == 0
     assert clean.exit_code == 0
     assert "0 violations" in clean.stdout
@@ -107,7 +118,7 @@ def test_blocking_issue_prevents_every_write(tmp_path: Path) -> None:
     )
     index = tmp_path / "notes" / "_index.md"
     before = index.read_text(encoding="utf-8")
-    result = run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "write")
+    result = run(tmp_path, _indexes(tmp_path), "write")
     assert result.blocking_count > 0
     assert index.read_text(encoding="utf-8") == before
 
@@ -131,7 +142,7 @@ def test_atomic_write_restores_replaced_indexes(
     )
     indexes = [tmp_path / "notes" / "_index.md", tmp_path / "other" / "_index.md"]
     before = {index: index.read_bytes() for index in indexes}
-    replace = application.os.replace
+    replace = files.os.replace
     calls = 0
 
     def fail_second_replacement(source: Path, target: Path) -> None:
@@ -141,21 +152,27 @@ def test_atomic_write_restores_replaced_indexes(
             raise OSError("injected replacement failure")
         replace(source, target)
 
-    monkeypatch.setattr(application.os, "replace", fail_second_replacement)
+    monkeypatch.setattr(files.os, "replace", fail_second_replacement)
     with pytest.raises(OSError, match="injected replacement failure"):
-        run(tmp_path, load_config(tmp_path, tmp_path / "anagraphe.yml"), "write")
+        run(tmp_path, _indexes(tmp_path), "write")
     assert {index: index.read_bytes() for index in indexes} == before
 
 
-def test_configuration_requires_version_one(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("version", "message"),
+    [
+        (3, "schema_version must equal 2"),
+        (
+            1,
+            "schema_version 1 is retired: version 2 holds the index keys under the section indexes",
+        ),
+    ],
+)
+def test_configuration_requires_version_two(tmp_path: Path, version: int, message: str) -> None:
     """An unsupported configuration version must fail before repository access."""
-    _write(tmp_path / "anagraphe.yml", "schema_version: 2\n")
-    try:
+    _write(tmp_path / "anagraphe.yml", f"schema_version: {version}\nindexes: {{}}\n")
+    with pytest.raises(ConfigurationError, match=message):
         load_config(tmp_path, tmp_path / "anagraphe.yml")
-    except ConfigurationError as error:
-        assert str(error) == "schema_version must equal 1"
-    else:
-        raise AssertionError("an unsupported schema version was accepted")
 
 
 def test_cli_rejects_explicit_target_without_index(tmp_path: Path) -> None:
@@ -163,9 +180,12 @@ def test_cli_rejects_explicit_target_without_index(tmp_path: Path) -> None:
     _repository(tmp_path)
     empty = tmp_path / "empty"
     empty.mkdir()
-    result = CliRunner().invoke(app, ["check", "--root", str(tmp_path), str(empty)])
+    result = CliRunner().invoke(app, ["indexes", "check", "--root", str(tmp_path), str(empty)])
     assert result.exit_code == 2
-    assert "target resolves to no _index.md" in result.stderr
+    assert "target: target resolves to no _index.md" in result.stderr
+    unread = CliRunner().invoke(app, ["check", "--root", str(tmp_path), str(empty)])
+    assert unread.exit_code == 2
+    assert "the targets hold no file that a declared section reads" in unread.stderr
 
 
 def test_cli_rejects_nonexistent_explicit_target(tmp_path: Path) -> None:
@@ -219,7 +239,9 @@ def test_configuration_rejects_path_outside_repository(tmp_path: Path) -> None:
     """A repository-owned input must not resolve outside the repository root."""
     _write(
         tmp_path / "anagraphe.yml",
-        "schema_version: 1\nvocabulary: ../outside.yml\nindex_types: config/index-types\n",
+        "schema_version: 2\nindexes:\n  vocabulary: ../outside.yml\n  index_types: config/index-types\n",
     )
-    with pytest.raises(ConfigurationError, match="vocabulary must stay inside the repository"):
+    with pytest.raises(
+        ConfigurationError, match="indexes.vocabulary must stay inside the repository"
+    ):
         load_config(tmp_path, tmp_path / "anagraphe.yml")

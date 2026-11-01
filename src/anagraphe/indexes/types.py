@@ -49,8 +49,8 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from referencing import Registry, Resource
 from referencing.exceptions import CannotDetermineSpecification
 
-from anagraphe.retired import RETIRED_MODES, retired_mode
-from anagraphe.slots import MODES
+from anagraphe.indexes.retired import RETIRED_MODES, retired_mode
+from anagraphe.indexes.slots import MODES
 
 #: The type of an index declaring none, outside every location fixing a type.
 DEFAULT_TYPE = "module"

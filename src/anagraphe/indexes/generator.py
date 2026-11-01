@@ -24,17 +24,19 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
-from anagraphe.blocks import Block, parse_blocks, replace_bodies
-from anagraphe.fields import FieldRules
-from anagraphe.issues import Issue
-from anagraphe.membership import Membership, assign
-from anagraphe.notes import Note, NoteReader
-from anagraphe.order import Collation, Ordering, order_registry, order_sequence
-from anagraphe.paths import link_target, normalize, value_link
-from anagraphe.render import render_body, title_of
-from anagraphe.retired import MigrationClass, Scope, migration_of, retired_keys
-from anagraphe.slots import SORT_KEYS, GroupSpec, prose_units
-from anagraphe.types import IndexType, IndexTypes
+from anagraphe.indexes.blocks import Block, parse_blocks, replace_bodies
+from anagraphe.indexes.fields import FieldRules
+from anagraphe.core.issues import Issue
+from anagraphe.indexes.membership import Membership, assign
+from anagraphe.core.metadata import MetadataReader
+from anagraphe.indexes.notes import Note, NoteReader
+from anagraphe.indexes.order import Collation, Ordering, order_registry, order_sequence
+from anagraphe.core.links import link_target, value_link
+from anagraphe.core.paths import normalize
+from anagraphe.indexes.render import render_body, title_of
+from anagraphe.indexes.retired import MigrationClass, Scope, migration_of, retired_keys
+from anagraphe.indexes.slots import SORT_KEYS, GroupSpec, prose_units
+from anagraphe.indexes.types import IndexType, IndexTypes
 
 #: Emphasis markers removed from an H1 heading before it is compared with the first alias.
 EMPHASIS = re.compile(r"[*_`]")
@@ -63,6 +65,10 @@ class Settings:
     generated_areas: frozenset[str] = frozenset()
     #: Indexes absent from the last commit, which must hold the region of their groups in any area.
     new_indexes: frozenset[str] = frozenset()
+    #: Whether an index lists a repository-relative file of its folder, by its declared types.
+    is_member: Callable[[str], bool] = field(
+        default=lambda rel: rel.endswith((".md", ".yml", ".yaml"))
+    )
 
     @classmethod
     def from_vocabulary(
@@ -143,6 +149,7 @@ class IndexGenerator:
         tasks: Mapping[str, bool],
         sequence_provider: SequenceProvider | None = None,
         migrations: Sequence[MigrationClass] = (),
+        metadata: MetadataReader | None = None,
     ) -> None:
         self.root = root
         self.settings = settings
@@ -150,10 +157,10 @@ class IndexGenerator:
         self.tasks = tasks
         self.sequence_provider = sequence_provider or (lambda _folder: None)
         self.migrations = tuple(migrations)
-        self.reader = NoteReader(root)
+        self.reader = NoteReader(root, metadata)
 
     def members(self, index_rel: str) -> list[Note]:
-        """Return the files that an index lists: notes, child indexes and specifications."""
+        """Return the files that an index lists: the files of its declared types, and child indexes."""
         folder = self.root / PurePosixPath(index_rel).parent
         candidates: list[str] = []
         for path in sorted(folder.iterdir(), key=lambda item: item.name):
@@ -164,9 +171,7 @@ class IndexGenerator:
                 child = path / self.settings.entry_point
                 if child.is_file() and not self.settings.is_exempt(child.relative_to(self.root)):
                     candidates.append(child.relative_to(self.root).as_posix())
-            elif path.suffix == ".md" and path.name != self.settings.entry_point:
-                candidates.append(rel.as_posix())
-            elif self.reader.is_specification(rel.as_posix()):
+            elif path.name != self.settings.entry_point and self.settings.is_member(rel.as_posix()):
                 candidates.append(rel.as_posix())
         notes = [self.reader.read(rel) for rel in candidates]
         return [
@@ -204,8 +209,13 @@ class IndexGenerator:
         kind, type_problems = self.settings.types.resolve(
             index_rel, index_note.index_type if index_note is not None else None
         )
-        # The expected files are listed by the control block, never as entries.
+        # The expected files are listed by the control block, never as entries, and a file declared
+        # under the key files takes its declared entry, never a second one as a member.
         controls = {normalize(PurePosixPath(folder) / spec.name) for spec in kind.expected}
+        controls |= {
+            normalize(PurePosixPath(folder) / spec.file)
+            for spec in (index_note.files if index_note is not None else ())
+        }
         members = [note for note in self.members(index_rel) if note.rel not in controls]
         retired = self._retired_member_issues(index_rel, index_note, members)
         if not blocks:
@@ -683,7 +693,13 @@ class IndexGenerator:
         return issues
 
     def _member_issues(self, note: Note, spec: GroupSpec, index_rel: str) -> list[Issue]:
-        """Report the title, the index, the purpose and the blockers of a listed member."""
+        """Report the title, the index, the purpose and the blockers of a listed member.
+
+        A member without a metadata source, such as a PDF, cannot declare these fields, so it is
+        titled by its file name and raises none of these issues.
+        """
+        if not note.reads_metadata:
+            return []
         issues: list[Issue] = []
         if not note.title:
             issues.append(

@@ -26,9 +26,10 @@ True
 
 from __future__ import annotations
 
-import fnmatch
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Sequence
+
+from anagraphe.core.paths import matches
 
 Scope = Literal["member", "note", "index", "group"]
 
@@ -134,7 +135,7 @@ class MigrationClass:
 
     def covers(self, rel: str) -> bool:
         """Whether a repository-relative path belongs to the class."""
-        return any(fnmatch.fnmatchcase(rel, pattern) for pattern in self.patterns)
+        return matches(rel, self.patterns)
 
 
 def migration_of(classes: Sequence[MigrationClass], key: str, rel: str) -> MigrationClass | None:

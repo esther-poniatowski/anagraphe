@@ -1,4 +1,4 @@
-"""Generate repository indexes from record metadata and check their drift."""
+"""Generate repository indexes from record metadata, and keep the pointers between files valid."""
 
 from importlib.metadata import PackageNotFoundError, version
 

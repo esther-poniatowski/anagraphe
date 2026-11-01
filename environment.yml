@@ -9,6 +9,7 @@ dependencies:
   - types-pyyaml           # type stubs for PyYAML
   - jsonschema             # index-type schema validation
   - referencing            # local JSON Schema registry
+  - pathspec               # exclusions in .gitignore syntax
   # Development tools
   - black                  # code formatting
   - mypy                   # static type checking

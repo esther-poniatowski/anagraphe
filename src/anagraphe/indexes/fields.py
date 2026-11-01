@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from anagraphe.slots import scalar
+from anagraphe.core.filters import scalar
 
 #: A task identifier, declared by ``🆔`` on a checklist line.
 TASK_ID = re.compile(r"^[A-Za-z0-9_-]+$")

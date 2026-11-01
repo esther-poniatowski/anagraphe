@@ -25,9 +25,10 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any, Mapping, Sequence
 
-from anagraphe.notes import Note
-from anagraphe.render import title_of
-from anagraphe.slots import SORT_KEYS, GroupSpec, scalar
+from anagraphe.indexes.notes import Note
+from anagraphe.indexes.render import title_of
+from anagraphe.core.filters import scalar
+from anagraphe.indexes.slots import SORT_KEYS, GroupSpec
 
 #: An ISO date opening a file name, by month or by day.
 DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}(?:-\d{2})?)")

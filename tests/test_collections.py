@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -10,13 +11,14 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from anagraphe.application import RunResult, run
 from anagraphe.cli import app
-from anagraphe.configuration import ConfigurationError, load_config
-from anagraphe.generator import nest_members
-from anagraphe.issues import Issue
-from anagraphe.notes import Note
-from anagraphe.retired import RETIRED_KEYS
+from anagraphe.configuration import load_config
+from anagraphe.core.configuration import ConfigurationError
+from anagraphe.core.issues import Issue
+from anagraphe.indexes.generator import nest_members
+from anagraphe.indexes.notes import Note
+from anagraphe.indexes.retired import RETIRED_KEYS
+from anagraphe.indexes.service import RunResult, run
 
 #: A rendered entry, capturing the path of its link.
 ENTRY = re.compile(r"^\s*- \[[^\]]*\]\(([^)]+)\)", re.MULTILINE)
@@ -53,8 +55,9 @@ def _repository(
     _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
     _write(
         root / "anagraphe.yml",
-        "schema_version: 1\nvocabulary: config/vocabulary.yml\n"
-        f"index_types: config/index-types\ninspect_git: false\n{configuration}",
+        "schema_version: 2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "  index_types: config/index-types\n  inspect_git: false\n"
+        + textwrap.indent(configuration, "  "),
     )
 
 
@@ -82,7 +85,9 @@ def _link(name: str) -> str:
 
 def _run(root: Path, mode: str = "check") -> RunResult:
     """Run one command over the fixture repository."""
-    return run(root, load_config(root, root / "anagraphe.yml"), mode)  # type: ignore[arg-type]
+    config = load_config(root, root / "anagraphe.yml").indexes
+    assert config is not None
+    return run(root, config, mode)  # type: ignore[arg-type]
 
 
 def _entries(root: Path) -> list[str]:
