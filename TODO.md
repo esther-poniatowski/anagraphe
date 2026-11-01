@@ -13,3 +13,16 @@
 - [ ] Retire the parsing of typed citations from the generic core, keeping the index key `external` and an optional `superseded_by`; release the change as a breaking version after migrating the two project repositories
 - [ ] Report the retired constructions inside `groups` (a `strategy`, a mode `construction`, a retired key in `show`) under an index without a region of groups, as the other retired keys are
 - [ ] Give a member hanging below a nesting cycle, but not on it, a message that does not say it closes the cycle
+- [ ] Index YAML records that keep their entry fields at the top level, without a block `metadata`, as the records of Gnomon do. Let the policy name the keys holding the title, the status and the purpose of each type of file. Read the order of categorical values from the member schema; the Geonexus record on collection-owned order leaves this point open
+- [x] Split the package into a shared core and the subpackages `indexes` and `references`, each configured by its own section of `anagraphe.yml`, as ADR 0003 proposes ✅ 2026-10-30
+- [x] Port the link checker of the Geonexus vault into the subpackage `references`, as the command `anagraphe refs check` ✅ 2026-10-30
+- [x] Move a file or a folder with `anagraphe move`, rewriting every Markdown link and bare path to it, and updating the key `index`, the explicit lists, the build manifests and the regions of the affected indexes ✅ 2026-10-30
+- [x] Exclude files by `.gitignore` patterns through `pathspec`, exceptions included (`!utils/macros/_index.md`), and by metadata filters of the form of `where` (`status: archived`, `role: audit`, `role: decision`), as ADR 0003 decides ✅ 2026-10-30
+- [x] Declare conventions of link formats (Markdown links, wikilinks) and path styles (relative, root, absolute, shortest, base folder) by path pattern, file type, metadata or layer, as cascading rules ✅ 2026-10-30
+- [x] Declare the syntaxes of the pointers (Markdown links, wikilinks, backticked paths, LaTeX inputs, patterns, keys of YAML, JSON or TOML documents) and the metadata sources of the files (frontmatter, documents at key paths, none), by path and type ✅ 2026-10-30
+- [ ] Resolve LaTeX targets through `\graphicspath` and from the folder of the main document, as LaTeX does; 35 targets of the vault are reported as broken until then
+- [x] Declare the types of the files that an index lists under `indexes.members`, by default Markdown notes and YAML records, and read their entry fields through the declared metadata sources ✅ 2026-10-31
+- [ ] Rewrite the pointers that break a convention into an admitted syntax and style, such as converting the wikilinks of a folder into Markdown links
+- [ ] Move and rename block anchors with `anagraphe move-anchor`, moving the anchored block to its target file
+- [ ] Declare the namespaces of identifiers (definition and citation syntaxes), report undefined and duplicate identifiers, and rename an identifier with `anagraphe rename-id`
+- [ ] Rewrite the pointers broken by the renames that Git records, with a repair command

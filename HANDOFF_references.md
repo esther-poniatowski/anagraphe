@@ -1,0 +1,28 @@
+# Handoff: pointers preserved across moves
+
+This handoff directs the agent that continues the pointers of Anagraphe: their check, the moves that preserve them, and the exclusions. [ADR 0003](docs/adr/0003-pointers-across-moves.md) states the design, and the [reference specification](docs/guide/references.md) is the user reference. This handoff carries only the order of work, the constraints and the state.
+
+## Task state
+
+1. **Done (2026-10-30): restructure and port.** The core `anagraphe.core` holds the shared primitives, under the capabilities `anagraphe.indexes` and `anagraphe.references`. The command `anagraphe refs check` ports the vault checker, and every kind has a planted case in [the reference tests](tests/test_references.py).
+2. **Done (2026-10-30): move files and folders.** The composition module `anagraphe.refactor` drives `anagraphe move OLD NEW [--dry-run]`, with [the move tests](tests/test_moves.py). A read-only dry run on the vault planned 88 pointer edits for a move of the folder `exchanges`, and every sampled edit was genuine.
+3. **Open: ratify ADR 0003.** The record is `Proposed`. Once the researcher accepts it, update [ADR 0001](docs/adr/0001-repository-boundary.md) on the two points that ADR 0003 amends: the scope and the command line.
+4. **Done (2026-10-30): exclusions and conventions.** An `exclude` takes `.gitignore` patterns through `pathspec` (already in the environment `anagraphe`, now declared in `pyproject.toml` and `environment.yml`), metadata filters, and an opt-in root `.gitignore`. The rules of `references.conventions` fix the syntaxes, the path styles and the strictness by path, type, metadata, region or syntax, with [the exclusion tests](tests/test_exclusions.py) and [the convention tests](tests/test_conventions.py).
+   Also done on 2026-10-30: the registry of syntaxes (`anagraphe.references.syntaxes`, with [the syntax tests](tests/test_syntaxes.py)) and the declared metadata sources (`anagraphe.core.metadata`), which replace the fixed Markdown and YAML layers by the regions `metadata` and `content`.
+5. **Open: anchors.** The command `anagraphe move-anchor FILE#^NAME TARGET[#^NAME]` rewrites every fragment citing an anchor, and moves the anchored block to another file.
+6. **Open: namespaces of identifiers.** A namespace declares the syntax of a definition and of a citation, such as the tasks defined by `🆔 name` and cited under `blocked_by`. The check reports undefined and duplicate identifiers, and `anagraphe rename-id` renames one.
+7. **Open: repair from Git.** A repair command rewrites the pointers broken by the renames that Git records.
+8. **Open: LaTeX resolution.** Resolve the targets of the syntax `latex` through the folders of `\graphicspath` and from the folder of the main document. On 2026-10-30, the vault reported 35 LaTeX targets as broken for these reasons alone; admitting the style `shortest` for LaTeX reduced them to 13 but made 6 ambiguous, so it is no substitute.
+9. **Done (2026-10-31): indexes on the metadata sources.** `indexes.members` declares the listed types, by default Markdown and YAML, and `anagraphe.indexes.notes` reads the entry fields through `anagraphe.core.metadata`, with [the member tests](tests/test_members.py). Each consumer excludes the YAML files that hold no record: 19 in Mixture, 9 in Symmetry and 65 in the vault would otherwise join an index, such as `anagraphe.yml`, `environment.yml`, the schemas and the vocabularies.
+10. **Open: conversion to the convention.** A command rewrites each pointer that breaks its convention into an admitted format and style, such as the wikilinks of a folder into Markdown links.
+11. **Open: the vault adoption**, under step 5 of the [release handoff](HANDOFF.md). The vault moves its schemes from `link_schemes` of `specs/vocabulary/relations.yml` to `references.schemes`, and its pattern `utils/macros/*`, with the exception `!utils/macros/_index.md`, into the exclusions.
+
+## Active constraints
+
+- **No edit of the vault.** The vault checker `utils/scripts/check_links.py` stays in place until the vault adopts Anagraphe. A test on the vault runs read-only, such as a dry-run plan; its `git status` must count the same entries before and after.
+- **No false rewrite.** A bare token is a path only when it holds a slash or names a file with a suffix, and resolves to a moved file. A vault dry run found that a bare word, the name of the folder in a sentence, was otherwise rewritten.
+- **Existence from the walk.** A move answers whether a path exists from the files listed by its walk, never by a call to the file system per token: a long rule of dashes in a note raised `File name too long`.
+- **Parity on the vault.** A change of an extractor or a rule of the check is compared with the vault checker, run read-only from the vault root: `conda run -n geonexus python utils/scripts/check_links.py`. On 2026-10-30, both reported the same 137 issues, apart from the departures listed by ADR 0003: two false positives of the vault checker (a link in display math, one in a code span) and 20 issues of the kind `outside-repository`.
+- **Math is no link.** The extractor blanks inline math and pairs the delimiters `$$` in sequence through the text. Toggling display math on whole lines only left a block open in a vault note, which hid every later link of the file.
+- **Concurrent work in the vault.** Another process edits the vault during these sessions, so its `git status` count may change for reasons unrelated to a read-only run.
+- **Checks.** The commands of the [release handoff](HANDOFF.md) apply, with the tool configurations of `config/tools/`. The lint run on the tests fails to load its plugin `pytest_pylint` in the environment `anagraphe`.
