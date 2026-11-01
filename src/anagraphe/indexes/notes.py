@@ -69,6 +69,8 @@ class Note:
     data: Mapping[str, Any] = field(default_factory=dict, compare=False)
     #: Whether a metadata source is declared for the file, so that it can declare its entry fields.
     reads_metadata: bool = True
+    #: Why the metadata of the file cannot be parsed, None when it can; its fields are then empty.
+    metadata_problem: str | None = None
 
 
 def iso_date(value: Any) -> str | None:
@@ -119,7 +121,8 @@ class NoteReader:
         if source.kind is SourceKind.FRONTMATTER:
             found = HEADING.search(split_frontmatter(text)[1])
             heading = found.group(1) if found else None
-        return self._record(rel, source.read(text), heading)
+        data, problem = source.parse(text)
+        return self._record(rel, data, heading, problem=problem)
 
     @staticmethod
     def _record(
@@ -127,6 +130,7 @@ class NoteReader:
         data: dict[str, Any],
         heading: str | None,
         reads_metadata: bool = True,
+        problem: str | None = None,
     ) -> Note:
         aliases = as_tuple(data.get("aliases"))
         groups, group_problems = parse_groups(data.get("groups"))
@@ -155,4 +159,5 @@ class NoteReader:
             ),
             data=data,
             reads_metadata=reads_metadata,
+            metadata_problem=problem,
         )

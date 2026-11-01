@@ -203,6 +203,7 @@ under an index holding the region of groups:
 | `unsequenced-member` | a sequence does not list a member of its group (warning) |
 | `retired-key` | a member or the index declares a retired key (`group`, `cites`, the index keys `sequence` and `goal`), and the message names its replacement |
 | `migration-key` | a retired key lies inside a migration class declared by the configuration (warning) |
+| `unreadable-metadata` | the metadata of the index or of a member cannot be parsed, such as a frontmatter that is not valid YAML or never closes; the fields of the file are left unchecked, and an index so reported keeps its regions as written |
 
 A retired construction of an index-type schema, such as `x-default-mode: construction`, or of the
 vocabulary, such as its section `cites`, stops the command with a configuration error. The

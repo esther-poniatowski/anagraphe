@@ -118,7 +118,7 @@ code can name the locus without reading the message.
    | Kinds | Locus | Discriminator |
    | --- | --- | --- |
    | every kind of `references` but `unreadable-file` | `link:<target as written>` | — |
-   | `unreadable-file`, `stale-block`, `ungenerated-index`, `malformed-block`, `index-prose`, `unmigrated-member`, `unplaced-member`, `unsequenced-member` | empty | — |
+   | `unreadable-file`, `unreadable-metadata`, `stale-block`, `ungenerated-index`, `malformed-block`, `index-prose`, `unmigrated-member`, `unplaced-member`, `unsequenced-member` | empty | — |
    | `missing-control-file` | empty | the required file |
    | `retired-key`, `migration-key` | `/<key>` | — |
    | `missing-alias`, `title-mismatch` | `/aliases` | — |
@@ -150,7 +150,7 @@ code can name the locus without reading the message.
    | Case | `results` |
    | --- | --- |
    | an invalid configuration or target stopped the command, exit status 2 | absent when no section ran; otherwise the results of the sections that ran |
-   | a document read by a syntax of keys cannot be parsed | every result, including `unreadable-file` |
+   | a document read by a syntax of keys, or the metadata of an indexed file, cannot be parsed | every result, including `unreadable-file` or `unreadable-metadata` |
 
 ---
 
@@ -158,14 +158,17 @@ code can name the locus without reading the message.
 
 - **Rename map.** The kinds `broken`, `heading-fragment` and `broken-anchor` of Anagraphe keep the
   names of the Geonexus link checker, and `retired-key` keeps the name of the Geonexus frontmatter
-  checker. Anagraphe reports no kind `unlinkable-target`, so a Geonexus suppression of that kind
-  finds no result until the check is ported.
+  checker. The kind `unlinkable-target` of the Geonexus frontmatter checker becomes the kind
+  `unlinkable-target` of the section `references`, since it concerns a pointer and its cited file.
+  Its locus is the target as written; the Geonexus checker removes the fragment and the
+  percent-encoding, so a suppression carries over only for a link without them.
 - **Region.** An issue holds a line only where its defect has one, such as a reference or a
   marker. An issue of a whole file or of a key of the metadata holds no line, so its physical
   location holds no region, as the profile requires of a finding on a whole file. The text report
   still prints such an issue at line 1, so its bytes are unchanged.
-- **Unparsed metadata.** A metadata source that cannot be parsed yields an empty mapping, so the
-  indexes report the missing fields rather than an unreadable file, and the run stays complete.
+- **Unparsed metadata.** A metadata source that cannot be parsed is reported as
+  `unreadable-metadata`, in place of the missing fields that would follow from its empty mapping.
+  The exclusions and the conventions still read such a file as holding no field.
 - **New kinds.** A new kind of issue joins the catalogue of its section, and takes a locus at its
   creation site. Renaming a kind changes the identity of its results, so it requires a rename in
   the gate.

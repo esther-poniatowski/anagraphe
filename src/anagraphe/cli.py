@@ -37,6 +37,7 @@ from anagraphe.core.issues import IssueKind, Report
 from anagraphe.core.sarif import Section, sarif_log
 from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.kinds import KINDS as INDEX_KINDS
+from anagraphe.indexes.kinds import UNREADABLE_METADATA
 from anagraphe.indexes.service import Mode, run
 from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.service import KINDS as REFERENCE_KINDS
@@ -85,6 +86,12 @@ CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
     "references": REFERENCE_KINDS,
 }
 
+#: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
+UNANALYZED: dict[str, frozenset[str]] = {
+    "indexes": frozenset({UNREADABLE_METADATA}),
+    "references": frozenset({UNREADABLE}),
+}
+
 
 @dataclass
 class Findings:
@@ -113,23 +120,23 @@ class Findings:
     def write(self, stopped: str | None = None) -> None:
         """Write the log under sarif, failed with the reason ``stopped`` when it is given.
 
-        A file that a section could not read leaves its pointers unchecked, so it also makes the run
-        incomplete.
+        A file that a section could not parse leaves its pointers or its fields unchecked, so it also
+        makes the run incomplete.
         """
         if self.format is not OutputFormat.SARIF:
             return
         unread = sorted(
             {
                 issue.rel
-                for report in self.reports.values()
+                for name, report in self.reports.items()
                 for issue in report.issues
-                if issue.kind == UNREADABLE
+                if issue.kind in UNANALYZED[name]
             }
         )
         if stopped is None and unread:
             stopped = (
-                f"{len(unread)} files could not be read, so their pointers were not checked: "
-                + ", ".join(unread)
+                f"{len(unread)} files could not be parsed, so their pointers or fields were not "
+                "checked: " + ", ".join(unread)
             )
         sections = [
             Section(name, kinds, self.reports[name].issues if name in self.reports else ())

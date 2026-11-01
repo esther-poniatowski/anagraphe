@@ -76,6 +76,37 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     return (parsed if isinstance(parsed, dict) else {}, body)
 
 
+def frontmatter_problem(text: str) -> str | None:
+    """Return why the frontmatter of a note cannot be read, None when it is absent or readable.
+
+    Examples
+    --------
+    >>> frontmatter_problem("---\\nrole: spec\\n---\\n"), frontmatter_problem("# Title\\n")
+    (None, None)
+    >>> frontmatter_problem("---\\nrole: spec\\n# Title\\n")
+    'the frontmatter opens on --- and never closes'
+    >>> frontmatter_problem("---\\n- a\\n- b\\n---\\n")
+    'the frontmatter is not a mapping'
+    """
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---", 4)
+    if end == -1:
+        return "the frontmatter opens on --- and never closes"
+    try:
+        parsed = yaml.safe_load(text[4:end])
+    except yaml.YAMLError as error:
+        return f"the frontmatter is not valid YAML: {_first_line(error)}"
+    if parsed is not None and not isinstance(parsed, dict):
+        return "the frontmatter is not a mapping"
+    return None
+
+
+def _first_line(error: Exception) -> str:
+    """Return the first line of the message of a parse error."""
+    return str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+
+
 def _at(document: Any, path: str) -> Any:
     """Return the value at a dotted key path of a document, None when a key is absent."""
     if path == TOP:
@@ -106,11 +137,25 @@ class Source:
 
     def read(self, text: str) -> dict[str, Any]:
         """Return the metadata held by a text, an empty mapping when the source holds none."""
+        return self.parse(text)[0]
+
+    def parse(self, text: str) -> tuple[dict[str, Any], str | None]:
+        """Return the metadata held by a text, and why it cannot be read, None when it can.
+
+        A text that cannot be parsed holds no metadata, so its mapping is empty.
+
+        Examples
+        --------
+        >>> Source(SourceKind.JSON, (".",)).parse('{"status": "wip"')[0]
+        {}
+        >>> Source(SourceKind.JSON, (".",)).parse('{"status": "wip"')[1].split(":")[0]
+        'the document is not valid JSON'
+        """
         if self.kind is SourceKind.NONE:
-            return {}
+            return {}, None
         if self.kind is SourceKind.FRONTMATTER:
-            return split_frontmatter(text)[0]
-        document = self._parse(text)
+            return split_frontmatter(text)[0], frontmatter_problem(text)
+        document, problem = self._parse(text)
         merged: dict[str, Any] = {}
         # A mapping merged from a deeper path is not also kept as a field of the top level.
         nested = {path.split(".")[0] for path in self.at if path != TOP}
@@ -122,7 +167,7 @@ class Source:
                     if path != TOP
                     else {str(key): value for key, value in found.items() if key not in nested}
                 )
-        return merged
+        return merged, problem
 
     def region(self, text: str) -> list[tuple[int, int]]:
         """Return the spans of a text where its metadata is written, as character offsets.
@@ -160,16 +205,16 @@ class Source:
             return [(0, len(text))]
         return []
 
-    def _parse(self, text: str) -> Any:
-        """Return the parsed document, None when it does not parse."""
+    def _parse(self, text: str) -> tuple[Any, str | None]:
+        """Return the parsed document and None, or None and why the document does not parse."""
         try:
             if self.kind is SourceKind.YAML:
-                return yaml.safe_load(text)
+                return yaml.safe_load(text), None
             if self.kind is SourceKind.JSON:
-                return json.loads(text)
-            return tomllib.loads(text)
-        except (yaml.YAMLError, ValueError):
-            return None
+                return json.loads(text), None
+            return tomllib.loads(text), None
+        except (yaml.YAMLError, ValueError) as error:
+            return None, f"the document is not valid {self.kind.name}: {_first_line(error)}"
 
 
 @dataclass(frozen=True)

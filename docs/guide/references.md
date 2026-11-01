@@ -55,6 +55,7 @@ syntaxes under the default conventions.
 | `fragments` | `block` admits only a block anchor `#^name`; `any` admits every fragment | `block` |
 | `syntaxes` | redefinitions of the built-in syntaxes, and further syntaxes by name | the built-in syntaxes |
 | `conventions` | the rules fixing the syntaxes, the path styles and the strictness admitted, by location, type, metadata, region or syntax | see below |
+| `unlinkable` | the files that the other files must not cite, such as notes unfiled or superseded | none |
 | `ignore` | the kinds of issue left unreported | none |
 
 ## Syntaxes
@@ -149,6 +150,36 @@ rule. A rule setting a format alone therefore keeps the path style of an earlier
 an index that name files, such as `members` and `external`, are links in the metadata of the index,
 and are checked as such.
 
+## Unlinkable files
+
+Some files must not be cited by the rest of a repository, since their content is provisional or
+superseded. The section `unlinkable` lists entries, each selecting such files under `target`. The
+entries below forbid citing an archived or deprecated note, except from an index. They also report
+a link into an unfiled note as a warning:
+
+```yaml
+references:
+  unlinkable:
+    - target: {where: [{status: [archived, deprecated]}]}
+      unless: {where: [{role: index}]}
+    - target: {where: [{status: inbox}]}
+      blocking: false
+```
+
+| Key | Value | Default |
+| --- | --- | --- |
+| `target` | the cited files, as a condition on `paths`, `types` and `where`, which must state one part | required |
+| `unless` | the citing files exempted from the entry, as a condition | none |
+| `blocking` | whether a citation is a violation, or a warning when `false` | `true` |
+| `syntaxes` | the syntaxes of the pointers governed by the entry | `markdown`, `wikilink` |
+
+A pointer breaks an entry when its syntax is listed, its cited file meets `target`, and its holding
+file does not meet `unless`. The first entry broken is reported. A file selected by the `target` of
+an entry cites freely, since the rule protects the other files from depending on that material, not
+the material from itself. A file that the section excludes by path, such as a template, is never
+unlinkable, since its metadata belongs to the notes that it instantiates. A file excluded by its
+metadata, such as an archived note left unchecked, stays unlinkable.
+
 ## Move a file or a folder
 
 The command `anagraphe move OLD NEW` moves one file or one folder, and rewrites every pointer to it
@@ -175,6 +206,7 @@ the repair are as follows:
 | `broken-anchor` | the fragment `#^name` names no block anchor of the cited file | add the anchor `^name` at the end of the cited line, or correct the fragment |
 | `heading-fragment` | under `fragments: block`, a fragment opens on no caret, as the slug of a heading does | cite a block anchor `#^name`, since a slug changes with the heading |
 | `foreign-scheme` | the target carries a URL scheme outside `schemes`, such as an address written by an editor | replace the address by a path, or declare the scheme |
+| `unlinkable-target` | the cited file is declared unlinkable under `unlinkable`, and the holding file is not | cite a linkable file, or change the status of the cited file |
 | `unreadable-file` | a document read by a syntax of keys cannot be parsed | correct the syntax of the document |
 
 A kind listed under `ignore` is not reported. The kind `unreadable-file` cannot be ignored, since a

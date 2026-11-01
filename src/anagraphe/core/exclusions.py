@@ -63,10 +63,15 @@ class Exemptions:
             return False
         return ".git" in folder.parts or self.spec.match_file(f"{posix}/")
 
+    def excludes_path(self, path: PurePosixPath | Path) -> bool:
+        """Return whether a repository-relative file is excluded by its path alone."""
+        posix = PurePosixPath(path.as_posix())
+        return ".git" in posix.parts or self.spec.match_file(posix.as_posix())
+
     def contains(self, path: PurePosixPath | Path) -> bool:
         """Return whether a repository-relative file is excluded, by its path or by its metadata."""
         posix = PurePosixPath(path.as_posix())
-        if ".git" in posix.parts or self.spec.match_file(posix.as_posix()):
+        if self.excludes_path(posix):
             return True
         if not self.filters or self.metadata is None:
             return False

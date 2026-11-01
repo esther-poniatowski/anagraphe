@@ -9,8 +9,12 @@ from __future__ import annotations
 
 from anagraphe.core.issues import IssueKind
 
+#: The kind of a file whose metadata cannot be parsed, whose fields are therefore left unchecked.
+UNREADABLE_METADATA = "unreadable-metadata"
+
 KINDS: tuple[IssueKind, ...] = (
     IssueKind("stale-block", "A generated region differs from its rendering."),
+    IssueKind("unreadable-metadata", "The metadata of a file cannot be parsed."),
     IssueKind("ungenerated-index", "An index that must be generated holds no region of groups."),
     IssueKind("index-type", "An index declares an unknown or invalid index type."),
     IssueKind("malformed-block", "A marker of a generated region is malformed."),

@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The section `references.unlinkable` declares the files that the other files must not cite, by
+  path, type or metadata, such as `{status: archived}`, with the citing files exempted under
+  `unless` and a warning level under `blocking: false`. A pointer citing such a file is reported as
+  `unlinkable-target`, the kind of the Geonexus frontmatter checker.
+- The indexes report a file whose metadata cannot be parsed as `unreadable-metadata`, in place of
+  the missing fields that followed from its empty metadata, and the findings log declares the run
+  incomplete.
 - The commands `check`, `indexes check` and `refs check` write their findings as a SARIF 2.1.0 log
   of the findings profile of Elenchos under `--format sarif`, on standard output or at the path of
   `--output`, as [ADR 0004](docs/adr/0004-findings-output.md) proposes. Each issue carries a locus,

@@ -78,5 +78,6 @@ result:
 
 The locus is `link:<target as written>` for a reference, the JSON Pointer of a key for an issue of
 the metadata, such as `/aliases` or `/groups`, and empty for an issue of the whole file. The run
-declares itself failed when it stopped on an invalid configuration or target, in which case it
-holds no results, or when a file could not be read.
+declares itself failed in two cases. In the first, an invalid configuration or target stopped it,
+and it holds the results of the sections that ran, none when no section ran. In the second, a file
+could not be parsed, as `unreadable-file` and `unreadable-metadata` report.

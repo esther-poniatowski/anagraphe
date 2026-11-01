@@ -206,6 +206,10 @@ class IndexGenerator:
         folder = PurePosixPath(index_rel).parent.as_posix()
         folder = "" if folder == "." else folder
         index_note = self.reader.read(index_rel)
+        # The groups, the type and the files of an index come from its metadata, so an index whose
+        # metadata cannot be parsed is reported alone, and its regions stay as written.
+        if index_note is not None and index_note.metadata_problem is not None:
+            return Result(text=text, changed=False, issues=ungenerated + [unreadable(index_note)])
         kind, type_problems = self.settings.types.resolve(
             index_rel, index_note.index_type if index_note is not None else None
         )
@@ -217,7 +221,9 @@ class IndexGenerator:
             for spec in (index_note.files if index_note is not None else ())
         }
         members = [note for note in self.members(index_rel) if note.rel not in controls]
-        retired = self._retired_member_issues(index_rel, index_note, members)
+        retired = self._retired_member_issues(index_rel, index_note, members) + [
+            unreadable(note) for note in members if note.metadata_problem is not None
+        ]
         if not blocks:
             return Result(text=text, changed=False, issues=ungenerated + retired)
         issues: list[Issue] = (
@@ -333,9 +339,9 @@ class IndexGenerator:
         """Report a member that no group holds.
 
         A member declaring no purpose has not migrated, so it stays in the hand-written list and
-        is reported as a warning.
+        is reported as a warning. A member whose metadata cannot be parsed is reported as such.
         """
-        if note.rel in assigned:
+        if note.rel in assigned or note.metadata_problem is not None:
             return []
         if note.purpose is None:
             return [
@@ -748,9 +754,10 @@ class IndexGenerator:
         """Report the title, the index, the purpose and the blockers of a listed member.
 
         A member without a metadata source, such as a PDF, cannot declare these fields, so it is
-        titled by its file name and raises none of these issues.
+        titled by its file name and raises none of these issues. Neither does a member whose
+        metadata cannot be parsed, which is reported as unreadable instead.
         """
-        if not note.reads_metadata:
+        if not note.reads_metadata or note.metadata_problem is not None:
             return []
         issues: list[Issue] = []
         if not note.title:
@@ -861,6 +868,8 @@ class IndexGenerator:
                         discriminator=spec.name,
                     )
                 )
+            elif note is not None and note.metadata_problem is not None:
+                issues.append(unreadable(note))
             elif note is not None and spec.role and note.role != spec.role:
                 issues.append(
                     Issue(
@@ -872,6 +881,11 @@ class IndexGenerator:
                     )
                 )
         return issues
+
+
+def unreadable(note: Note) -> Issue:
+    """Return the issue of a file whose metadata cannot be parsed, located at the whole file."""
+    return Issue(note.rel, None, "unreadable-metadata", note.metadata_problem or "")
 
 
 def nest_members(members: list[Note], path: str) -> tuple[list[Note], list[int], list[Note]]:

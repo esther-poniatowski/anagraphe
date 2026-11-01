@@ -335,7 +335,8 @@ its scope:
   5. the moves and renames of anchors;
   6. the namespaces of identifiers;
   7. the repair of the pointers broken by the renames that Git records;
-  8. the reading of the entry fields of the indexes through the declared metadata sources.
+  8. the reading of the entry fields of the indexes through the declared metadata sources,
+     delivered on 2026-10-31.
 
 ---
 

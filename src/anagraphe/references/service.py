@@ -9,7 +9,7 @@ only when its syntax is strict there. The check writes no file.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from anagraphe.core.exclusions import Exemptions
 from anagraphe.core.files import TextCache, select, walk
@@ -42,8 +42,16 @@ class ReferenceChecker:
         self.rules = tuple(rule for rule in rules if rule.kind not in config.ignored)
         self.read = TextCache()
         self.resolver = Resolver(self.root, config.conventions.bases())
-        self.context = RuleContext(config.schemes, config.fragments, self.read, self.root)
         self.metadata = config.metadata or MetadataReader(self.root)
+        self.context = RuleContext(
+            config.schemes,
+            config.fragments,
+            self.read,
+            self.root,
+            metadata=self.metadata,
+            unlinkable=config.unlinkable,
+            excluded=lambda rel: config.exemptions.excludes_path(PurePosixPath(rel)),
+        )
 
     def _index(self) -> FileIndex:
         """Return the index of the ends of the paths, built on the first pointer that needs it.
@@ -110,11 +118,12 @@ class ReferenceChecker:
                 reference.holder,
                 reference.line,
                 rule.kind,
-                f"{reference.raw}: {detail}",
+                f"{reference.raw}: {breach.detail}",
+                blocking=breach.blocking,
                 locus=link(reference.raw),
             )
             for rule in self.rules
-            if (detail := rule.check(subject, self.context)) is not None
+            if (breach := rule.check(subject, self.context)) is not None
         ]
 
     def _regions(self, rel: str, text: str) -> list[tuple[int, int]]:

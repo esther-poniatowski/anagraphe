@@ -7,6 +7,7 @@ The section declares four things:
 - the syntaxes of the pointers, built-in or declared, with the files to which each applies;
 - the conventions of the syntaxes, the path styles and the strictness, by path, type, metadata or
   region;
+- the files that the other files must not cite;
 - the files left unread, after the shared exclusions.
 """
 
@@ -17,16 +18,21 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Mapping
 
-from anagraphe.core.configuration import ConfigurationError, known_keys, strings
+from anagraphe.core.conditions import parse_condition
+from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings
 from anagraphe.core.exclusions import Exemptions, exemptions
 from anagraphe.core.metadata import MetadataReader
 from anagraphe.references.conventions import Conventions, parse_conventions
 from anagraphe.references.model import Fragments
-from anagraphe.references.rules import RULES
+from anagraphe.references.rules import RULES, Unlinkable
 from anagraphe.references.syntaxes import Syntaxes, parse_syntaxes
 
 #: The keys of the section ``references``.
-SECTION_KEYS = frozenset({"exclude", "schemes", "fragments", "syntaxes", "conventions", "ignore"})
+SECTION_KEYS = frozenset(
+    {"exclude", "schemes", "fragments", "syntaxes", "conventions", "unlinkable", "ignore"}
+)
+#: The keys of one entry of ``unlinkable``.
+UNLINKABLE_KEYS = frozenset({"target", "unless", "blocking", "syntaxes"})
 #: The retired keys of the section, each with the declaration that replaces it.
 RETIRED_KEYS = {
     "markdown": "the files of a syntax under syntaxes.markdown.when, such as {types: [md, yml]}",
@@ -44,6 +50,8 @@ class ReferenceConfig:
     fragments: Fragments = Fragments.BLOCK
     syntaxes: Syntaxes = Syntaxes()
     conventions: Conventions = Conventions()
+    #: The files that the other files must not cite.
+    unlinkable: tuple[Unlinkable, ...] = ()
     #: The kinds of issue that the check does not report.
     ignored: frozenset[str] = frozenset()
     #: The metadata of each file, read from its declared source.
@@ -67,6 +75,44 @@ def _schemes(value: Any, field: str) -> frozenset[str]:
         return ReferenceConfig.schemes
     names = list(value) if isinstance(value, Mapping) else value
     return frozenset(name.lower() for name in strings(names, field))
+
+
+def _unlinkable(value: Any, field: str, syntax_names: tuple[str, ...]) -> tuple[Unlinkable, ...]:
+    """Return the declared unlinkable files, each entry naming the files that it selects."""
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ConfigurationError(
+            f"{field} must list entries, such as {{target: {{where: [{{status: archived}}]}}}}"
+        )
+    entries = []
+    for number, entry in enumerate(value, start=1):
+        name = f"{field}[{number}]"
+        raw = mapping(entry, name)
+        known_keys(raw, UNLINKABLE_KEYS, name)
+        if raw.get("target") is None:
+            raise ConfigurationError(f"{name} must declare target, a condition on the cited files")
+        target = parse_condition(raw["target"], f"{name}.target")[0]
+        if not (target.patterns or target.types or target.filters):
+            raise ConfigurationError(
+                f"{name}.target must restrict the files by paths, types or where"
+            )
+        unless = (
+            parse_condition(raw["unless"], f"{name}.unless")[0]
+            if raw.get("unless") is not None
+            else None
+        )
+        blocking = raw.get("blocking", True)
+        if not isinstance(blocking, bool):
+            raise ConfigurationError(f"{name}.blocking must be true or false")
+        syntaxes = strings(raw.get("syntaxes"), f"{name}.syntaxes") or Unlinkable.syntaxes
+        unknown = sorted(syntaxes - set(syntax_names))
+        if unknown:
+            raise ConfigurationError(
+                f"{name}.syntaxes names unknown syntaxes: {', '.join(unknown)}"
+            )
+        entries.append(Unlinkable(target, unless, blocking, frozenset(syntaxes)))
+    return tuple(entries)
 
 
 def parse_section(
@@ -96,6 +142,7 @@ def parse_section(
         fragments=_choice(Fragments, raw.get("fragments"), Fragments.BLOCK, f"{field}.fragments"),
         syntaxes=syntaxes,
         conventions=Conventions(rules, metadata),
+        unlinkable=_unlinkable(raw.get("unlinkable"), f"{field}.unlinkable", syntaxes.names()),
         ignored=ignored,
         metadata=metadata,
     )

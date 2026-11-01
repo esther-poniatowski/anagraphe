@@ -27,3 +27,5 @@
 - [ ] Declare the namespaces of identifiers (definition and citation syntaxes), report undefined and duplicate identifiers, and rename an identifier with `anagraphe rename-id`
 - [ ] Rewrite the pointers broken by the renames that Git records, with a repair command
 - [x] Write the findings of the check commands as a SARIF 2.1.0 log of the findings profile of Elenchos, each issue located by its rule, its file and its locus, as ADR 0004 proposes ✅ 2026-11-01
+- [x] Report the citations of files declared unlinkable, as `unlinkable-target` under `references.unlinkable` ✅ 2026-11-01
+- [x] Report a file whose metadata cannot be parsed as `unreadable-metadata`, instead of its missing fields ✅ 2026-11-01

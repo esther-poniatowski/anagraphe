@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+from typer.testing import CliRunner
 
+from anagraphe.cli import app
 from anagraphe.configuration import load_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.indexes.service import RunResult, run
@@ -220,3 +223,54 @@ def test_a_declared_file_is_listed_once(tmp_path: Path) -> None:
     result = _write_indexes(tmp_path)
     assert result.blocking_count == 0, result.issues
     assert _listed(tmp_path) == ["note.md", "data.yml"]
+
+
+@pytest.mark.parametrize(
+    ("rel", "text", "problem"),
+    [
+        ("m/broken.md", "---\naliases: [Broken\n---\n\n# Broken\n", "is not valid YAML"),
+        ("m/unclosed.md", "---\naliases: [Unclosed]\n\n# Unclosed\n", "never closes"),
+        ("m/listed.md", "---\n- a\n- b\n---\n\n# Listed\n", "is not a mapping"),
+        ("m/record.yml", "aliases: [Record\nindex: x\n", "is not valid YAML"),
+    ],
+)
+def test_unreadable_metadata_is_reported_alone(
+    tmp_path: Path, rel: str, text: str, problem: str
+) -> None:
+    """A member whose metadata cannot be parsed is reported as such, without its missing fields."""
+    _repository(tmp_path, {rel: text})
+    config = load_config(tmp_path, tmp_path / "anagraphe.yml").indexes
+    assert config is not None
+    issues = [issue for issue in run(tmp_path, config, "check").issues if issue.rel == rel]
+    assert [(issue.kind, issue.line, issue.blocking) for issue in issues] == [
+        ("unreadable-metadata", None, True)
+    ]
+    assert problem in issues[0].detail
+
+
+def test_an_index_with_unreadable_metadata_keeps_its_regions(tmp_path: Path) -> None:
+    """An index whose metadata cannot be parsed is reported alone, and no write changes it."""
+    broken = INDEX.replace("aliases: [Module]", "aliases: [Module")
+    _repository(tmp_path, {"m/_index.md": broken})
+    result = _write_indexes(tmp_path)
+    assert [(issue.rel, issue.kind) for issue in result.issues] == [
+        ("m/_index.md", "unreadable-metadata")
+    ]
+    assert (tmp_path / "m/_index.md").read_text(encoding="utf-8") == broken
+
+
+def test_unreadable_metadata_makes_the_findings_run_incomplete(tmp_path: Path) -> None:
+    """The findings log keeps the result, and declares that a file was left unanalyzed."""
+    _repository(tmp_path, {"m/broken.md": "---\naliases: [Broken\n---\n\n# Broken\n"})
+    result = CliRunner().invoke(
+        app, ["indexes", "check", "--root", str(tmp_path), "--format", "sarif"]
+    )
+    assert result.exit_code == 1
+    assert "m/broken.md:1: unreadable-metadata: the frontmatter is not valid YAML" in result.stderr
+    run_log = json.loads(result.stdout)["runs"][0]
+    (invocation,) = run_log["invocations"]
+    assert invocation["executionSuccessful"] is False
+    assert "m/broken.md" in invocation["toolExecutionNotifications"][0]["message"]["text"]
+    (found,) = [item for item in run_log["results"] if "broken" in json.dumps(item["locations"])]
+    assert found["ruleId"] == "indexes/unreadable-metadata"
+    assert "region" not in found["locations"][0]["physicalLocation"]
