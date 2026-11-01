@@ -37,12 +37,10 @@ allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["CITATION.cff:version"]
 
-# Release Assets
-assets = [
-    "dist/*.whl",           # Python wheel files
-    "dist/*.tar.gz",        # Source distributions
-    "docs/*.pdf",           # Documentation PDFs
-]
+# Distributions: built on the runner after the version is stamped, and uploaded to the release by
+# `dist_glob_patterns`. The key `assets` would instead stage files in the release commit, so it
+# names none: a built distribution never enters the repository.
+build_command = "python -m pip install build && python -m build"
 
 # --- Branch Groups --------------------------------------------------------------------------------
 
