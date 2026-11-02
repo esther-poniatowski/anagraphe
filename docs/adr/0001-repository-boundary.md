@@ -4,7 +4,7 @@
 
 **Amended** on 2026-11-01 by the decision of `geonexus` on [tool roles](https://github.com/esther-poniatowski/geonexus/blob/827474dca64daef110b9d7fe36a4127c2b32b167/docs/_decisions/tool-roles.md): the consumer keeps its vocabulary, its index types and its exclusions, and Anagraphe receives the generic mechanisms of addressing and layout.
 
-**Amended** on 2026-11-02 by the decision of `geonexus` on [designation and typography](https://github.com/esther-poniatowski/geonexus/blob/dc3ed97106ae909724fdad76c5e88e01a10ae043/docs/_decisions/designation-and-typography.md): the layout of Anagraphe includes the resolution of binding keys along the directory chain, declared by the keyword `x-binds`; Anagraphe reads its regions of documents from the span library.
+**Amended** on 2026-11-02 by the decision of `geonexus` on [designation and typography](https://github.com/esther-poniatowski/geonexus/blob/584a14f134e7b6231eeae31518622439acf10d00/docs/_decisions/designation-and-typography.md): the layout of Anagraphe includes the resolution of binding keys along the directory chain, declared by the keyword `x-binds`; Anagraphe reads its regions of documents from Merismos, the span library.
 
 **Amended** on 2026-11-01 by [ADR 0003](0003-pointers-across-moves.md): the scope of Anagraphe covers the pointers between files beside the indexes, and the executable holds one group of commands per capability, so the command `anagraphe write` becomes `anagraphe indexes write`.
 
