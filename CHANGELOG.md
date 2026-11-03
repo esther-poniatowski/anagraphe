@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The syntaxes `markdown`, `wikilink` and `code` read the link destinations and the code spans of a
+  Markdown file from [Merismos](https://github.com/esther-poniatowski/merismos), a new dependency,
+  instead of regular expressions. Five readings change:
+  - a destination holding balanced parentheses or escaped characters is read whole;
+  - a link is found when its text runs over two lines;
+  - the outer link of a badge, `[![badge](image)](target)`, is found;
+  - a link inside indented code is no longer read;
+  - a code span holding mathematics, such as `` `notes/$x$` ``, no longer yields a path.
+
 ## [0.1.0] - 2026-11-01
 
 ### Changed

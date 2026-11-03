@@ -38,7 +38,8 @@ Within `anagraphe.references`, the check runs as a pipeline of three stages. A s
 declaring one more syntax, or by registering one more rule:
 
 1. each syntax of `anagraphe.references.syntaxes` covering a file finds its candidates, each with
-   its line, its column, and its region, from the metadata source declared in `anagraphe.core.metadata`;
+   its line, its column, and its region, from the metadata source declared in `anagraphe.core.metadata`.
+   The syntaxes of Markdown take the link destinations and the code spans of a file from Merismos;
 2. the resolver resolves the path of each reference under every path style, and the conventions
    of `anagraphe.references.conventions` state the formats and the styles that it admits;
 3. each rule of the registry reads the resolved reference and its convention, and reports one

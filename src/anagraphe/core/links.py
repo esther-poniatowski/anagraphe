@@ -2,8 +2,8 @@
 Markdown links: their syntax, and the parts of their target.
 
 A target splits into an optional URL scheme, a path and an optional fragment. Both subpackages
-read links through this module: the indexes read the links of a frontmatter, and the references
-read every link of a file.
+read link targets through this module: the indexes read the links of a frontmatter, and the
+references split every target that they find, the links of a text being located by Merismos.
 """
 
 from __future__ import annotations
@@ -16,10 +16,6 @@ from typing import Any
 
 from anagraphe.core.paths import normalize
 
-#: An inline link or embed in a line of text, capturing its target, an optional title excluded.
-INLINE_LINK = re.compile(r'!?\[[^\]\n]*\]\((?P<target>[^)\s]*?)(?:\s+"[^"]*")?\)')
-#: A wikilink or embed in a line of text, capturing its target, its alias excluded.
-WIKILINK = re.compile(r"!?\[\[(?P<target>[^\[\]|\n]*?)(?:\|[^\[\]\n]*)?\]\]")
 #: A whole value written as one wikilink, capturing its target.
 VALUE_WIKILINK = re.compile(r"^!?\[\[([^\[\]|\n]+?)(?:\|[^\[\]\n]*)?\]\]$")
 #: A whole value written as one Markdown link, capturing its target, an optional title excluded.

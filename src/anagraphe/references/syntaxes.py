@@ -16,6 +16,10 @@ values of keys of a YAML, JSON or TOML document. A built-in syntax may be redefi
 ``when``, the suffixes it may ``omit``, whether a target naming no file is reported (``unresolved``),
 and whether it is ``enabled``.
 
+The three syntaxes of Markdown read the regions of Merismos, the span library: the link
+destinations and the code spans of a file, each with its exact offset. A link inside a code block,
+a code span or mathematics is therefore an example, found by no syntax.
+
 A candidate naming a file is a pointer. A candidate naming no file is reported as broken only when
 its syntax reports unresolved targets, since a code span or a string of code may hold a path that is
 an example, a command or no path at all.
@@ -28,13 +32,15 @@ import json
 import re
 import tomllib
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, Callable, Iterator, Mapping, Protocol
 
 import yaml
+from merismos import Segmentation, Span, inline_regions, segment
 
 from anagraphe.core.conditions import Condition, parse_condition
 from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings_in_order
-from anagraphe.core.links import INLINE_LINK, VALUE_LINK, VALUE_WIKILINK, WIKILINK
+from anagraphe.core.links import VALUE_LINK, VALUE_WIKILINK
 from anagraphe.references.model import (
     CODE,
     LATEX,
@@ -45,14 +51,17 @@ from anagraphe.references.model import (
     Region,
 )
 
-#: A line opening or closing a fenced code block, whose links are examples, capturing its fence.
-FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
-#: A code span: a run of backticks, closed by a run of the same length.
-CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
-#: An inline math span ``$...$``, opening and closing on no space, as Obsidian reads it.
-MATH_SPAN = re.compile(r"(?<![\\$])\$(?=[^\s$])[^$\n]*?(?<=[^\s\\])\$(?!\d)")
-#: The delimiter of display math, paired in sequence through the text wherever it stands.
-MATH_FENCE = "$$"
+#: The source type under which Merismos segments a Markdown file.
+MARKDOWN_SOURCE = "markdown"
+#: The kinds of Merismos read by the built-in syntaxes of Markdown.
+FRONTMATTER_KIND, LINK_KIND, DESTINATION_KIND, CODE_KIND = (
+    "frontmatter",
+    "link",
+    "link-destination",
+    "inline-code",
+)
+#: The name of each link syntax of Merismos among the syntaxes of Anagraphe.
+LINK_SYNTAXES = {"markdown": MARKDOWN, "wiki": WIKILINK_NAME}
 #: A path written alone: segments of path characters, each closing on no period.
 SEGMENT = r"[\w~@+%-](?:[\w.~@+%-]*[\w~@+%-])?"
 PATH_TOKEN = re.compile(rf"(?:\.{{1,2}}/)*{SEGMENT}(?:/{SEGMENT})*/?(?:#[\w^%-]+)?")
@@ -103,72 +112,64 @@ def blank(match: re.Match[str]) -> str:
     return " " * len(match.group(0))
 
 
-def blank_display_math(line: str, inside: bool) -> tuple[str, bool]:
-    """Replace the display math of a line by spaces, and return whether math is open at its end.
+@dataclass(frozen=True)
+class MarkdownRegion:
+    """A region of a Markdown file read by a built-in syntax: a link destination or a code span."""
 
-    Each delimiter ``$$`` opens or closes display math, so a block opened on one line closes on
-    the next delimiter, on whichever line it stands.
+    #: The kind of Merismos of the region.
+    kind: str
+    #: The offset of the content of the region in the file.
+    start: int
+    #: The content of the region: the destination, or the text between the backticks.
+    text: str
+    #: The syntax of the link holding a destination, None for a code span.
+    link: str | None = None
+
+
+def _regions_of(segmentation: Segmentation) -> Iterator[MarkdownRegion]:
+    """Yield the link destinations and the code spans of a segmentation, each destination with
+    the syntax of its link, which precedes it in the order of the segmentation."""
+    link: str | None = None
+    for region in segmentation.select([LINK_KIND, DESTINATION_KIND, CODE_KIND]):
+        if region.kind == LINK_KIND:
+            link = LINK_SYNTAXES.get(str(region.attributes.get("syntax")))
+        elif region.content is not None:
+            yield MarkdownRegion(
+                region.kind,
+                region.content.start,
+                segmentation.text(region.content),
+                link if region.kind == DESTINATION_KIND else None,
+            )
+
+
+@lru_cache(maxsize=8)
+def markdown_regions(text: str) -> tuple[MarkdownRegion, ...]:
+    """Return the link destinations and the code spans of a Markdown text, in the order of the text.
+
+    Merismos segments the text, so a link inside a code block, a code span or mathematics is
+    found by no syntax. Merismos reads the frontmatter as one opaque region, so each of its lines
+    is scanned as a paragraph of its own, and a link written in a value of the frontmatter is
+    found as in the body. The result is cached, since three syntaxes read each file.
 
     Examples
     --------
-    >>> shown, inside = blank_display_math("a $$x$$ [l](p) $$y", False)
-    >>> len(shown), shown.split(), inside
-    (18, ['a', '[l](p)'], True)
+    >>> [(region.text, region.link) for region in
+    ...  markdown_regions("[a](a.md)\\n```\\n[x](x.md)\\n```\\n`b.md` $[[c]]$ [[d]]\\n")]
+    [('a.md', 'markdown'), ('b.md', None), ('d', 'wikilink')]
     """
-    pieces: list[str] = []
-    for index, part in enumerate(line.split(MATH_FENCE)):
-        if index:
-            pieces.append(" " * len(MATH_FENCE))
-            inside = not inside
-        pieces.append(" " * len(part) if inside else part)
-    return "".join(pieces), inside
-
-
-def closes(fence: str, line: str) -> bool:
-    """Whether a line closes the code block opened by a fence: the same marker, at least as long.
-
-    Examples
-    --------
-    >>> closes("```", "~~~"), closes("````", "```"), closes("```", "`````"), closes("```", "``` x")
-    (False, False, True, False)
-    """
-    marker = line.strip()
-    return bool(marker) and set(marker) == {fence[0]} and len(marker) >= len(fence)
-
-
-def markdown_lines(text: str) -> Iterator[tuple[int, str, str]]:
-    """Yield each line outside code blocks: its offset, the line with math blanked, and the line
-    with math and code spans blanked.
-
-    A link inside a code block, a code span or a math span is an example, so the links are read in
-    the last form, and the paths of code spans in the second.
-
-    Examples
-    --------
-    >>> [(offset, masked.split()) for offset, _, masked in
-    ...  markdown_lines("[a](a.md)\\n```\\n[x](x.md)\\n```\\n`b.md` $[[c]]$ [d](d.md)\\n")]
-    [(0, ['[a](a.md)']), (28, ['[d](d.md)'])]
-    """
-    fence: str | None = None
-    math = False
-    offset = 0
-    for line in text.splitlines(keepends=True):
-        start, offset = offset, offset + len(line)
-        content = line.rstrip("\n")
-        if fence is not None:
-            if closes(fence, content):
-                fence = None
+    segmentation = segment(text, MARKDOWN_SOURCE)
+    regions = list(_regions_of(segmentation))
+    for frontmatter in segmentation.select([FRONTMATTER_KIND]):
+        if frontmatter.content is None:
             continue
-        opening = FENCE.match(content)
-        if opening is not None and not math:
-            fence = opening.group(1)
-            continue
-        spans = CODE_SPAN.sub(blank, content)
-        _, math_after = blank_display_math(spans, math)
-        shown, _ = blank_display_math(content, math)
-        math = math_after
-        shown = MATH_SPAN.sub(blank, shown)
-        yield start, shown, CODE_SPAN.sub(blank, shown)
+        position = frontmatter.content.start
+        for line in text[frontmatter.content.start : frontmatter.content.end].splitlines(True):
+            stripped = line.rstrip("\r\n")
+            if stripped:
+                lines = [Span(position, position + len(stripped))]
+                regions.extend(_regions_of(inline_regions(text, lines)))
+            position += len(line)
+    return tuple(sorted(regions, key=lambda region: region.start))
 
 
 class Syntax(Protocol):
@@ -191,7 +192,7 @@ class Syntax(Protocol):
 
 @dataclass(frozen=True)
 class MarkdownLinks:
-    """The links and embeds ``[text](path)``, outside code and math."""
+    """The links and embeds ``[text](path)``, read from the link destinations of Merismos."""
 
     name: str = MARKDOWN
     condition: Condition = Condition(types=frozenset({"md"}))
@@ -201,15 +202,14 @@ class MarkdownLinks:
     enabled: bool = True
 
     def find(self, text: str) -> Iterator[Candidate]:
-        for offset, _, masked in markdown_lines(text):
-            for match in INLINE_LINK.finditer(masked):
-                if match["target"]:
-                    yield Candidate(offset + match.start("target"), match["target"])
+        for region in markdown_regions(text):
+            if region.link == self.name and region.text:
+                yield Candidate(region.start, region.text)
 
 
 @dataclass(frozen=True)
 class WikiLinks:
-    """The links and embeds ``[[path#^anchor|alias]]``, outside code and math."""
+    """The links and embeds ``[[path#^anchor|alias]]``, read from the link destinations of Merismos."""
 
     name: str = WIKILINK_NAME
     condition: Condition = Condition(types=frozenset({"md"}))
@@ -219,10 +219,9 @@ class WikiLinks:
     enabled: bool = True
 
     def find(self, text: str) -> Iterator[Candidate]:
-        for offset, _, masked in markdown_lines(text):
-            for match in WIKILINK.finditer(masked):
-                if match["target"]:
-                    yield Candidate(offset + match.start("target"), match["target"])
+        for region in markdown_regions(text):
+            if region.link == self.name and region.text:
+                yield Candidate(region.start, region.text)
 
 
 @dataclass(frozen=True)
@@ -237,12 +236,12 @@ class CodePaths:
     enabled: bool = True
 
     def find(self, text: str) -> Iterator[Candidate]:
-        for offset, shown, _ in markdown_lines(text):
-            for match in CODE_SPAN.finditer(shown):
-                inner = match.group(2)
-                token = inner.strip()
-                if PATH_TOKEN.fullmatch(token) and shaped(token.split("#")[0]):
-                    yield Candidate(offset + match.start(2) + inner.index(token), token)
+        for region in markdown_regions(text):
+            if region.kind != CODE_KIND:
+                continue
+            token = region.text.strip()
+            if PATH_TOKEN.fullmatch(token) and shaped(token.split("#")[0]):
+                yield Candidate(region.start + region.text.index(token), token)
 
 
 @dataclass(frozen=True)

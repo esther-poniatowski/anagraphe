@@ -20,7 +20,9 @@ command or no path at all. Four syntaxes are built in:
 | `code` | a path written alone in a code span: `` `notes/a.md` `` | `md` | none | no |
 | `latex` | `\input`, `\include`, `\subfile`, `\includegraphics`, `\includepdf`, `\lstinputlisting`, `\addbibresource` | `tex`, `sty`, `cls` | `.tex`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.eps`, `.svg`, `.bib` | yes |
 
-The Markdown syntaxes skip code blocks, and a link inside a code span or a math span is not read.
+The Markdown syntaxes read the regions of [Merismos](https://github.com/esther-poniatowski/merismos), the
+span library, under its Obsidian syntax. No syntax reads a link inside a code block, a code span or
+mathematics. A link written in a frontmatter value is read as in the body.
 The syntax `latex` skips comments. Besides the declared syntaxes, a move rewrites every **bare path**
 of every text file, such as a path in a Python string or a configuration value, when the path
 resolves to a moved file. A token counts as a path when it holds a slash or names a file with a
