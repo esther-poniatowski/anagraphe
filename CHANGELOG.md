@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - the outer link of a badge, `[![badge](image)](target)`, is found;
   - a link inside indented code is no longer read;
   - a code span holding mathematics, such as `` `notes/$x$` ``, no longer yields a path.
+- The check of the prose units of an index reads its fenced code blocks from Merismos: a view fenced
+  by tildes is admitted, a longer fence holds its inner fences, and a block inside a callout belongs
+  to the callout.
 
 ## [0.1.0] - 2026-11-01
 

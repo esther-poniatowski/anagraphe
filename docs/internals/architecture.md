@@ -6,7 +6,7 @@ listed before it:
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
-| core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, configuration primitives, file walks, cached reads, atomic writes, Git state |
+| core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, the regions of a Markdown file read from Merismos, configuration primitives, file walks, cached reads, atomic writes, Git state |
 | capabilities | `anagraphe.indexes`, `anagraphe.references` | generating the indexes, and checking the references between files |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 

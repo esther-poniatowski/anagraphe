@@ -30,6 +30,7 @@ from typing import Any, Mapping
 
 from anagraphe.core.filters import Filter, parse_filter, scalar, scalars
 from anagraphe.core.links import link_target
+from anagraphe.core.regions import fenced_blocks
 from anagraphe.indexes.retired import RETIRED_MODES, retired_keys, retired_mode
 
 #: The keys of one group, the id alone being required.
@@ -66,8 +67,6 @@ VIEW_LANGUAGES = frozenset({"base", "dataview"})
 CALLOUT = re.compile(r"^>\s*\[!(?P<type>[A-Za-z]+)\][-+]?\s*(?P<title>.*)$")
 #: The most words that the title of a callout may hold.
 TITLE_WORDS = 6
-#: The opening of a fenced code block, capturing its language.
-FENCE = re.compile(r"^```(?P<language>\S*)")
 
 
 @dataclass(frozen=True)
@@ -413,8 +412,10 @@ def prose_units(text: str) -> list[tuple[int, str]]:
     if lines and lines[0] == "---":
         start = next((number for number in range(1, len(lines)) if lines[number] == "---"), 0) + 1
     units: list[tuple[int, str]] = []
+    # A code block inside a quotation belongs to the unit of its quotation.
+    blocks = {block.first: block for block in fenced_blocks(text) if not block.quoted}
     in_block = False
-    fence: str | None = None
+    inside_code_until = -1
     unit_open = False
     heading_seen = False
     for number in range(start, len(lines)):
@@ -422,9 +423,7 @@ def prose_units(text: str) -> list[tuple[int, str]]:
         if in_block:
             in_block = not line.startswith("<!-- /index -->")
             continue
-        if fence is not None:
-            if line.startswith("```"):
-                fence = None
+        if number <= inside_code_until:
             continue
         if line.startswith("<!-- index"):
             in_block, unit_open = True, False
@@ -432,10 +431,10 @@ def prose_units(text: str) -> list[tuple[int, str]]:
         if not line.strip():
             unit_open = False
             continue
-        fenced = FENCE.match(line)
-        if fenced:
-            fence = fenced.group("language")
-            if fence not in VIEW_LANGUAGES:
+        block = blocks.get(number)
+        if block is not None:
+            inside_code_until = block.last
+            if block.language not in VIEW_LANGUAGES:
                 units.append((number + 1, f"code block: {line}"))
             unit_open = False
             continue
@@ -446,12 +445,15 @@ def prose_units(text: str) -> list[tuple[int, str]]:
             heading_seen = True
             unit_open = False
             continue
-        following = next((later for later in lines[number + 1 :] if later.strip()), "")
-        view = FENCE.match(following)
+        following_number = next(
+            (later for later in range(number + 1, len(lines)) if lines[later].strip()), None
+        )
+        following = lines[following_number] if following_number is not None else ""
+        view = blocks.get(following_number) if following_number is not None else None
         # The heading of a control block or of an embedded view belongs to that block or view.
         if line.startswith("#") and (
             following.startswith("<!-- index control")
-            or (view is not None and view.group("language") in VIEW_LANGUAGES)
+            or (view is not None and view.language in VIEW_LANGUAGES)
         ):
             unit_open = False
             continue

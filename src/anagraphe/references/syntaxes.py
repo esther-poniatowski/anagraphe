@@ -32,15 +32,14 @@ import json
 import re
 import tomllib
 from dataclasses import dataclass, field
-from functools import lru_cache
 from typing import Any, Callable, Iterator, Mapping, Protocol
 
 import yaml
-from merismos import Segmentation, Span, inline_regions, segment
 
 from anagraphe.core.conditions import Condition, parse_condition
 from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings_in_order
 from anagraphe.core.links import VALUE_LINK, VALUE_WIKILINK
+from anagraphe.core.regions import CODE_KIND, markdown_regions
 from anagraphe.references.model import (
     CODE,
     LATEX,
@@ -51,15 +50,6 @@ from anagraphe.references.model import (
     Region,
 )
 
-#: The source type under which Merismos segments a Markdown file.
-MARKDOWN_SOURCE = "markdown"
-#: The kinds of Merismos read by the built-in syntaxes of Markdown.
-FRONTMATTER_KIND, LINK_KIND, DESTINATION_KIND, CODE_KIND = (
-    "frontmatter",
-    "link",
-    "link-destination",
-    "inline-code",
-)
 #: The name of each link syntax of Merismos among the syntaxes of Anagraphe.
 LINK_SYNTAXES = {"markdown": MARKDOWN, "wiki": WIKILINK_NAME}
 #: A path written alone: segments of path characters, each closing on no period.
@@ -112,66 +102,6 @@ def blank(match: re.Match[str]) -> str:
     return " " * len(match.group(0))
 
 
-@dataclass(frozen=True)
-class MarkdownRegion:
-    """A region of a Markdown file read by a built-in syntax: a link destination or a code span."""
-
-    #: The kind of Merismos of the region.
-    kind: str
-    #: The offset of the content of the region in the file.
-    start: int
-    #: The content of the region: the destination, or the text between the backticks.
-    text: str
-    #: The syntax of the link holding a destination, None for a code span.
-    link: str | None = None
-
-
-def _regions_of(segmentation: Segmentation) -> Iterator[MarkdownRegion]:
-    """Yield the link destinations and the code spans of a segmentation, each destination with
-    the syntax of its link, which precedes it in the order of the segmentation."""
-    link: str | None = None
-    for region in segmentation.select([LINK_KIND, DESTINATION_KIND, CODE_KIND]):
-        if region.kind == LINK_KIND:
-            link = LINK_SYNTAXES.get(str(region.attributes.get("syntax")))
-        elif region.content is not None:
-            yield MarkdownRegion(
-                region.kind,
-                region.content.start,
-                segmentation.text(region.content),
-                link if region.kind == DESTINATION_KIND else None,
-            )
-
-
-@lru_cache(maxsize=8)
-def markdown_regions(text: str) -> tuple[MarkdownRegion, ...]:
-    """Return the link destinations and the code spans of a Markdown text, in the order of the text.
-
-    Merismos segments the text, so a link inside a code block, a code span or mathematics is
-    found by no syntax. Merismos reads the frontmatter as one opaque region, so each of its lines
-    is scanned as a paragraph of its own, and a link written in a value of the frontmatter is
-    found as in the body. The result is cached, since three syntaxes read each file.
-
-    Examples
-    --------
-    >>> [(region.text, region.link) for region in
-    ...  markdown_regions("[a](a.md)\\n```\\n[x](x.md)\\n```\\n`b.md` $[[c]]$ [[d]]\\n")]
-    [('a.md', 'markdown'), ('b.md', None), ('d', 'wikilink')]
-    """
-    segmentation = segment(text, MARKDOWN_SOURCE)
-    regions = list(_regions_of(segmentation))
-    for frontmatter in segmentation.select([FRONTMATTER_KIND]):
-        if frontmatter.content is None:
-            continue
-        position = frontmatter.content.start
-        for line in text[frontmatter.content.start : frontmatter.content.end].splitlines(True):
-            stripped = line.rstrip("\r\n")
-            if stripped:
-                lines = [Span(position, position + len(stripped))]
-                regions.extend(_regions_of(inline_regions(text, lines)))
-            position += len(line)
-    return tuple(sorted(regions, key=lambda region: region.start))
-
-
 class Syntax(Protocol):
     """One notation of pointers: where it applies, and how it finds its candidates."""
 
@@ -203,7 +133,7 @@ class MarkdownLinks:
 
     def find(self, text: str) -> Iterator[Candidate]:
         for region in markdown_regions(text):
-            if region.link == self.name and region.text:
+            if LINK_SYNTAXES.get(region.link or "") == self.name and region.text:
                 yield Candidate(region.start, region.text)
 
 
@@ -220,7 +150,7 @@ class WikiLinks:
 
     def find(self, text: str) -> Iterator[Candidate]:
         for region in markdown_regions(text):
-            if region.link == self.name and region.text:
+            if LINK_SYNTAXES.get(region.link or "") == self.name and region.text:
                 yield Candidate(region.start, region.text)
 
 

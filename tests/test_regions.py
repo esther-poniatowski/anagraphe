@@ -1,4 +1,4 @@
-"""Tests of the regions that the Markdown syntaxes read from Merismos.
+"""Tests of the regions that the Markdown syntaxes and the index units read from Merismos.
 
 Each case states the reading of a construct that the former masking by regular expressions read
 otherwise, and every candidate must locate the exact characters of its target, which a rewrite
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from anagraphe.indexes.slots import prose_units
 from anagraphe.references.syntaxes import BUILT_IN
 
 CASES = {
@@ -49,3 +50,19 @@ def test_syntax_reads_the_regions_of_merismos(case: str) -> None:
     assert [candidate.raw for candidate in candidates] == expected
     for candidate in candidates:
         assert text[candidate.start : candidate.start + len(candidate.raw)] == candidate.raw
+
+
+INDEX_HEAD = "---\nrole: index\n---\n\n# Module\n\n"
+
+UNITS = {
+    "view-fenced-by-tildes": ("~~~base\nviews: []\n~~~\n", []),
+    "longer-fence-holding-backticks": ("````\n```\nx\n```\n````\n", ["code block: ````"]),
+    "code-block-in-a-callout": ("> [!WARNING] Kept\n> ```\n> x\n> ```\n", []),
+}
+
+
+@pytest.mark.parametrize("case", sorted(UNITS))
+def test_prose_units_read_the_code_blocks_of_merismos(case: str) -> None:
+    body, expected = UNITS[case]
+    units = prose_units(INDEX_HEAD + body)
+    assert [description for _line, description in units] == expected
