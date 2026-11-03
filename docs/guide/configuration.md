@@ -1,14 +1,15 @@
 # Configuration
 
 The configuration file `anagraphe.yml` binds Anagraphe to one repository. The file declares one
-section per capability: `indexes` to generate the indexes, and `references` to check the
-references between files. A section left out disables its capability. Each declared path is
+section per capability: `indexes` to generate the indexes, `references` to check the references
+between files, and `bindings` to resolve the bindings of texts. A section left out disables its
+capability. Each declared path is
 relative to the repository root selected by the root option. Absolute paths and paths that resolve
 outside that root are invalid.
 
 ## Layout of the file
 
-A configuration enabling both capabilities declares the sources of metadata, the shared
+A configuration enabling the indexes and the references declares the sources of metadata, the shared
 exclusions, the section `indexes` with its two required paths, and the section `references` with
 its defaults:
 
@@ -27,7 +28,8 @@ references: {}
 
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
-the keys of the section `references`. The rest of this page states the keys of the section
+the keys of the section `references`, and the [bindings guide](bindings.md) those of the section
+`bindings`. The rest of this page states the keys of the section
 `indexes`.
 
 ## Metadata sources

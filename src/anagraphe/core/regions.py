@@ -51,17 +51,24 @@ class MarkdownRegion:
 
 def _regions_of(segmentation: Segmentation) -> Iterator[MarkdownRegion]:
     """Yield the link destinations and the code spans of a segmentation, each destination with
-    the syntax of its link, which precedes it in the order of the segmentation."""
-    link: str | None = None
+    the syntax of the innermost link holding it.
+
+    A link precedes the regions that it holds in the order of the segmentation, so the open links
+    form a stack: an embed inside the text of a link, such as ``[![[a.png]]](b.md)``, closes before
+    the destination of the outer link.
+    """
+    links: list[tuple[int, str]] = []
     for region in segmentation.select([LINK_KIND, DESTINATION_KIND, CODE_KIND]):
+        while links and links[-1][0] <= region.range.start:
+            links.pop()
         if region.kind == LINK_KIND:
-            link = str(region.attributes.get("syntax"))
+            links.append((region.range.end, str(region.attributes.get("syntax"))))
         elif region.content is not None:
             yield MarkdownRegion(
                 region.kind,
                 region.content.start,
                 segmentation.text(region.content),
-                link if region.kind == DESTINATION_KIND else None,
+                links[-1][1] if region.kind == DESTINATION_KIND and links else None,
             )
 
 
@@ -107,6 +114,8 @@ class FencedBlock:
     language: str
     #: Whether the block lies inside a quotation, such as the body of a callout.
     quoted: bool = False
+    #: Whether the opening fence is indented, as in the item of a list.
+    indented: bool = False
 
 
 def fenced_blocks(text: str) -> tuple[FencedBlock, ...]:
@@ -117,6 +126,8 @@ def fenced_blocks(text: str) -> tuple[FencedBlock, ...]:
     >>> text = "Text.\\n\\n~~~base\\nviews: []\\n~~~\\n> ```\\n> x\\n> ```\\n"
     >>> [(block.first, block.last, block.language, block.quoted) for block in fenced_blocks(text)]
     [(2, 4, 'base', False), (5, 7, '', True)]
+    >>> [block.indented for block in fenced_blocks("- item\\n\\n  ```\\n  x\\n  ```\\n")]
+    [True]
     """
     starts = [0]
     for number, character in enumerate(text):
@@ -136,6 +147,7 @@ def fenced_blocks(text: str) -> tuple[FencedBlock, ...]:
                     quotation.range.start <= region.range.start < quotation.range.end
                     for quotation in quotations
                 ),
+                region.range.start > starts[_line(starts, region.range.start)],
             )
         )
     return tuple(blocks)

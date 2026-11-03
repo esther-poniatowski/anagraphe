@@ -1,16 +1,16 @@
 # Architecture
 
-Anagraphe separates its generic mechanisms from the policy of each repository, and its two
+Anagraphe separates its generic mechanisms from the policy of each repository, and its
 capabilities from each other. The package holds three layers, each depending only on the layers
 listed before it:
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
 | core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, the regions of a Markdown file read from Merismos, configuration primitives, file walks, cached reads, atomic writes, Git state |
-| capabilities | `anagraphe.indexes`, `anagraphe.references` | generating the indexes, and checking the references between files |
+| capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings` | generating the indexes, checking the references between files, and resolving the bindings of texts |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 
-Neither capability imports the other. Each capability parses its own section of `anagraphe.yml`
+No capability imports another. Each capability parses its own section of `anagraphe.yml`
 with the primitives of the core, and the composition layer joins the sections into one
 configuration.
 
@@ -48,9 +48,19 @@ declaring one more syntax, or by registering one more rule:
 The column recorded for a candidate locates the exact characters of a target, so a rewrite
 replaces those characters and leaves the rest of the file unchanged.
 
+## Bindings
+
+Within `anagraphe.bindings`, the resolver reads the declaration of a file, then the declaration of
+the index of each enclosing directory, and combines them by the merge rule of the role. A text
+declares in its frontmatter, through the metadata reader of the core. A record declares in the
+fields marked by `x-binds` in its schema, found once per contract through the schema registry. The
+check selects the texts read through their frontmatter, the records when the repository declares
+records, and the files that a condition `required` selects, then reports the kinds of
+`anagraphe.bindings.kinds`.
+
 ## Moves
 
-A move crosses both capabilities, so it belongs to the composition module `anagraphe.refactor`.
+A move crosses the indexes and the references, so it belongs to the composition module `anagraphe.refactor`.
 The module asks `anagraphe.references.rewrite` for the rewrites of the pointers to the moved files,
 and `anagraphe.indexes.relocation` for the edits of the indexes. Both return edits located in the
 texts before the move, and `anagraphe.core.structured` applies them from the last position to the

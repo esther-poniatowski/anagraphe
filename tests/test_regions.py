@@ -1,8 +1,8 @@
 """Tests of the regions that the Markdown syntaxes and the index units read from Merismos.
 
-Each case states the reading of a construct that the former masking by regular expressions read
-otherwise, and every candidate must locate the exact characters of its target, which a rewrite
-replaces.
+Each case states the reading of one construct: most were read otherwise by the former masking by
+regular expressions, and the others guard a reading that the switch must keep. Every candidate must
+locate the exact characters of its target, which a rewrite replaces.
 """
 
 from __future__ import annotations
@@ -27,6 +27,17 @@ CASES = {
         "[![x](badge.svg)](https://example.org)\n",
         "markdown",
         ["badge.svg", "https://example.org"],
+    ),
+    "destination-in-angle-brackets": ("[a](<my file.md>)\n", "markdown", ["my file.md"]),
+    "markdown-link-around-a-wiki-embed": (
+        "[![[img.png]]](notes/my%20file.md)\n",
+        "markdown",
+        ["notes/my%20file.md"],
+    ),
+    "wiki-embed-inside-a-markdown-link": (
+        "[![[img.png]]](notes/my%20file.md)\n",
+        "wikilink",
+        ["img.png"],
     ),
     "brackets-open-no-wikilink": ("[[s](v.md), [o](w.md)]]\n", "markdown", ["v.md", "w.md"]),
     "brackets-hold-no-wikilink": ("[[s](v.md), [o](w.md)]]\n", "wikilink", []),
@@ -58,6 +69,10 @@ UNITS = {
     "view-fenced-by-tildes": ("~~~base\nviews: []\n~~~\n", []),
     "longer-fence-holding-backticks": ("````\n```\nx\n```\n````\n", ["code block: ````"]),
     "code-block-in-a-callout": ("> [!WARNING] Kept\n> ```\n> x\n> ```\n", []),
+    "code-block-in-a-list-item": (
+        "- [Loose](loose.md)\n\n  ```\n  x\n  ```\n",
+        ["list: - [Loose](loose.md)", "paragraph:   ```"],
+    ),
 }
 
 

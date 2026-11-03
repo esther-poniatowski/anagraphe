@@ -412,8 +412,12 @@ def prose_units(text: str) -> list[tuple[int, str]]:
     if lines and lines[0] == "---":
         start = next((number for number in range(1, len(lines)) if lines[number] == "---"), 0) + 1
     units: list[tuple[int, str]] = []
-    # A code block inside a quotation belongs to the unit of its quotation.
-    blocks = {block.first: block for block in fenced_blocks(text) if not block.quoted}
+    # A code block inside a quotation or indented in a list item belongs to the enclosing unit.
+    blocks = {
+        block.first: block
+        for block in fenced_blocks(text)
+        if not block.quoted and not block.indented
+    }
     in_block = False
     inside_code_until = -1
     unit_open = False

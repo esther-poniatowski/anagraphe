@@ -23,6 +23,8 @@ anagraphe check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--ou
 anagraphe indexes check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe indexes write [PATHS]... [--root PATH] [--config PATH]
 anagraphe refs check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
+anagraphe bindings check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
+anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--json] [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
 ```
 
@@ -32,17 +34,22 @@ anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
 | `anagraphe indexes check` | reports the generated regions that differ from their rendering, and changes no file |
 | `anagraphe indexes write` | replaces the generated regions, only once every selected index validates |
 | `anagraphe refs check` | reports the references that name no file or anchor, or break a convention |
+| `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
+| `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes; `--dry-run` prints the plan and changes no file |
 
 | Option | Purpose | Default |
 | --- | --- | --- |
 | `--root PATH` | selects the repository root, from which every reported path is written | current directory |
 | `--config PATH` | selects the configuration relative to the root | `anagraphe.yml` |
-| `--format FORMAT` | of the three check commands: `text`, or `sarif` for a findings log | `text` |
+| `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
+| `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
+| `--json` | of `bindings show`: prints the bindings as JSON | text |
+| `--format FORMAT` | of the four check commands: `text`, or `sarif` for a findings log | `text` |
 | `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current directory, and creates its missing folders | standard output |
 
 For the indexes, each path may name an index, a directory, or a member whose parent index must be
-processed. For the references, each path names a file or a directory to check.
+processed. For the references and the bindings, each path names a file or a directory to check.
 
 ## Output and exit status
 
@@ -63,7 +70,7 @@ Under `--format sarif`, a check command also writes its findings as a SARIF 2.1.
 unchanged. When the log takes standard output, the text report moves to standard error, so that
 standard output holds the log alone.
 
-The log holds one run of the driver `anagraphe`, which lists every kind of both sections as a rule
+The log holds one run of the driver `anagraphe`, which lists every kind of every section as a rule
 `<section>/<kind>`, such as `references/broken` or `indexes/retired-key`. Each issue yields one
 result:
 
@@ -80,4 +87,5 @@ The locus is `link:<target as written>` for a reference, the JSON Pointer of a k
 the metadata, such as `/aliases` or `/groups`, and empty for an issue of the whole file. The run
 declares itself failed in two cases. In the first, an invalid configuration or target stopped it,
 and it holds the results of the sections that ran, none when no section ran. In the second, a file
-could not be parsed, as `unreadable-file` and `unreadable-metadata` report.
+could not be parsed, as `unreadable-file`, `unreadable-metadata`, `unreadable-binding-source` and
+`unreadable-schema` report.

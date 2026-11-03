@@ -12,6 +12,14 @@ guide/cli-reference
 guide/configuration
 guide/index-specification
 guide/references
+guide/bindings
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Specifications
+
+specification/bindings-contract
 ```
 
 ```{toctree}
@@ -36,4 +44,5 @@ adr/0001-repository-boundary
 adr/0002-collection-owned-order
 adr/0003-pointers-across-moves
 adr/0004-findings-output
+adr/0005-text-bindings
 ```

@@ -23,13 +23,15 @@ anagraphe indexes write docs/
 ## Check repository drift
 
 The check command compares source files with the deterministic rendering and preserves every byte.
-When the configuration declares the section `references`, the same command checks the references:
+When the configuration declares the section `references`, the same command checks the references,
+and when it declares the section `bindings`, the bindings of the texts:
 
 ```sh
 anagraphe check
 ```
 
-An exit status of `1` reports an index violation, a stale block or a broken reference. An exit
+An exit status of `1` reports an index violation, a stale block, a broken reference or an invalid
+binding. An exit
 status of `2` reports an invalid configuration, or a target that names no file to read.
 
 ## Move a file or a folder

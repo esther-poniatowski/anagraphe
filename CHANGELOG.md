@@ -7,12 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The section `bindings` of `anagraphe.yml` and the commands `anagraphe bindings check` and
+  `anagraphe bindings show` resolve the bindings of texts to the roles of tools along the
+  directory chain, as [ADR 0005](docs/adr/0005-text-bindings.md) proposes. A record binds through
+  the fields marked by `x-binds` in its schema, found through the schema registry of Kleisis. The
+  check reports the kinds `unbound-text`, `invalid-binding`, `unreadable-binding-source`,
+  `invalid-schema-binding`, `unresolved-schema-reference` and `unreadable-schema`. The contract
+  `anagraphe:bindings@1`, with its specification and its conformance cases, fixes the readings
+  of the bindings, and the JSON output of `bindings show` names it.
+
 ### Changed
 
 - The syntaxes `markdown`, `wikilink` and `code` read the link destinations and the code spans of a
   Markdown file from [Merismos](https://github.com/esther-poniatowski/merismos), a new dependency,
-  instead of regular expressions. Five readings change:
+  instead of regular expressions. Six readings change:
   - a destination holding balanced parentheses or escaped characters is read whole;
+  - a destination between angle brackets, such as `[a](<my file.md>)`, is found;
   - a link is found when its text runs over two lines;
   - the outer link of a badge, `[![badge](image)](target)`, is found;
   - a link inside indented code is no longer read;

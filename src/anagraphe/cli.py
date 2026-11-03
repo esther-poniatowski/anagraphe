@@ -30,6 +30,13 @@ from typing import Annotated, NoReturn
 import typer
 
 from anagraphe import __version__
+from anagraphe.bindings.configuration import BindingConfig
+from anagraphe.bindings.model import Merge, Role
+from anagraphe.bindings.resolution import BindingResolver
+from anagraphe.bindings.kinds import KINDS as BINDING_KINDS
+from anagraphe.bindings.kinds import UNANALYZED as BINDING_UNANALYZED
+from anagraphe.bindings.service import BindingChecker
+from anagraphe.bindings.contract import CONTRACT as BINDINGS_CONTRACT
 from anagraphe.configuration import RepositoryConfig, load_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.core.files import TargetError
@@ -51,8 +58,12 @@ indexes_app = typer.Typer(
 refs_app = typer.Typer(
     no_args_is_help=True, help="Check the references written between the files of the repository."
 )
+bindings_app = typer.Typer(
+    no_args_is_help=True, help="Resolve and check the bindings of the texts to the roles of tools."
+)
 app.add_typer(indexes_app, name="indexes")
 app.add_typer(refs_app, name="refs")
+app.add_typer(bindings_app, name="bindings")
 
 Paths = Annotated[list[Path] | None, typer.Argument(help="Files or folders to process.")]
 Root = Annotated[Path, typer.Option(help="Repository root.")]
@@ -84,12 +95,14 @@ Output = Annotated[
 CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
     "indexes": INDEX_KINDS,
     "references": REFERENCE_KINDS,
+    "bindings": BINDING_KINDS,
 }
 
 #: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
 UNANALYZED: dict[str, frozenset[str]] = {
     "indexes": frozenset({UNREADABLE_METADATA}),
     "references": frozenset({UNREADABLE}),
+    "bindings": BINDING_UNANALYZED,
 }
 
 
@@ -226,6 +239,24 @@ def _references(
     return report
 
 
+def _bindings(
+    root: Path,
+    config: BindingConfig,
+    paths: tuple[Path, ...],
+    strict: bool = True,
+    findings: Findings | None = None,
+) -> Report:
+    """Check the bindings, print their report, and record it for the log."""
+    try:
+        report = BindingChecker(root, config).check(paths, strict)
+    except (ConfigurationError, OSError, TargetError) as error:
+        _fail(error, findings)
+    _emit(report, f"bindings: checked {report.processed} files", findings)
+    if findings is not None:
+        findings.record("bindings", report)
+    return report
+
+
 def _section[S](section: S | None, name: str, findings: Findings | None = None) -> S:
     """Return a declared section, or exit naming the section that the command requires."""
     if section is None:
@@ -262,6 +293,8 @@ def check(
         reports.append(_indexes(resolved, repository.indexes, "check", targets, False, findings))
     if repository.references is not None:
         reports.append(_references(resolved, repository.references, targets, False, findings))
+    if repository.bindings is not None:
+        reports.append(_bindings(resolved, repository.bindings, targets, False, findings))
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
     _exit(*reports, findings=findings)
@@ -307,6 +340,91 @@ def refs_check(
     references = _section(repository.references, "references", findings)
     report = _references(resolved, references, tuple(paths or ()), findings=findings)
     _exit(report, findings=findings)
+
+
+@bindings_app.command("check")
+def bindings_check(
+    paths: Paths = None,
+    root: Root = Path("."),
+    config: Config = DEFAULT_CONFIG,
+    output_format: Format = OutputFormat.TEXT,
+    output: Output = None,
+) -> None:
+    """Report the required texts bound to no value, and the invalid declarations and marks."""
+    findings = Findings(output_format, output)
+    resolved, repository = _load(root, config, findings)
+    bindings = _section(repository.bindings, "bindings", findings)
+    report = _bindings(resolved, bindings, tuple(paths or ()), findings=findings)
+    _exit(report, findings=findings)
+
+
+@bindings_app.command("show")
+def bindings_show(
+    path: Annotated[Path, typer.Argument(help="File whose bindings are resolved.")],
+    roles: Annotated[
+        list[str] | None,
+        typer.Option("--role", help="Role to resolve; every declared role by default."),
+    ] = None,
+    merge: Annotated[
+        Merge, typer.Option(help="Merge rule of the resolved roles.")
+    ] = Merge.OVERRIDE,
+    as_json: Annotated[bool, typer.Option("--json", help="Print the bindings as JSON.")] = False,
+    root: Root = Path("."),
+    config: Config = DEFAULT_CONFIG,
+) -> None:
+    """Print the values bound to a file for each role, with the declarations supplying them."""
+    resolved, repository = _load(root, config)
+    bindings = _section(repository.bindings, "bindings")
+    target = (path if path.is_absolute() else resolved / path).resolve()
+    if resolved not in target.parents or not target.is_file():
+        _fail(TargetError(f"target is no file of the repository: {path}"))
+    rel = target.relative_to(resolved).as_posix()
+    resolver = BindingResolver(resolved, bindings)
+    try:
+        results = [resolver.resolve(rel, Role(name, merge)) for name in roles or bindings.roles]
+    except (ConfigurationError, ValueError) as error:
+        _fail(error)
+    problems = [
+        {"file": item.rel, "pointer": item.pointer, "role": item.role, "kind": "invalid-binding"}
+        for item in resolver.invalid
+    ] + [
+        {
+            "file": item.rel,
+            "pointer": "",
+            "detail": item.detail,
+            "kind": "unreadable-binding-source",
+        }
+        for item in resolver.unreadable
+    ]
+    if as_json:
+        data = {
+            "contract": BINDINGS_CONTRACT,
+            "file": rel,
+            "merge": merge.value,
+            "problems": problems,
+            "bindings": {
+                binding.role.name: {
+                    "values": list(binding.values),
+                    "declarations": [
+                        {"file": item.rel, "pointer": item.pointer, "values": list(item.values)}
+                        for item in binding.declarations
+                    ],
+                }
+                for binding in results
+            },
+        }
+        typer.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+    for binding in results:
+        sources = ", ".join(f"{item.rel}#{item.pointer}" for item in binding.declarations)
+        shown = ", ".join(binding.values) if binding.bound else "unbound"
+        typer.echo(f"{binding.role.name}: {shown}" + (f" ({sources})" if sources else ""))
+    for problem in problems:
+        typer.echo(
+            f"{problem['file']}: warning: {problem['kind']}: ignored "
+            + (problem.get("detail") or f"{problem['role']} at {problem['pointer']}"),
+            err=True,
+        )
 
 
 def _print_plan(plan: MovePlan) -> None:

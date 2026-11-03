@@ -1,0 +1,141 @@
+# Bindings
+
+Each tool checking a text needs the resources bound to that text, such as its glossary, its notation
+or its audiences. Anagraphe resolves these bindings along the directory chain, so that a repository
+declares a binding once for a whole folder and overrides it where a text differs. The section
+`bindings` of `anagraphe.yml` declares where the texts hold their bindings, and the
+[decision on text bindings](../adr/0005-text-bindings.md) records the reason for each choice.
+
+## Roles and keys
+
+A **role** names the resource read by one tool, written `<tool>.<name>`, such as `onomasia.glossary`. The tool
+declares its role and its merge rule. The repository names the key that holds each role in the
+frontmatter of its texts, so two repositories may write one role under different keys.
+
+The section below declares two roles, requires a glossary for every note of a project, and reads
+the bindings of records through the schema registry:
+
+```yaml
+bindings:
+  index: _index.md
+  roles:
+    onomasia.glossary:
+      key: glossary
+      required: {types: [md], paths: [/projects/]}
+    onomasia.audiences:
+      key: audiences
+  records:
+    registry: specs/schema-registry.yml
+```
+
+| Key | Content | Default |
+| --- | --- | --- |
+| `index` | the file name of the index of a directory | required |
+| `roles.<role>.key` | the key holding the role in the frontmatter of a text | required |
+| `roles.<role>.required` | a [condition](configuration.md) on the files that must be bound for the role | no file is required |
+| `records.registry` | the schema registry of Kleisis, relative to the root | records declare no binding of their own |
+| `records.binding` | the key of a record naming its contract | `_schema` |
+| `exclude` | files left out of the check, after the shared exclusions | none |
+
+## Resolution along the directory chain
+
+The resolution of a role for a file reads two kinds of declaration, nearest first:
+
+1. the declaration of the file itself, as the next paragraph states;
+2. the declaration of the index of each enclosing directory, from the directory of the file up to
+   the index of the root, the last link of the chain.
+
+A text declares a role in its frontmatter, under the key of the role, and a file without
+frontmatter takes the binding of its directory. A record whose contract is held by the registry
+declares a role in the fields marked by `x-binds` in its schema. Any other file, such as a
+configuration file or a record of an unregistered contract, holds no declaration of its own. As a
+result, a key of the same name with another meaning is never read as a binding.
+
+A declaration names at least one value: a non-empty string, or a non-empty list of them. A key
+holding null declares no value, so the file takes the binding of the next link. Any other value, an
+empty list included, is reported as `invalid-binding` and ignored. The merge rule of the role
+combines the valid declarations of the chain:
+
+- `override`, the default, takes the declaration nearest to the file;
+- `union` joins the values of every declaration, from the root down to the file, each value once.
+
+Both rules bind a file exactly when its chain holds a valid declaration, so the check of a required
+file depends on no merge rule. The [bindings contract](../specification/bindings-contract.md) fixes
+these readings for the tools that read them.
+
+## Bindings of records
+
+The schema of a record type marks each binding field by the keyword `x-binds`. The value of the mark
+names the role of the field. In the following schema, the field `binds.glossary` binds a record to
+its glossary:
+
+```yaml
+properties:
+  binds:
+    properties:
+      glossary: {type: string, x-binds: onomasia.glossary}
+```
+
+Anagraphe finds the schema of a record through the contract named by its key `_schema` and the
+`schemas` map of the registry, in the format 1 or 2 of Kleisis. The marks are read through three
+constructs:
+
+- the keyword `properties`, whose names form the key path of a field;
+- the subschemas of `allOf`, `anyOf` and `oneOf`;
+- every `$ref`, naming a fragment of the same file, an absolute `$id` mapped under `resources` when
+  it opens on a URI scheme, a path from the root of the repository when it opens on `/`, or a path
+  relative to the referring file.
+
+A mark sits on a property, so a mark on the root of a schema, or under another applicator such as
+`items`, is reported. When several fields bind one role, the first field holding a valid value, in the
+order of the schema, declares it.
+
+## Check the bindings
+
+The command `anagraphe bindings check`, and `anagraphe check` with every declared section, read the
+texts, the records when the section declares `records`, and the files that a condition `required`
+selects. Six kinds of issue are reported:
+
+| Kind | Issue |
+| --- | --- |
+| `unbound-text` | a file selected by the condition `required` of a role is bound to no value |
+| `invalid-binding` | a declaration names no value, or a value that is not a non-empty string |
+| `unreadable-binding-source` | the frontmatter of a text or a record cannot be parsed, so its own declaration is unread |
+| `invalid-schema-binding` | a mark `x-binds` names no role, marks the root of a schema, or sits under another applicator |
+| `unresolved-schema-reference` | a `$ref` of a schema names no readable node of the repository |
+| `unreadable-schema` | the schema of a contract of the registry cannot be read |
+
+When a file cannot be parsed, or a schema cannot be read, the findings log declares the run
+incomplete.
+
+## Resolve the bindings of one file
+
+The command `anagraphe bindings show` prints the values bound to one file for each declared role,
+with the declarations that supply them. The option `--role` restricts the roles, `--merge` selects
+the merge rule, and `--json` prints the result for a tool written in another language:
+
+```console
+anagraphe bindings show projects/p/notes/b.md --role onomasia.audiences --merge union
+```
+
+The output names each declaration by its file and the JSON Pointer of its key, and each ignored
+declaration on standard error:
+
+```text
+onomasia.audiences: general, ml (_index.md#/audiences, projects/p/_index.md#/audiences)
+```
+
+A tool written in Python resolves its role through the package instead:
+
+```python
+from anagraphe.bindings import BindingResolver, Merge, Role
+from anagraphe.configuration import load_config
+
+config = load_config(root, root / "anagraphe.yml").bindings
+binding = BindingResolver(root, config).resolve(
+    "projects/p/notes/b.md", Role("onomasia.audiences", Merge.UNION)
+)
+```
+
+The binding holds its `values` and its `declarations`, and its property `bound` states whether one
+value is bound.

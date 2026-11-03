@@ -1,0 +1,96 @@
+# Conformance cases of the contract anagraphe:bindings@1.
+# Each case writes its files below an empty repository root, declares the section bindings of
+# anagraphe.yml, then states the binding of each query and the issues of the check.
+# A query lists the values bound to a file for a role under a merge rule, and the declarations
+# supplying them, each as <file>#<JSON Pointer of the key>.
+# An issue is [file, kind, locus or role]; the issues of a case are listed in sorted order.
+contract: anagraphe:bindings@1
+section:
+  index: _index.md
+  roles:
+    tool.glossary: {key: glossary, required: {types: [md], paths: [/notes/]}}
+    tool.audiences: {key: audiences}
+  records: {registry: registry.yml}
+files:
+  registry.yml: |
+    schema_version: 2
+    schemas: {test:record@1: record.schema.yml}
+  record.schema.yml: |
+    properties:
+      binds:
+        properties:
+          glossary: {type: string, x-binds: tool.glossary}
+cases:
+- id: frontmatter-of-the-text
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    notes/a.md: "---\nglossary: own\n---\n"
+  queries:
+  - {file: notes/a.md, role: tool.glossary, merge: override, values: [own], declarations: ["notes/a.md#/glossary"]}
+  issues: []
+- id: nearest-enclosing-index
+  note: A file without frontmatter takes the binding of its directory.
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    notes/_index.md: "---\nglossary: notes\n---\n"
+    notes/deep/a.md: "Text.\n"
+  queries:
+  - {file: notes/deep/a.md, role: tool.glossary, merge: override, values: [notes], declarations: ["notes/_index.md#/glossary"]}
+  issues: []
+- id: index-of-the-root
+  note: The index of the root is the last link of the chain.
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    notes/a.md: "Text.\n"
+  queries:
+  - {file: notes/a.md, role: tool.glossary, merge: override, values: [root], declarations: ["_index.md#/glossary"]}
+  issues: []
+- id: union-from-the-root
+  note: Under union, the values join from the root down to the file, each value once.
+  files:
+    _index.md: "---\naudiences: [general, ml]\n---\n"
+    notes/_index.md: "---\naudiences: [ml, physics]\nglossary: g\n---\n"
+    notes/a.md: "Text.\n"
+  queries:
+  - {file: notes/a.md, role: tool.audiences, merge: union, values: [general, ml, physics], declarations: ["_index.md#/audiences", "notes/_index.md#/audiences"]}
+  - {file: notes/a.md, role: tool.audiences, merge: override, values: [ml, physics], declarations: ["notes/_index.md#/audiences"]}
+  issues: []
+- id: record-marked-field
+  note: A record of a registered contract binds through its marked field, not through the key of the role.
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    data/r.yml: "_schema: test:record@1\nglossary: ignored\nbinds: {glossary: record}\n"
+  queries:
+  - {file: data/r.yml, role: tool.glossary, merge: override, values: [record], declarations: ["data/r.yml#/binds/glossary"]}
+  issues: []
+- id: configuration-file
+  note: A file that is neither a text nor a registered record declares nothing itself.
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    config/checks.yml: "glossary: {paths: [notes/]}\n"
+  queries:
+  - {file: config/checks.yml, role: tool.glossary, merge: override, values: [root], declarations: ["_index.md#/glossary"]}
+  issues: []
+- id: null-declares-nothing
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    notes/a.md: "---\nglossary:\n---\n"
+  queries:
+  - {file: notes/a.md, role: tool.glossary, merge: override, values: [root], declarations: ["_index.md#/glossary"]}
+  issues: []
+- id: empty-list-is-invalid
+  note: A declaration names at least one value, so an empty list is reported and ignored.
+  files:
+    _index.md: "---\nglossary: root\n---\n"
+    notes/a.md: "---\nglossary: []\n---\n"
+  queries:
+  - {file: notes/a.md, role: tool.glossary, merge: override, values: [root], declarations: ["_index.md#/glossary"]}
+  issues:
+  - [notes/a.md, invalid-binding, /glossary]
+- id: required-text-unbound
+  files:
+    notes/a.md: "Text.\n"
+  queries:
+  - {file: notes/a.md, role: tool.glossary, merge: override, values: [], declarations: []}
+  issues:
+  - [notes/a.md, unbound-text, tool.glossary]
