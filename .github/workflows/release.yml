@@ -46,3 +46,10 @@ jobs:
         run: semantic-release --config config/tools/releaserc.toml version --no-changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Distributions
+        # The version command creates the release; the publish command attaches the distributions
+        # built by build_command, matched by dist_glob_patterns.
+        run: semantic-release --config config/tools/releaserc.toml publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
