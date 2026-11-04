@@ -1,6 +1,6 @@
 # ADR 0005: Text bindings
 
-**Status**: Proposed on 2026-11-03. The record implements the bindings assigned to Anagraphe by the
+**Status**: Accepted on 2026-11-04, proposed on 2026-11-03. The record implements the bindings assigned to Anagraphe by the
 [decision on designation and typography](https://github.com/esther-poniatowski/geonexus/blob/main/docs/_decisions/designation-and-typography.md)
 of Geonexus.
 
