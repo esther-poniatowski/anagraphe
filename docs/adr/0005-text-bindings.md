@@ -11,7 +11,7 @@ of Geonexus.
 A tool checking a text reads the resources bound to it: Onomasia reads its glossary, its notation
 and its audiences, and Hermeneia reads its prose profile. The decision of Geonexus assigns the
 resolution of these bindings to Anagraphe, along the directory chain, and lets a record schema mark
-its binding fields by the keyword `x-binds`. That decision leaves four points to Anagraphe.
+its binding fields by the keyword `x-binds`. That decision leaves five points to Anagraphe.
 
 **Questions to be addressed**:
 
