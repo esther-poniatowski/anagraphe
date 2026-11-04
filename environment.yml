@@ -31,4 +31,9 @@ dependencies:
   # CLI
   - typer                  # command line interface
   - rich                   # terminal output formatting
+  # Sibling tools, pinned by commit as pyproject.toml pins them; pip installs a Git reference,
+  # which a conda dependency cannot name.
+  - pip
+  - pip:
+      - merismos @ git+https://github.com/esther-poniatowski/merismos.git@b257d768e3a8f7dc6c0cfca80749bd0bc4ba914e
 variables:

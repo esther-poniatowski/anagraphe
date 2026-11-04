@@ -29,3 +29,4 @@
 - [x] Write the findings of the check commands as a SARIF 2.1.0 log of the findings profile of Elenchos, each issue located by its rule, its file and its locus, as ADR 0004 proposes ✅ 2026-11-01
 - [x] Report the citations of files declared unlinkable, as `unlinkable-target` under `references.unlinkable` ✅ 2026-11-01
 - [x] Report a file whose metadata cannot be parsed as `unreadable-metadata`, instead of its missing fields ✅ 2026-11-01
+- [ ] Publish Merismos on the conda channel `eresthanaconda`, its release and its channel secrets included, then translate each dependency pinned by a Git commit into a conda requirement by name and version in `conda.recipe/meta.yaml`. The recipe copies `merismos @ git+…` into its run requirements, which take conda match specifications only, so the conda package cannot build once the channel secrets are set
