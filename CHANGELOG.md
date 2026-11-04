@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-04
+
+### Fixed
+
+- The package ships the marker `py.typed`, so the type checkers of consumers read its annotations.
+- The Release workflow attaches the wheel and the sdist to each release, through the publish
+  command of semantic-release.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added
