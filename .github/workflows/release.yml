@@ -18,6 +18,12 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump: auto reads the commit types; patch or minor forces it, as for a release of dependency updates"
+        type: choice
+        options: [auto, patch, minor]
+        default: auto
 
 jobs:
   release:
@@ -43,7 +49,7 @@ jobs:
 
       - name: Run Semantic Release
         # The changelog is written by hand in CHANGELOG.md, so the tool generates none.
-        run: semantic-release --config config/tools/releaserc.toml version --no-changelog
+        run: semantic-release --config config/tools/releaserc.toml version --no-changelog ${{ inputs.bump != 'auto' && format('--{0}', inputs.bump) || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
