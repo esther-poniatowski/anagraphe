@@ -32,7 +32,7 @@ requires-python = ">=3.12"
 
 dependencies = [
     "jsonschema>=4.23",
-    "merismos @ git+https://github.com/esther-poniatowski/merismos.git@506c2a1662620b5d29d4471117799ea1ef6d330f",
+    "merismos @ git+https://github.com/esther-poniatowski/merismos.git@feb6654e0f821d076798a81fa062639a4bd0affd",
     "pathspec>=0.12",
     "PyYAML>=6.0",
     "referencing>=0.35",
