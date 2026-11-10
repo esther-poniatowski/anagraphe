@@ -457,9 +457,10 @@ def test_exclusions_combine_and_prune(tmp_path: Path) -> None:
     assert _kinds(tmp_path) == [("keep/drafts/old/x.md", "broken")]
 
 
-def test_cli_named_targets(tmp_path: Path) -> None:
+def test_cli_named_targets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A named file is checked alone, and an excluded or unread target exits with 2."""
     _repository(tmp_path, PLANTED["broken"][0])
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     alone = runner.invoke(app, ["refs", "check", "--root", str(tmp_path), "a/broken.md"])
     assert alone.exit_code == 1
@@ -473,9 +474,12 @@ def test_cli_named_targets(tmp_path: Path) -> None:
     assert "target lies outside the repository" in outside.stderr
 
 
-def test_cli_check_runs_both_sections_on_a_folder_without_index(tmp_path: Path) -> None:
+def test_cli_check_runs_both_sections_on_a_folder_without_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The top-level check reads a target holding no index through the references alone."""
     _repository(tmp_path, PLANTED["broken"][0])
+    monkeypatch.chdir(tmp_path)
     _write(
         tmp_path,
         {

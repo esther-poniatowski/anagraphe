@@ -219,8 +219,11 @@ def test_invalid_section_is_rejected(tmp_path: Path, section: dict, message: str
         load_config(root, root / "anagraphe.yml")
 
 
-def test_show_prints_the_bindings_of_a_file(tmp_path: Path) -> None:
+def test_show_prints_the_bindings_of_a_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = _repository(tmp_path)
+    monkeypatch.chdir(root)
     runner = CliRunner()
     text = runner.invoke(app, ["bindings", "show", "projects/p/notes/b.md", "--root", str(root)])
     shown = runner.invoke(
@@ -435,8 +438,11 @@ def test_missing_registry_fails_the_configuration(tmp_path: Path) -> None:
         load_config(root, root / "anagraphe.yml")
 
 
-def test_show_json_names_its_contract_and_its_problems(tmp_path: Path) -> None:
+def test_show_json_names_its_contract_and_its_problems(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = _repository(tmp_path, {"projects/p/_index.md": "---\nglossary: 5\n---\n"})
+    monkeypatch.chdir(root)
     result = CliRunner().invoke(
         app, ["bindings", "show", "projects/p/notes/b.md", "--root", str(root), "--format", "json"]
     )
@@ -446,7 +452,10 @@ def test_show_json_names_its_contract_and_its_problems(tmp_path: Path) -> None:
     assert data["problems"][0]["pointer"] == "/glossary"
 
 
-def test_show_of_a_file_outside_the_repository_exits_with_status_2(tmp_path: Path) -> None:
+def test_show_of_a_file_outside_the_repository_exits_with_status_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = _repository(tmp_path)
+    monkeypatch.chdir(root)
     result = CliRunner().invoke(app, ["bindings", "show", "../elsewhere.md", "--root", str(root)])
     assert result.exit_code == 2

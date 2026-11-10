@@ -11,15 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - A condition of `indexes.members` may name under `keys` the keys that a member declares at its
   top level, such as the block `metadata` of a YAML record.
-- Without `--config`, every command reads `config/tools/anagraphe.yml` below the root, then
-  `anagraphe.yml` at the root. A given `--config` is read as before, and a missing configuration
-  names both places.
+- Without `--config`, every command reads `config/tools/anagraphe.yml` or `anagraphe.yml` below
+  the root. When both files exist, the command stops with status 2 and names both; when neither
+  exists, the message names both places.
+- Without `--root`, the root is read from the new environment variable `ANAGRAPHE_ROOT`, and
+  otherwise is the nearest folder, from the current one upwards, holding one of both files, and
+  otherwise the current folder.
+- The short options `-r` for `--root`, `-c` for `--config`, and `-o` for `--output`.
 - `anagraphe bindings show --format json` prints the bindings as JSON.
+- `anagraphe move` asks for a confirmation on a terminal once its plan is printed, and `--yes`
+  applies the plan without the question.
 
-### Deprecated
+### Changed
 
-- The option `--json` of `anagraphe bindings show`, replaced by `--format json`. The former option
-  still prints the same JSON, and warns on standard error.
+- A given `--config` is read from the current folder, no longer from the root, and an absent file
+  is an error. A call that runs from the root, such as `--root . --config config/anagraphe.yml`,
+  reads the same file.
+- The targets of every command, the arguments `OLD` and `NEW` of `move` and the argument `PATH` of
+  `bindings show` are read from the current folder, no longer from the root.
+- Without a terminal and without `--yes`, `anagraphe move` stops with status 2 and changes no file;
+  a declined confirmation exits with status 1.
+
+### Removed
+
+- The option `--json` of `anagraphe bindings show`, replaced by `--format json`, with no alias.
 
 ### Fixed
 

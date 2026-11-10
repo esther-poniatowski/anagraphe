@@ -160,9 +160,10 @@ def test_folder_move_rewrites_every_file_below_it(tmp_path: Path) -> None:
     assert "parts/m" in yaml.safe_load(_read(tmp_path, "anagraphe.yml"))["indexes"]["sequences"]
 
 
-def test_dry_run_changes_no_file(tmp_path: Path) -> None:
+def test_dry_run_changes_no_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The dry run prints the plan, and every file keeps its bytes."""
     _repository(tmp_path)
+    monkeypatch.chdir(tmp_path)
     before = {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
     result = CliRunner().invoke(
         app, ["move", "m/a.md", "n/a.md", "--dry-run", "--root", str(tmp_path)]
@@ -200,7 +201,7 @@ def test_invalid_moves_are_refused(tmp_path: Path, old: str, new: str, message: 
         _service(tmp_path).plan(old, new)
 
 
-def test_git_mover_records_the_rename(tmp_path: Path) -> None:
+def test_git_mover_records_the_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """In a Git repository, a tracked file is renamed with git mv, so Git records a rename."""
     _repository(tmp_path)
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
@@ -219,7 +220,8 @@ def test_git_mover_records_the_rename(tmp_path: Path) -> None:
         cwd=tmp_path,
         check=True,
     )
-    result = CliRunner().invoke(app, ["move", "m/a.md", "n/a.md", "--root", str(tmp_path)])
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(app, ["move", "m/a.md", "n/a.md", "--yes"])
     assert result.exit_code == 0, result.stdout
     status = subprocess.run(
         ["git", "status", "--porcelain"], cwd=tmp_path, capture_output=True, text=True, check=True
@@ -227,3 +229,47 @@ def test_git_mover_records_the_rename(tmp_path: Path) -> None:
     assert any(
         line.startswith("R") and line.endswith("m/a.md -> n/a.md") for line in status.splitlines()
     ), status
+
+
+class _Terminal:
+    """A standard input that reports a terminal, so that the move asks for its confirmation."""
+
+    def __init__(self) -> None:
+        self.stdin = self
+
+    def isatty(self) -> bool:
+        return True
+
+
+def _snapshot(root: Path) -> dict[Path, bytes]:
+    return {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
+
+
+def test_move_without_terminal_requires_yes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a terminal and without --yes, the move stops with status 2 and changes no file."""
+    _repository(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    before = _snapshot(tmp_path)
+    result = CliRunner().invoke(app, ["move", "m/a.md", "n/a.md"])
+    assert result.exit_code == 2
+    assert "pass --yes" in result.output
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize(("answer", "status", "moved"), [("n\n", 1, False), ("y\n", 0, True)])
+def test_move_on_a_terminal_asks_for_a_confirmation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answer: str, status: int, moved: bool
+) -> None:
+    """On a terminal, the move applies its plan only once the researcher confirms it."""
+    _repository(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("anagraphe.cli.sys", _Terminal())
+    before = _snapshot(tmp_path)
+    result = CliRunner().invoke(app, ["move", "m/a.md", "n/a.md"], input=answer)
+    assert result.exit_code == status, result.output
+    assert "apply the move?" in result.output
+    assert (tmp_path / "n/a.md").is_file() is moved
+    if not moved:
+        assert _snapshot(tmp_path) == before

@@ -44,7 +44,10 @@ changes no file:
 anagraphe move notes/draft.md archive/draft.md --dry-run
 ```
 
-Without the option `--dry-run`, the same command applies the plan in three steps:
+Without the option `--dry-run`, the same command prints the plan, asks for a confirmation on a
+terminal, and then applies the plan in three steps. The option `--yes` applies the plan without the
+question; without a terminal and without `--yes`, the command stops with status `2` and changes no
+file. A declined confirmation exits with status `1` and changes no file. The three steps are:
 
 1. **Rewrite and rename.** The command rewrites every pointer to the moved files, and renames the
    path with `git mv` when Git tracks it. A failed rename restores every edited file.
@@ -71,11 +74,16 @@ of each reported kind.
 
 ## Use another repository root
 
-The root option lets an orchestrator invoke Anagraphe without changing its working directory:
+A command run without `--root` takes the root from the variable `ANAGRAPHE_ROOT`, and otherwise
+from the nearest folder, from the current one upwards, holding `config/tools/anagraphe.yml` or
+`anagraphe.yml`, so that it runs from any subfolder of the repository. The root option lets an
+orchestrator invoke Anagraphe without changing its working directory:
 
 ```sh
 anagraphe check --root ../research-project
 ```
+
+The targets, `--config` and `--output` are still read from the current folder.
 
 The [configuration guide](configuration.md) defines the repository-owned inputs. The [CLI
 reference](cli-reference.md) lists the complete command surface.

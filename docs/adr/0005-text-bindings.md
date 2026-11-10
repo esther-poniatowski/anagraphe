@@ -107,7 +107,7 @@ states them, and the [bindings guide](../guide/bindings.md) states the section a
 ## Consequences
 
 - Onomasia, Hermeneia and every other reading tool resolve their roles through
-  `anagraphe.bindings`, or through `anagraphe bindings show --json` for a tool in another language.
+  `anagraphe.bindings`, or through `anagraphe bindings show --format json` for a tool in another language.
 - A repository migrating to bindings declares its roles, then moves its bindings into the
   frontmatter of its indexes and texts. The bindings of the `project.yml` of each project of
   Geonexus move the same way.

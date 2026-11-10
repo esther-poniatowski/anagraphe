@@ -1,8 +1,10 @@
 # Configuration
 
 The configuration file `anagraphe.yml` binds Anagraphe to one repository. Without the option
-`--config`, a command reads `config/tools/anagraphe.yml` below the repository root, and otherwise
-`anagraphe.yml` at the root. The file declares one
+`--config`, a command reads `config/tools/anagraphe.yml` below the repository root, or
+`anagraphe.yml` at the root; when both files exist, the command stops with an error naming both.
+A file named by `--config` is read from the current folder, and its absence is an error. The
+[CLI reference](cli-reference.md) states how a command finds the root. The file declares one
 section per capability: `indexes` to generate the indexes, `references` to check the references
 between files, and `bindings` to resolve the bindings of texts. A section left out disables its
 capability. Each declared path is

@@ -25,7 +25,7 @@ anagraphe indexes write [PATHS]... [--root PATH] [--config PATH]
 anagraphe refs check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--format FORMAT] [--root PATH] [--config PATH]
-anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
+anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 ```
 
 | Command | Effect |
@@ -36,18 +36,22 @@ anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
 | `anagraphe refs check` | reports the references that name no file or anchor, or break a convention |
 | `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
 | `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
-| `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes; `--dry-run` prints the plan and changes no file |
+| `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
 
 | Option | Purpose | Default |
 | --- | --- | --- |
-| `--root PATH` | selects the repository root, from which every reported path is written | current directory |
-| `--config PATH` | selects the configuration relative to the root | `config/tools/anagraphe.yml`, then `anagraphe.yml`: the first found below the root |
+| `-r`, `--root PATH` | selects the repository root, from which every reported path is written | `ANAGRAPHE_ROOT`, else the nearest folder, from the current one upwards, holding `config/tools/anagraphe.yml` or `anagraphe.yml`, else the current folder |
+| `-c`, `--config PATH` | selects the configuration file, relative to the current folder | `config/tools/anagraphe.yml` or `anagraphe.yml` below the root; both existing is an error |
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
 | `--format FORMAT` | of the four check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
-| `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current directory, and creates its missing folders | standard output |
+| `-o`, `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current folder, and creates its missing folders | standard output |
+| `--dry-run` | of `move`: prints the plan and changes no file | applies the plan |
+| `--yes` | of `move`: applies the plan without asking for a confirmation | asks on a terminal, and stops with status `2` without one |
 
-For the indexes, each path may name an index, a directory, or a member whose parent index must be
+Every path typed on the command line, a target, `OLD`, `NEW`, `--config` or `--output`, is read from
+the current folder; every path written in the configuration is read from the root. For the
+indexes, each path may name an index, a directory, or a member whose parent index must be
 processed. For the references and the bindings, each path names a file or a directory to check.
 
 ## Output and exit status
@@ -59,7 +63,7 @@ line per section. The summary counts the violations, the warnings and the issues
 | --- | --- |
 | `0` | no issue blocks |
 | `1` | at least one violation is reported |
-| `2` | the configuration, a named target, or a required section is invalid or absent; or the log cannot be written |
+| `2` | the configuration, a named target, or a required section is invalid or absent; the log cannot be written; or a move lacks its confirmation without a terminal |
 
 ## Findings log
 

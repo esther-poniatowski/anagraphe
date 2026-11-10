@@ -5,7 +5,11 @@ Command-line interface: one group of commands per subpackage, and one check of a
 - ``anagraphe refs check`` reports the references that do not resolve or break a convention;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
-  the indexes.
+  the indexes, once confirmed on a terminal or by ``--yes``.
+
+The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else the nearest folder,
+from the current one upwards, holding a configuration, else the current folder. Every path typed on
+the command line, a target, ``--config`` or ``--output``, is read from the current folder.
 
 Every command prints one line per issue, ``path:line: [warning: ]kind: detail``, then one summary
 line per check. It exits with 0 when no issue blocks, 1 when one does, and 2 when the
@@ -22,6 +26,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -37,7 +42,13 @@ from anagraphe.bindings.kinds import KINDS as BINDING_KINDS
 from anagraphe.bindings.kinds import UNANALYZED as BINDING_UNANALYZED
 from anagraphe.bindings.service import BindingChecker
 from anagraphe.bindings.contract import CONTRACT as BINDINGS_CONTRACT
-from anagraphe.configuration import RepositoryConfig, load_config, locate_config
+from anagraphe.configuration import (
+    ROOT_VARIABLE,
+    RepositoryConfig,
+    find_root,
+    load_config,
+    locate_config,
+)
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.core.files import TargetError
 from anagraphe.core.issues import IssueKind, Report
@@ -65,13 +76,28 @@ app.add_typer(indexes_app, name="indexes")
 app.add_typer(refs_app, name="refs")
 app.add_typer(bindings_app, name="bindings")
 
-Paths = Annotated[list[Path] | None, typer.Argument(help="Files or folders to process.")]
-Root = Annotated[Path, typer.Option(help="Repository root.")]
+Paths = Annotated[
+    list[Path] | None,
+    typer.Argument(help="Files or folders to process, relative to the current folder."),
+]
+Root = Annotated[
+    Path | None,
+    typer.Option(
+        "--root",
+        "-r",
+        envvar=ROOT_VARIABLE,
+        show_envvar=True,
+        help="Repository root; by default the nearest folder, from the current one upwards, "
+        "holding config/tools/anagraphe.yml or anagraphe.yml, else the current folder.",
+    ),
+]
 Config = Annotated[
     Path | None,
     typer.Option(
-        help="Configuration path, relative to the root; by default config/tools/anagraphe.yml, "
-        "then anagraphe.yml."
+        "--config",
+        "-c",
+        help="Configuration file, relative to the current folder; by default "
+        "config/tools/anagraphe.yml or anagraphe.yml below the root.",
     ),
 ]
 
@@ -92,7 +118,10 @@ Format = Annotated[
 Output = Annotated[
     Path | None,
     typer.Option(
-        "--output", help="Write the SARIF log to this path, creating its folders; sarif only."
+        "--output",
+        "-o",
+        help="Write the SARIF log to this path, relative to the current folder, creating its "
+        "folders; sarif only.",
     ),
 ]
 
@@ -190,11 +219,21 @@ def _fail(error: Exception, findings: Findings | None = None) -> NoReturn:
     raise typer.Exit(2) from error
 
 
+def _root(root: Path | None) -> Path:
+    """Return the root given, or the nearest folder holding a configuration, or the current one."""
+    return root.resolve() if root is not None else find_root(Path.cwd())
+
+
+def _here(paths: list[Path] | None) -> tuple[Path, ...]:
+    """Return the targets of the command line, each read from the current folder."""
+    return tuple(path.absolute() for path in paths or ())
+
+
 def _load(
-    root: Path, config_path: Path | None, findings: Findings | None = None
+    root: Path | None, config_path: Path | None, findings: Findings | None = None
 ) -> tuple[Path, RepositoryConfig]:
     """Resolve the root, and load the configuration that it holds, or the one given."""
-    resolved = root.resolve()
+    resolved = _root(root)
     try:
         return resolved, load_config(resolved, locate_config(resolved, config_path))
     except (ConfigurationError, OSError) as error:
@@ -287,7 +326,7 @@ def _exit(*reports: Report, findings: Findings | None = None) -> None:
 @app.command("check")
 def check(
     paths: Paths = None,
-    root: Root = Path("."),
+    root: Root = None,
     config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
@@ -299,7 +338,7 @@ def check(
     """
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
-    targets = tuple(paths or ())
+    targets = _here(paths)
     reports: list[Report] = []
     if repository.indexes is not None:
         reports.append(_indexes(resolved, repository.indexes, "check", targets, False, findings))
@@ -315,7 +354,7 @@ def check(
 @indexes_app.command("check")
 def indexes_check(
     paths: Paths = None,
-    root: Root = Path("."),
+    root: Root = None,
     config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
@@ -324,22 +363,22 @@ def indexes_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     indexes = _section(repository.indexes, "indexes", findings)
-    report = _indexes(resolved, indexes, "check", tuple(paths or ()), findings=findings)
+    report = _indexes(resolved, indexes, "check", _here(paths), findings=findings)
     _exit(report, findings=findings)
 
 
 @indexes_app.command("write")
-def indexes_write(paths: Paths = None, root: Root = Path("."), config: Config = None) -> None:
+def indexes_write(paths: Paths = None, root: Root = None, config: Config = None) -> None:
     """Rewrite every generated region, once all the selected indexes validate."""
     resolved, repository = _load(root, config)
     indexes = _section(repository.indexes, "indexes")
-    _exit(_indexes(resolved, indexes, "write", tuple(paths or ())))
+    _exit(_indexes(resolved, indexes, "write", _here(paths)))
 
 
 @refs_app.command("check")
 def refs_check(
     paths: Paths = None,
-    root: Root = Path("."),
+    root: Root = None,
     config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
@@ -348,14 +387,14 @@ def refs_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     references = _section(repository.references, "references", findings)
-    report = _references(resolved, references, tuple(paths or ()), findings=findings)
+    report = _references(resolved, references, _here(paths), findings=findings)
     _exit(report, findings=findings)
 
 
 @bindings_app.command("check")
 def bindings_check(
     paths: Paths = None,
-    root: Root = Path("."),
+    root: Root = None,
     config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
@@ -364,13 +403,16 @@ def bindings_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     bindings = _section(repository.bindings, "bindings", findings)
-    report = _bindings(resolved, bindings, tuple(paths or ()), findings=findings)
+    report = _bindings(resolved, bindings, _here(paths), findings=findings)
     _exit(report, findings=findings)
 
 
 @bindings_app.command("show")
 def bindings_show(
-    path: Annotated[Path, typer.Argument(help="File whose bindings are resolved.")],
+    path: Annotated[
+        Path,
+        typer.Argument(help="File whose bindings are resolved, relative to the current folder."),
+    ],
     roles: Annotated[
         list[str] | None,
         typer.Option("--role", help="Role to resolve; every declared role by default."),
@@ -379,23 +421,15 @@ def bindings_show(
         Merge, typer.Option(help="Merge rule of the resolved roles.")
     ] = Merge.OVERRIDE,
     output_format: Annotated[
-        ShowFormat | None, typer.Option("--format", help="text, or json. [default: text]")
-    ] = None,
-    as_json: Annotated[
-        bool, typer.Option("--json", hidden=True, help="Former name of --format json.")
-    ] = False,
-    root: Root = Path("."),
+        ShowFormat, typer.Option("--format", help="text, or json.")
+    ] = ShowFormat.TEXT,
+    root: Root = None,
     config: Config = None,
 ) -> None:
     """Print the values bound to a file for each role, with the declarations supplying them."""
-    if as_json:
-        if output_format is ShowFormat.TEXT:
-            raise typer.BadParameter("--json contradicts --format text", param_hint="--json")
-        typer.echo("warning: --json is deprecated; use --format json", err=True)
-        output_format = ShowFormat.JSON
     resolved, repository = _load(root, config)
     bindings = _section(repository.bindings, "bindings")
-    target = (path if path.is_absolute() else resolved / path).resolve()
+    target = path.resolve()
     if resolved not in target.parents or not target.is_file():
         _fail(TargetError(f"target is no file of the repository: {path}"))
     rel = target.relative_to(resolved).as_posix()
@@ -458,20 +492,41 @@ def _print_plan(plan: MovePlan) -> None:
 
 @app.command("move")
 def move(
-    old: Annotated[str, typer.Argument(help="File or folder to move.")],
-    new: Annotated[str, typer.Argument(help="Path of the file or folder after the move.")],
+    old: Annotated[
+        Path, typer.Argument(help="File or folder to move, relative to the current folder.")
+    ],
+    new: Annotated[
+        Path,
+        typer.Argument(
+            help="Path of the file or folder after the move, relative to the current folder."
+        ),
+    ],
     dry_run: Annotated[bool, typer.Option(help="Print the plan, and change no file.")] = False,
-    root: Root = Path("."),
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Apply the plan without asking for a confirmation.")
+    ] = False,
+    root: Root = None,
     config: Config = None,
 ) -> None:
-    """Move a file or a folder, rewrite every pointer to it, and update the affected indexes."""
+    """Move a file or a folder, rewrite every pointer to it, and update the affected indexes.
+
+    The move renames and edits files written by the researcher, so it asks for a confirmation on a
+    terminal once the plan is printed. Without a terminal, only ``--yes`` lets it apply the plan.
+    """
+    if not dry_run and not yes and not sys.stdin.isatty():
+        typer.echo(
+            "usage: a move changes files written by the researcher; confirm it on a terminal, "
+            "or pass --yes",
+            err=True,
+        )
+        raise typer.Exit(2)
     resolved, repository = _load(root, config)
     config_path = locate_config(resolved, config)
     service = MoveService(
         resolved, repository, config_path.resolve().relative_to(resolved).as_posix()
     )
     try:
-        plan = service.plan(old, new)
+        plan = service.plan(str(old.absolute()), str(new.absolute()))
     except (OSError, TargetError) as error:
         _fail(error)
     _print_plan(plan)
@@ -483,6 +538,9 @@ def move(
     if dry_run:
         typer.echo(f"\n{summary}; dry run, no file changed")
         return
+    if not yes and not typer.confirm(f"\n{summary}; apply the move?", default=False):
+        typer.echo("move: cancelled, no file changed")
+        raise typer.Exit(1)
     try:
         result = service.apply(plan)
     except (OSError, subprocess.CalledProcessError) as error:

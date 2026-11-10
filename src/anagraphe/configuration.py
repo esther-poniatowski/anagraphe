@@ -1,10 +1,13 @@
 """
 The configuration of a repository, ``anagraphe.yml``, composed of one section per subpackage.
 
-The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below the root, the first
-found in this order, unless the command line names another. It declares its ``schema_version``, the sources of the metadata of its files under
-``metadata``, the files that every subpackage excludes under ``exclude``, then the section of each
-subpackage that the repository uses:
+The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below the root, and both
+places holding a file is an error, unless the command line names another file. The root of a
+command is the folder given by ``--root``, else by the variable ``ANAGRAPHE_ROOT``, else the
+nearest folder, from the current one upwards, that holds the file at one of its places, else the
+current folder. The file declares its ``schema_version``, the sources of the metadata of its files
+under ``metadata``, the files that every subpackage excludes under ``exclude``, then the section of
+each subpackage that the repository uses:
 
 - ``indexes``, parsed by :mod:`anagraphe.indexes.configuration`;
 - ``references``, parsed by :mod:`anagraphe.references.configuration`;
@@ -32,8 +35,10 @@ from anagraphe.references import configuration as references
 
 #: The name of the configuration file.
 CONFIG_FILE = "anagraphe.yml"
-#: The places of the configuration below the root, in the order of the lookup.
+#: The places of the configuration below the root.
 CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
+#: The environment variable naming the root, read when the command line gives none.
+ROOT_VARIABLE = "ANAGRAPHE_ROOT"
 #: The version of the layout of ``anagraphe.yml`` read by this release.
 SCHEMA_VERSION = 2
 #: The top-level keys of ``anagraphe.yml``.
@@ -53,17 +58,39 @@ class RepositoryConfig:
     metadata: MetadataReader | None = None
 
 
+def find_root(start: Path) -> Path:
+    """Return the root of a command that names none: the nearest folder holding a configuration.
+
+    The search runs from ``start`` up to the top of the file system, and stops at the first folder
+    holding a file at one of :data:`CONFIG_LOCATIONS`. Without such a folder, the root is
+    ``start``.
+    """
+    start = start.resolve()
+    for folder in (start, *start.parents):
+        if any((folder / location).is_file() for location in CONFIG_LOCATIONS):
+            return folder
+    return start
+
+
 def locate_config(root: Path, path: Path | None = None) -> Path:
     """Return the configuration file of the repository at ``root``.
 
-    A given ``path`` is taken relative to the root, unless it is absolute. Without one, the file is
-    the first of ``config/tools/anagraphe.yml`` and ``anagraphe.yml`` that exists below the root.
+    A given ``path`` is read from the current folder, unless it is absolute, and must name a file.
+    Without one, the file is the one of ``config/tools/anagraphe.yml`` and ``anagraphe.yml`` that
+    exists below the root; both existing is an error that names both.
     """
     if path is not None:
-        return path if path.is_absolute() else root / path
-    for location in CONFIG_LOCATIONS:
-        if (root / location).is_file():
-            return root / location
+        given = path.absolute()
+        if not given.is_file():
+            raise ConfigurationError(f"no configuration file at {path}")
+        return given
+    found = [root / location for location in CONFIG_LOCATIONS if (root / location).is_file()]
+    if len(found) > 1:
+        raise ConfigurationError(
+            "two configuration files: " + " and ".join(str(item) for item in found) + "; keep one"
+        )
+    if found:
+        return found[0]
     places = " or ".join(location.as_posix() for location in CONFIG_LOCATIONS)
     raise ConfigurationError(f"no configuration file at {places} below {root}")
 
