@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- When the target of an entry of `external` is a web address, Anagraphe keeps it whole and does
+  not check that it exists. Version 0.3.0 read the address as a path and reported no file.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

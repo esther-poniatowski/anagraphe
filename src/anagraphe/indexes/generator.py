@@ -692,10 +692,15 @@ class IndexGenerator:
     def _external_issues(
         self, index_rel: str, index_note: Note, members: list[Note]
     ) -> list[Issue]:
-        """Report a dependency naming no file, or naming a member rather than an outside file."""
+        """Report a dependency naming no file, or naming a member rather than an outside file.
+
+        A remote file, named by a URL, lies outside the repository, so its existence is not checked.
+        """
         rels = {note.rel for note in members}
         issues: list[Issue] = []
         for spec in index_note.external:
+            if spec.remote:
+                continue
             if not self.exists(spec.target):
                 issues.append(
                     Issue(

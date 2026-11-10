@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from anagraphe.core.filters import Filter, parse_filter, scalar, scalars
-from anagraphe.core.links import link_target
+from anagraphe.core.links import Target, link_target, value_link
 from anagraphe.core.regions import fenced_blocks
 from anagraphe.indexes.retired import RETIRED_MODES, retired_keys, retired_mode
 
@@ -138,12 +138,28 @@ class FileSpec:
 
 @dataclass(frozen=True)
 class ExternalSpec:
-    """A file outside the folder of an index, on which the index depends."""
+    """A file outside the folder of an index, on which the index depends.
 
-    #: The repository-relative path of the file.
+    The file lies in the repository, or elsewhere when its link is a URL, such as the permalink of
+    a file of another repository.
+
+    Examples
+    --------
+    >>> ExternalSpec("https://example.org/a.md", "the bound").remote
+    True
+    >>> ExternalSpec("shared/a.md", "the bound").remote
+    False
+    """
+
+    #: The repository-relative path of the file, or the whole URL of a remote file.
     target: str
     #: The use of the file by the index, stated under ``for``.
     use: str
+
+    @property
+    def remote(self) -> bool:
+        """Whether the file lies outside the repository, named by a URL."""
+        return Target.parse(self.target).scheme is not None
 
 
 @dataclass(frozen=True)
@@ -285,6 +301,8 @@ def parse_external(value: Any) -> tuple[tuple[ExternalSpec, ...], list[str]]:
     >>> parse_external([{"target": "[Kernels](foundations/kernels.md)", "for": "the kernel"},
     ...                 {"target": "foundations/x.md"}])
     ((ExternalSpec(target='foundations/kernels.md', use='the kernel'),), ['external 2: keys must be target and for', 'external 2: target is not a link [Title](path.md): foundations/x.md'])
+    >>> parse_external([{"target": "[Rule](https://example.org/r.md)", "for": "the rule"}])[0]
+    (ExternalSpec(target='https://example.org/r.md', use='the rule'),)
     """
     if value is None:
         return ((), [])
@@ -299,7 +317,10 @@ def parse_external(value: Any) -> tuple[tuple[ExternalSpec, ...], list[str]]:
         entry_problems: list[str] = []
         if set(entry) != EXTERNAL_KEYS:
             entry_problems.append("keys must be target and for")
-        target = link_target(entry.get("target"))
+        # A URL names a remote file, kept whole; any other target is a path from the root.
+        raw = value_link(entry.get("target"))
+        remote = raw is not None and Target.parse(raw).scheme is not None
+        target = raw if remote else link_target(entry.get("target"))
         if target is None:
             entry_problems.append(
                 f"target is not a link [Title](path.md): {entry.get('target', '')}"

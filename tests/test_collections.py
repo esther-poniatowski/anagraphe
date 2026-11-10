@@ -531,7 +531,7 @@ def test_sequence_group_without_a_source_of_order_is_a_violation(tmp_path: Path)
 
 
 def test_external_names_files_outside_the_collection(tmp_path: Path) -> None:
-    """An outside dependency must pass, and a member listed as external be reported."""
+    """An outside dependency, local or remote, must pass, and a listed member be reported."""
     _repository(tmp_path)
     _write(tmp_path / "shared" / "kernels.md", "# Kernels\n")
     _index(
@@ -540,6 +540,7 @@ def test_external_names_files_outside_the_collection(tmp_path: Path) -> None:
         external=[
             {"target": "[Kernels](shared/kernels.md)", "for": "the kernel of the model"},
             {"target": _link("a.md"), "for": "the first note"},
+            {"target": "[Rule](https://example.org/rules/r.md)", "for": "the rule of a repository"},
         ],
     )
     _note(tmp_path, "a.md")

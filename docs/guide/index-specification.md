@@ -131,7 +131,8 @@ and the other members of the cycle nest beneath it.
 Three further keys complete the specification of a collection:
 
 - The index key `external` lists the dependencies of the index outside its folder. Each entry
-  states the file under `target` and its use under `for`.
+  states the file under `target` and its use under `for`. When a target is a web address, such
+  as a permanent link into another repository, Anagraphe does not check that it exists.
 - The index key `context_relations` states a distinction between two members, as a mapping
   `{source, relation, target, for}`. The vocabulary declares the admitted relations.
 - The member key `superseded_by` links an archived note to the note replacing it. A note declaring
