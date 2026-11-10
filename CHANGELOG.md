@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A group holding no member is no longer reported for a sort key that no member holds, since it
+  sorts nothing.
+
 ## [0.2.2] - 2026-11-10
 
 ### Changed

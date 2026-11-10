@@ -265,6 +265,14 @@ def test_sort_key_held_by_no_member_is_a_violation(tmp_path: Path) -> None:
     ]
 
 
+def test_empty_group_reports_no_sort_key(tmp_path: Path) -> None:
+    """A group holding no member yet sorts nothing, so its sort key must not be reported."""
+    _repository(tmp_path)
+    _index(tmp_path, [{"id": "debates", "where": {"kind": "debate"}, "sort": "day"}, {"id": "*"}])
+    _note(tmp_path, "a.md", day=1)
+    assert _found(_run(tmp_path), "malformed-groups") == []
+
+
 def test_members_absent_from_a_sequence_follow_it_by_sort_key(tmp_path: Path) -> None:
     """Unsequenced members must follow the sequence in sort order, each with a warning."""
     _repository(tmp_path, default_mode="sequence")

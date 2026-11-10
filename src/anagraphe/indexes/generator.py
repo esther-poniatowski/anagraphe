@@ -486,8 +486,11 @@ class IndexGenerator:
                 locus=pointer("groups"),
                 discriminator=f"{spec.id} {key}",
             )
+            # A group holding no member yet sorts nothing, so its sort key is not tested.
             for key in spec.sort
-            if key not in SORT_KEYS and not any(key in note.data for note in group_members)
+            if group_members
+            and key not in SORT_KEYS
+            and not any(key in note.data for note in group_members)
         ]
         first = spec.sort[0]
         if spec.order and first in SORT_KEYS:
