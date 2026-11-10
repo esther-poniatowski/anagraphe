@@ -39,8 +39,13 @@ CASES = {
         "wikilink",
         ["img.png"],
     ),
-    "brackets-open-no-wikilink": ("[[s](v.md), [o](w.md)]]\n", "markdown", ["v.md", "w.md"]),
-    "brackets-hold-no-wikilink": ("[[s](v.md), [o](w.md)]]\n", "wikilink", []),
+    "wikilink-holding-markdown-links": ("[[s](v.md), [o](w.md)]]\n", "markdown", []),
+    "wikilink-runs-to-its-first-closing": (
+        "[[s](v.md), [o](w.md)]]\n",
+        "wikilink",
+        ["s](v.md), [o](w.md)"],
+    ),
+    "escaped-separator-in-a-table": ("| x |\n| - |\n| [[a\\|b]] |\n", "wikilink", ["a"]),
     "frontmatter-value": (
         '---\nindex: "[I](b/target.md)"\n---\nText.\n',
         "markdown",

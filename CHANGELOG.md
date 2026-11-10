@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Read Markdown through Merismos at commit `85e62c1`, which follows Obsidian 1.15.0: a
+  wikilink runs to its first closing `]]`, and `[[note\|alias]]` links to `note`.
+
 ## [0.2.1] - 2026-11-04
 
 ### Fixed
