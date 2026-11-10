@@ -9,6 +9,8 @@ former option ``--json`` of ``bindings show`` is retired.
 
 from __future__ import annotations
 
+import re
+
 import json
 from pathlib import Path
 
@@ -148,4 +150,5 @@ def test_retired_option_json_is_rejected(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.chdir(root)
     result = _runner().invoke(app, ["bindings", "show", "notes/a.md", "--json"])
     assert result.exit_code == 2
-    assert "No such option: --json" in result.stderr
+    # Rich colours the message on a terminal that admits colours, as on the runners of CI.
+    assert "No such option: --json" in re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
