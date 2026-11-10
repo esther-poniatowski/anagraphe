@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
 ### Added
 
 - A condition of `indexes.members` may name under `keys` the keys that a member declares at its
