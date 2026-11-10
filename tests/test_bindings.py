@@ -235,7 +235,8 @@ def test_show_prints_the_bindings_of_a_file(tmp_path: Path) -> None:
             "onomasia.audiences",
             "--merge",
             "union",
-            "--json",
+            "--format",
+            "json",
         ],
     )
     assert text.exit_code == 0
@@ -437,7 +438,7 @@ def test_missing_registry_fails_the_configuration(tmp_path: Path) -> None:
 def test_show_json_names_its_contract_and_its_problems(tmp_path: Path) -> None:
     root = _repository(tmp_path, {"projects/p/_index.md": "---\nglossary: 5\n---\n"})
     result = CliRunner().invoke(
-        app, ["bindings", "show", "projects/p/notes/b.md", "--root", str(root), "--json"]
+        app, ["bindings", "show", "projects/p/notes/b.md", "--root", str(root), "--format", "json"]
     )
     data = json.loads(result.output)
     assert data["contract"] == "anagraphe:bindings@1"

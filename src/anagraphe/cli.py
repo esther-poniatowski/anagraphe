@@ -37,7 +37,7 @@ from anagraphe.bindings.kinds import KINDS as BINDING_KINDS
 from anagraphe.bindings.kinds import UNANALYZED as BINDING_UNANALYZED
 from anagraphe.bindings.service import BindingChecker
 from anagraphe.bindings.contract import CONTRACT as BINDINGS_CONTRACT
-from anagraphe.configuration import RepositoryConfig, load_config
+from anagraphe.configuration import RepositoryConfig, load_config, locate_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.core.files import TargetError
 from anagraphe.core.issues import IssueKind, Report
@@ -67,8 +67,13 @@ app.add_typer(bindings_app, name="bindings")
 
 Paths = Annotated[list[Path] | None, typer.Argument(help="Files or folders to process.")]
 Root = Annotated[Path, typer.Option(help="Repository root.")]
-Config = Annotated[Path, typer.Option(help="Configuration path, relative to the root.")]
-DEFAULT_CONFIG = Path("anagraphe.yml")
+Config = Annotated[
+    Path | None,
+    typer.Option(
+        help="Configuration path, relative to the root; by default config/tools/anagraphe.yml, "
+        "then anagraphe.yml."
+    ),
+]
 
 
 class OutputFormat(str, Enum):
@@ -90,6 +95,14 @@ Output = Annotated[
         "--output", help="Write the SARIF log to this path, creating its folders; sarif only."
     ),
 ]
+
+
+class ShowFormat(str, Enum):
+    """The form of the bindings printed by ``bindings show``."""
+
+    TEXT = "text"
+    JSON = "json"
+
 
 #: Every section of the configuration, with every kind of issue that it can report.
 CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
@@ -178,13 +191,12 @@ def _fail(error: Exception, findings: Findings | None = None) -> NoReturn:
 
 
 def _load(
-    root: Path, config_path: Path, findings: Findings | None = None
+    root: Path, config_path: Path | None, findings: Findings | None = None
 ) -> tuple[Path, RepositoryConfig]:
-    """Resolve the root, and load the configuration that it holds."""
+    """Resolve the root, and load the configuration that it holds, or the one given."""
     resolved = root.resolve()
-    path = config_path if config_path.is_absolute() else resolved / config_path
     try:
-        return resolved, load_config(resolved, path)
+        return resolved, load_config(resolved, locate_config(resolved, config_path))
     except (ConfigurationError, OSError) as error:
         _fail(error, findings)
 
@@ -276,7 +288,7 @@ def _exit(*reports: Report, findings: Findings | None = None) -> None:
 def check(
     paths: Paths = None,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
 ) -> None:
@@ -304,7 +316,7 @@ def check(
 def indexes_check(
     paths: Paths = None,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
 ) -> None:
@@ -317,9 +329,7 @@ def indexes_check(
 
 
 @indexes_app.command("write")
-def indexes_write(
-    paths: Paths = None, root: Root = Path("."), config: Config = DEFAULT_CONFIG
-) -> None:
+def indexes_write(paths: Paths = None, root: Root = Path("."), config: Config = None) -> None:
     """Rewrite every generated region, once all the selected indexes validate."""
     resolved, repository = _load(root, config)
     indexes = _section(repository.indexes, "indexes")
@@ -330,7 +340,7 @@ def indexes_write(
 def refs_check(
     paths: Paths = None,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
 ) -> None:
@@ -346,7 +356,7 @@ def refs_check(
 def bindings_check(
     paths: Paths = None,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
 ) -> None:
@@ -368,11 +378,21 @@ def bindings_show(
     merge: Annotated[
         Merge, typer.Option(help="Merge rule of the resolved roles.")
     ] = Merge.OVERRIDE,
-    as_json: Annotated[bool, typer.Option("--json", help="Print the bindings as JSON.")] = False,
+    output_format: Annotated[
+        ShowFormat | None, typer.Option("--format", help="text, or json. [default: text]")
+    ] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", hidden=True, help="Former name of --format json.")
+    ] = False,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
 ) -> None:
     """Print the values bound to a file for each role, with the declarations supplying them."""
+    if as_json:
+        if output_format is ShowFormat.TEXT:
+            raise typer.BadParameter("--json contradicts --format text", param_hint="--json")
+        typer.echo("warning: --json is deprecated; use --format json", err=True)
+        output_format = ShowFormat.JSON
     resolved, repository = _load(root, config)
     bindings = _section(repository.bindings, "bindings")
     target = (path if path.is_absolute() else resolved / path).resolve()
@@ -396,7 +416,7 @@ def bindings_show(
         }
         for item in resolver.unreadable
     ]
-    if as_json:
+    if output_format is ShowFormat.JSON:
         data = {
             "contract": BINDINGS_CONTRACT,
             "file": rel,
@@ -442,11 +462,11 @@ def move(
     new: Annotated[str, typer.Argument(help="Path of the file or folder after the move.")],
     dry_run: Annotated[bool, typer.Option(help="Print the plan, and change no file.")] = False,
     root: Root = Path("."),
-    config: Config = DEFAULT_CONFIG,
+    config: Config = None,
 ) -> None:
     """Move a file or a folder, rewrite every pointer to it, and update the affected indexes."""
     resolved, repository = _load(root, config)
-    config_path = config if config.is_absolute() else resolved / config
+    config_path = locate_config(resolved, config)
     service = MoveService(
         resolved, repository, config_path.resolve().relative_to(resolved).as_posix()
     )

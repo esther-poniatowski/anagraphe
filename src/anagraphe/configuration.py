@@ -1,7 +1,8 @@
 """
 The configuration of a repository, ``anagraphe.yml``, composed of one section per subpackage.
 
-The file declares its ``schema_version``, the sources of the metadata of its files under
+The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below the root, the first
+found in this order, unless the command line names another. It declares its ``schema_version``, the sources of the metadata of its files under
 ``metadata``, the files that every subpackage excludes under ``exclude``, then the section of each
 subpackage that the repository uses:
 
@@ -29,6 +30,10 @@ from anagraphe.bindings import configuration as bindings
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
 
+#: The name of the configuration file.
+CONFIG_FILE = "anagraphe.yml"
+#: The places of the configuration below the root, in the order of the lookup.
+CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
 #: The version of the layout of ``anagraphe.yml`` read by this release.
 SCHEMA_VERSION = 2
 #: The top-level keys of ``anagraphe.yml``.
@@ -46,6 +51,21 @@ class RepositoryConfig:
     bindings: bindings.BindingConfig | None = None
     #: The metadata of each file, read from the source that the repository declares for it.
     metadata: MetadataReader | None = None
+
+
+def locate_config(root: Path, path: Path | None = None) -> Path:
+    """Return the configuration file of the repository at ``root``.
+
+    A given ``path`` is taken relative to the root, unless it is absolute. Without one, the file is
+    the first of ``config/tools/anagraphe.yml`` and ``anagraphe.yml`` that exists below the root.
+    """
+    if path is not None:
+        return path if path.is_absolute() else root / path
+    for location in CONFIG_LOCATIONS:
+        if (root / location).is_file():
+            return root / location
+    places = " or ".join(location.as_posix() for location in CONFIG_LOCATIONS)
+    raise ConfigurationError(f"no configuration file at {places} below {root}")
 
 
 def load_config(root: Path, path: Path) -> RepositoryConfig:

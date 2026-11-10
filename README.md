@@ -54,8 +54,8 @@ reference naming no file or anchor.
 
 ## Quick Start
 
-The repository must contain an `anagraphe.yml` configuration and the vocabulary and index-type
-schemas named by that configuration. The write command materializes every managed block:
+The repository must contain an `anagraphe.yml` configuration, read from `config/tools/` and
+otherwise from the root, and the vocabulary and index-type schemas named by that configuration. The write command materializes every managed block:
 
 ```sh
 anagraphe indexes write

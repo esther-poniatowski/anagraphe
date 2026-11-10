@@ -1,6 +1,8 @@
 # Configuration
 
-The configuration file `anagraphe.yml` binds Anagraphe to one repository. The file declares one
+The configuration file `anagraphe.yml` binds Anagraphe to one repository. Without the option
+`--config`, a command reads `config/tools/anagraphe.yml` below the repository root, and otherwise
+`anagraphe.yml` at the root. The file declares one
 section per capability: `indexes` to generate the indexes, `references` to check the references
 between files, and `bindings` to resolve the bindings of texts. A section left out disables its
 capability. Each declared path is

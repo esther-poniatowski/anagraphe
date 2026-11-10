@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - A condition of `indexes.members` may name under `keys` the keys that a member declares at its
   top level, such as the block `metadata` of a YAML record.
+- Without `--config`, every command reads `config/tools/anagraphe.yml` below the root, then
+  `anagraphe.yml` at the root. A given `--config` is read as before, and a missing configuration
+  names both places.
+- `anagraphe bindings show --format json` prints the bindings as JSON.
+
+### Deprecated
+
+- The option `--json` of `anagraphe bindings show`, replaced by `--format json`. The former option
+  still prints the same JSON, and warns on standard error.
 
 ### Fixed
 

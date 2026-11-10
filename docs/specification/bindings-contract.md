@@ -3,7 +3,7 @@
 The contract `anagraphe:bindings@1` fixes the values bound to a file for the role of a tool, so that
 each reading tool pins one version of these readings. The contract covers four
 points: the declarations of a file, the chain along which they are read, the merge rules, and the
-JSON written by `anagraphe bindings show --json`. The [conformance cases](https://github.com/esther-poniatowski/anagraphe/blob/main/specs/conformance/bindings.yml)
+JSON written by `anagraphe bindings show --format json`. The [conformance cases](https://github.com/esther-poniatowski/anagraphe/blob/main/specs/conformance/bindings.yml)
 fix each reading, and the [bindings guide](../guide/bindings.md) shows the configuration and the
 commands.
 
@@ -49,7 +49,7 @@ a schema, or under another applicator such as `items`, is reported as `invalid-s
 
 ## JSON output
 
-The command `anagraphe bindings show PATH --json` writes one object with five keys:
+The command `anagraphe bindings show PATH --format json` writes one object with five keys:
 
 | Key | Content |
 | --- | --- |

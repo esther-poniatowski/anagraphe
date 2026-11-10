@@ -112,7 +112,7 @@ incomplete.
 
 The command `anagraphe bindings show` prints the values bound to one file for each declared role,
 with the declarations that supply them. The option `--role` restricts the roles, `--merge` selects
-the merge rule, and `--json` prints the result for a tool written in another language:
+the merge rule, and `--format json` prints the result for a tool written in another language:
 
 ```console
 anagraphe bindings show projects/p/notes/b.md --role onomasia.audiences --merge union

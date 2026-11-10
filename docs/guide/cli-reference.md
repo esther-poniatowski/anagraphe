@@ -24,7 +24,7 @@ anagraphe indexes check [PATHS]... [--root PATH] [--config PATH] [--format FORMA
 anagraphe indexes write [PATHS]... [--root PATH] [--config PATH]
 anagraphe refs check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
-anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--json] [--root PATH] [--config PATH]
+anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--format FORMAT] [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
 ```
 
@@ -41,11 +41,10 @@ anagraphe move OLD NEW [--dry-run] [--root PATH] [--config PATH]
 | Option | Purpose | Default |
 | --- | --- | --- |
 | `--root PATH` | selects the repository root, from which every reported path is written | current directory |
-| `--config PATH` | selects the configuration relative to the root | `anagraphe.yml` |
+| `--config PATH` | selects the configuration relative to the root | `config/tools/anagraphe.yml`, then `anagraphe.yml`: the first found below the root |
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
-| `--json` | of `bindings show`: prints the bindings as JSON | text |
-| `--format FORMAT` | of the four check commands: `text`, or `sarif` for a findings log | `text` |
+| `--format FORMAT` | of the four check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
 | `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current directory, and creates its missing folders | standard output |
 
 For the indexes, each path may name an index, a directory, or a member whose parent index must be
