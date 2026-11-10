@@ -139,6 +139,26 @@ class Source:
         """Return the metadata held by a text, an empty mapping when the source holds none."""
         return self.parse(text)[0]
 
+    def top_level(self, text: str) -> dict[str, Any]:
+        """Return the top level of a text: its frontmatter, or the top-level mapping of its
+        document, whatever the declared key paths; an empty mapping when it holds none.
+
+        Examples
+        --------
+        >>> sorted(Source(SourceKind.YAML, (".", "metadata")).top_level("metadata: {a: 1}\\nb: 2\\n"))
+        ['b', 'metadata']
+        """
+        if self.kind is SourceKind.NONE:
+            return {}
+        if self.kind is SourceKind.FRONTMATTER:
+            return split_frontmatter(text)[0]
+        document = self._parse(text)[0]
+        return (
+            {str(key): value for key, value in document.items()}
+            if isinstance(document, dict)
+            else {}
+        )
+
     def parse(self, text: str) -> tuple[dict[str, Any], str | None]:
         """Return the metadata held by a text, and why it cannot be read, None when it can.
 
@@ -243,6 +263,7 @@ class MetadataReader:
         self.root = root
         self.rules = (*BUILT_IN, *rules)
         self._cache: dict[str, dict[str, Any]] = {}
+        self._keys: dict[str, frozenset[str]] = {}
 
     def source_of(self, rel: str) -> Source:
         """Return the source named by the last rule whose condition holds for a file."""
@@ -264,6 +285,20 @@ class MetadataReader:
                     text = ""
             self._cache[rel] = source.read(text) if text else {}
         return self._cache[rel]
+
+    def declared_keys(self, rel: str) -> frozenset[str]:
+        """Return the keys that a file declares at its top level, read from its source."""
+        if rel not in self._keys:
+            path = self.root / rel
+            source = self.source_of(rel)
+            text = ""
+            if source.kind is not SourceKind.NONE and path.is_file():
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    text = ""
+            self._keys[rel] = frozenset(source.top_level(text)) if text else frozenset()
+        return self._keys[rel]
 
     def region(self, rel: str, text: str) -> list[tuple[int, int]]:
         """Return the spans of the text of a file where its metadata is written."""

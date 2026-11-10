@@ -171,11 +171,27 @@ def test_members_select_by_metadata(tmp_path: Path) -> None:
     assert _listed(tmp_path) == ["note.md", "plan.yml"]
 
 
+def test_members_select_by_declared_keys(tmp_path: Path) -> None:
+    """A YAML file is listed only when it declares the keys of its rule at its top level."""
+    _repository(
+        tmp_path,
+        {
+            "m/plan.yml": "metadata:\n  aliases: [Plan]\n  index: '[Module](m/_index.md)'\nsteps: []\n",
+            "m/environment.yml": "name: m\ndependencies: [python]\n",
+        },
+        members=[{"types": ["md"]}, {"types": ["yml"], "keys": ["metadata"]}],
+    )
+    result = _write_indexes(tmp_path)
+    assert result.blocking_count == 0, result.issues
+    assert _listed(tmp_path) == ["note.md", "plan.yml"]
+
+
 @pytest.mark.parametrize(
     ("members", "message"),
     [
         ([], "indexes.members must list at least one condition"),
         ([{"kinds": ["md"]}], r"indexes.members\[1\] declares unknown keys: kinds"),
+        ([{"types": ["yml"], "keys": "metadata"}], r"indexes.members\[1\].keys"),
     ],
 )
 def test_malformed_members_are_rejected(tmp_path: Path, members: Any, message: str) -> None:

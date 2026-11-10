@@ -20,7 +20,7 @@ from anagraphe.core.configuration import (
     repository_path,
     strings,
 )
-from anagraphe.core.conditions import Condition, parse_condition
+from anagraphe.core.conditions import FILE_KEYS, Condition, parse_condition
 from anagraphe.core.exclusions import Exemptions, exemptions
 from anagraphe.core.filters import scalar
 from anagraphe.core.metadata import MetadataReader
@@ -40,8 +40,21 @@ SECTION_KEYS = frozenset(
         "members",
     }
 )
+
+
+@dataclass(frozen=True)
+class MemberRule:
+    """A condition on the files that an index lists, and the keys that each must declare."""
+
+    condition: Condition
+    #: The keys that a member declares at its top level, such as the block ``metadata``.
+    keys: frozenset[str] = frozenset()
+
+
+#: The keys of a member rule: the keys of a condition on a file, and the declared keys.
+MEMBER_KEYS = FILE_KEYS | {"keys"}
 #: The files that an index lists by default: its Markdown notes and its YAML records.
-DEFAULT_MEMBERS = (Condition(types=frozenset({"md", "yml", "yaml"})),)
+DEFAULT_MEMBERS = (MemberRule(Condition(types=frozenset({"md", "yml", "yaml"}))),)
 
 
 @dataclass(frozen=True)
@@ -58,14 +71,22 @@ class IndexConfig:
     #: The files tolerating a retired key until a declared migration.
     migrations: tuple[MigrationClass, ...] = ()
     inspect_git: bool = True
-    #: The conditions selecting the files that an index lists; one holding condition suffices.
-    members: tuple[Condition, ...] = DEFAULT_MEMBERS
+    #: The rules selecting the files that an index lists; one holding rule suffices.
+    members: tuple[MemberRule, ...] = DEFAULT_MEMBERS
     #: The metadata of each file, read from its declared source.
     metadata: MetadataReader | None = None
 
     def is_member(self, rel: str) -> bool:
-        """Whether an index lists a file of its folder, by the type, path or metadata of the file."""
-        return any(condition.holds(rel, self.metadata) for condition in self.members)
+        """Whether an index lists a file of its folder, by the type, path, metadata or declared
+        keys of the file."""
+        return any(
+            rule.condition.holds(rel, self.metadata)
+            and (
+                not rule.keys
+                or (self.metadata is not None and rule.keys <= self.metadata.declared_keys(rel))
+            )
+            for rule in self.members
+        )
 
     def sequence_for(self, root: Path, folder: Path) -> tuple[str, ...] | None:
         """Return the build manifest of a folder, whose key is relative to the repository root."""
@@ -224,15 +245,17 @@ def parse_section(
     )
 
 
-def _members(value: Any, field: str) -> tuple[Condition, ...]:
-    """Parse the conditions selecting the files that an index lists, the default when absent."""
+def _members(value: Any, field: str) -> tuple[MemberRule, ...]:
+    """Parse the rules selecting the files that an index lists, the default when absent."""
     if value is None:
         return DEFAULT_MEMBERS
     if not isinstance(value, list) or not value:
         raise ConfigurationError(
             f"{field} must list at least one condition, such as {{types: [md, yml, yaml]}}"
         )
-    return tuple(
-        parse_condition(entry, f"{field}[{number}]")[0]
-        for number, entry in enumerate(value, start=1)
-    )
+    rules: list[MemberRule] = []
+    for number, entry in enumerate(value, start=1):
+        condition, extra = parse_condition(entry, f"{field}[{number}]", MEMBER_KEYS)
+        keys = strings(extra.pop("keys", None), f"{field}[{number}].keys")
+        rules.append(MemberRule(condition, frozenset(keys)))
+    return tuple(rules)

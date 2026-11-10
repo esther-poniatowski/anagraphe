@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A condition of `indexes.members` may name under `keys` the keys that a member declares at its
+  top level, such as the block `metadata` of a YAML record.
+
 ### Fixed
 
 - A group holding no member is no longer reported for a sort key that no member holds, since it

@@ -126,7 +126,9 @@ that type outside the locations that fix a type.
 ## Members of an index
 
 An index lists the files of its folder whose type the section `indexes` admits under `members`, a
-list of conditions on `paths`, `types` and `where`; one holding condition suffices. By default,
+list of conditions on `paths`, `types`, `where` and `keys`; one holding condition suffices. The key
+`keys` lists the keys that a member declares at its top level: the keys of its frontmatter, or of
+the top-level mapping of its document. By default,
 `members` admits the Markdown notes and the YAML records:
 
 ```yaml
@@ -141,8 +143,16 @@ The entry fields of a member, such as its aliases, its `index` and its `purpose`
 its metadata source. A YAML record therefore joins its index whether its fields stand at its top
 level or in its block `metadata`. A member without a metadata source, such as a PDF, is titled by
 its file name and raises no issue about its fields. A YAML file that holds no record, such as the
-configuration of a tool, is kept out by an exclusion pattern, such as `environment.yml` or
-`*.schema.yaml`.
+configuration of a tool, is kept out by an exclusion pattern, such as `environment.yml`, or by a
+condition on its declared keys. The rule below lists a YAML file only when it declares the block
+`metadata`, so a new configuration file stays out without an edit:
+
+```yaml
+indexes:
+  members:
+    - {types: [md]}
+    - {types: [yml, yaml], keys: [metadata]}
+```
 
 ## Categorical values
 
