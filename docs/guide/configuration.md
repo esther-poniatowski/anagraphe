@@ -112,7 +112,10 @@ earlier releases stop the command with the pattern replacing each of them.
 
 ## Required inputs
 
-The section `indexes` names one vocabulary file and one directory of index-type JSON Schemas.
+The section `indexes` names one vocabulary and one directory of index-type JSON Schemas. The
+vocabulary is a file, or a folder whose YAML files merge in the order of their names. A section
+declared by two files merges when both declare a mapping. A key declared twice stops the
+command.
 The vocabulary declares the entry-point filename, the roles and the frames of the prose fields.
 A schema declares an index type when two conditions hold: its filename ends in `.schema.yaml`,
 and it holds the annotation `x-default-mode`. That annotation gives the default mode of the groups
