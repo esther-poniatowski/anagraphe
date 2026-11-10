@@ -46,7 +46,7 @@ Steps 1, 2, 3 and 6 are complete. The current release is `v0.2.2` (2026-11-10). 
 - **A plugin will edit the same specification.** Anagraphe will also provide an Obsidian plugin that renders indexes and lets the author manipulate their groups, membership, order and nesting. The specification of a collection therefore stays in the frontmatter of its index, in a form that the plugin can read and write, and the command line and the plugin share one core.
 - **Consumers first.** Run `anagraphe check` in every consumer at the target release before moving its pin, and confirm that no `x-default-mode: construction` remains.
 - **Cutover gate.** Before editing the configuration of the Mixture or Symmetry repository, confirm with the researcher whether such an edit is admitted before the cutover of that repository.
-- **No change to Gnomon.** The order strategies of expositions belong to Gnomon, under its task `exposition-family`, and are not part of this work.
+- **No order strategy in Anagraphe.** The order strategies of expositions belong to Ekthesis, under the task `exposition-order-strategy` of the [Geonexus task list](/Users/eresther/Documents/research/geonexus/TODO.md), and are not part of this work.
 - **Commits.** Commit on the current branch, and only when the researcher asks.
 - **Checks.** Run three commands, each on the changed files:
   - the tests: `conda run -n anagraphe python -m pytest`;
