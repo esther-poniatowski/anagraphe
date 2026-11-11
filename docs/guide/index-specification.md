@@ -206,6 +206,27 @@ under an index holding the region of groups:
 | `migration-key` | a retired key lies inside a migration class declared by the configuration (warning) |
 | `unreadable-metadata` | the metadata of the index or of a member cannot be parsed, such as a frontmatter that is not valid YAML or never closes; the fields of the file are left unchecked, and an index so reported keeps its regions as written |
 
+The command also reports the issues below, which concern the regions of an index, its type, its
+control files and the files that it lists. A listed file without metadata, such as a PDF, raises
+none of the issues of a listed file:
+
+| Issue | Cause |
+| --- | --- |
+| `stale-block` | a generated region differs from its rendering, which `anagraphe indexes write` restores |
+| `malformed-block` | a marker of a generated region is malformed |
+| `ungenerated-index` | an index of a generated area, or an index created since the last commit, holds no region of groups |
+| `index-type` | the index declares an unknown or invalid index type |
+| `index-prose` | the index holds a unit other than its slots, its title, its control block and its embedded views (warning) |
+| `unknown-file` | an entry of `files` names no file of the folder |
+| `missing-control-file` | a file that the index type requires is absent from the folder |
+| `control-file-role` | a file that the index type requires declares another role than the type expects |
+| `missing-alias` | a listed file declares no alias, whose first is its title |
+| `title-mismatch` | the H1 heading of a listed note differs from its first alias |
+| `index-location` | the key `index` of a listed file names another index than the one listing it |
+| `missing-purpose` | a group displays `purpose`, and a listed member declares none (warning) |
+| `unknown-task` | `blocked_by` names no declared task |
+| `finished-blocker` | `blocked_by` names a closed task (warning) |
+
 A retired construction of an index-type schema, such as `x-default-mode: construction`, or of the
 vocabulary, such as its section `cites`, stops the command with a configuration error. The
 [ADR 0002](../adr/0002-collection-owned-order.md) lists each retired construction with its

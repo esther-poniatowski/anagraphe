@@ -16,6 +16,7 @@ from anagraphe.configuration import load_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.core.issues import Issue
 from anagraphe.indexes.generator import nest_members
+from anagraphe.indexes.kinds import KINDS
 from anagraphe.indexes.notes import Note
 from anagraphe.indexes.retired import RETIRED_KEYS
 from anagraphe.indexes.service import RunResult, run
@@ -768,3 +769,10 @@ def test_malformed_archived_statuses_fail_the_configuration(
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
     assert message in result.stderr
+
+
+def test_every_kind_of_the_indexes_is_documented() -> None:
+    """Each issue kind of the catalogue has a row in the issue tables of the index specification."""
+    guide = Path(__file__).resolve().parents[1] / "docs" / "guide" / "index-specification.md"
+    documented = set(re.findall(r"^\| `([a-z-]+)` \|", guide.read_text(encoding="utf-8"), re.M))
+    assert {kind.kind for kind in KINDS} <= documented
