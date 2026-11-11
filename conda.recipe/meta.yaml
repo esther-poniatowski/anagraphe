@@ -40,6 +40,10 @@
 
 {% set recipe_dir = environ.get('RECIPE_DIR', '.') %}
 {% set pyproject = load_file_data('pyproject.toml') %}
+{#- A run requirement takes conda match specifications only, so each dependency that pyproject.toml
+    pins by a Git commit is required here by the conda release of that commit. Raise the version
+    together with the commit of the pin. -#}
+{% set released = {"merismos": "merismos >=0.1.0"} %}
 
 package:
   name: {{ pyproject.project.name | lower }}
@@ -61,7 +65,8 @@ requirements:
   run:
     - python {{ pyproject.project["requires-python"] }}
     {% for dep in pyproject.project["dependencies"] %}
-    - {{ dep }}
+    {% set name = dep.split(" @ ")[0] %}
+    - {{ released.get(name, dep) }}
     {% endfor %}
 
 about:
