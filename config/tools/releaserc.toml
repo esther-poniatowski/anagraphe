@@ -13,7 +13,7 @@
 #
 # Notes
 # -----
-# This configuration file is used in the GitHub action `gh-release.yml` to automate the release
+# This configuration file is used in the GitHub action `release.yml` to automate the release
 # process.
 #
 # See Also
