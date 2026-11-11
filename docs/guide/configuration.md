@@ -4,7 +4,9 @@ The configuration file `anagraphe.yml` binds Anagraphe to one repository. Withou
 `--config`, a command reads `config/tools/anagraphe.yml` below the repository root, or
 `anagraphe.yml` at the root; when both files exist, the command stops with an error naming both.
 A file named by `--config` is read from the current folder, and its absence is an error. The
-[CLI reference](cli-reference.md) states how a command finds the root. The file declares one
+[CLI reference](cli-reference.md) states how a command finds the root. The file names its format
+under `_schema`, as its first key, and a command stops with status 2 when the key is absent or
+holds another value than `anagraphe:configuration@2`. The file also declares one
 section per capability: `indexes` to generate the indexes, `references` to check the references
 between files, and `bindings` to resolve the bindings of texts. A section left out disables its
 capability. Each declared path is
@@ -18,7 +20,7 @@ exclusions, the section `indexes` with its two required paths, and the section `
 its defaults:
 
 ```yaml
-schema_version: 2
+_schema: anagraphe:configuration@2
 metadata:
   - when: {types: [toml]}
     from: {toml: [project]}

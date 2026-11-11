@@ -358,7 +358,7 @@ INDEX = (
 
 def _repository(root: Path, files: dict[str, str], indexes: bool = False) -> None:
     """Write a repository whose configuration declares the references, and the indexes if asked."""
-    config: dict[str, Any] = {"schema_version": 2, "references": {}}
+    config: dict[str, Any] = {"_schema": "anagraphe:configuration@2", "references": {}}
     if indexes:
         config["indexes"] = CONFIG_INDEXES
         files = {
@@ -482,7 +482,7 @@ def test_cli_declares_an_unreadable_file(tmp_path: Path) -> None:
     """A document that a syntax of keys cannot parse makes the run incomplete, with its result."""
     _repository(tmp_path, {"specs/terms.yml": "terms: [unclosed\n"})
     config = {
-        "schema_version": 2,
+        "_schema": "anagraphe:configuration@2",
         "references": {"syntaxes": {"sources": {"when": {"types": ["yml"]}, "keys": ["source"]}}},
     }
     (tmp_path / "anagraphe.yml").write_text(yaml.safe_dump(config), encoding="utf-8")

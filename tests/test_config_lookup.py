@@ -22,7 +22,7 @@ from anagraphe.configuration import find_root, locate_config
 from anagraphe.core.configuration import ConfigurationError
 
 #: A valid configuration, which the command ``check`` reads with no issue.
-VALID = "schema_version: 2\nreferences: {}\n"
+VALID = "_schema: anagraphe:configuration@2\nreferences: {}\n"
 #: A configuration that the command ``check`` rejects with a message naming the retired version.
 RETIRED = "schema_version: 1\nreferences: {}\n"
 NESTED = Path("config/tools/anagraphe.yml")
@@ -55,7 +55,23 @@ def test_lookup_reads_the_file_at_the_root(tmp_path: Path) -> None:
     assert locate_config(root) == root / "anagraphe.yml"
     result = CliRunner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
-    assert "schema_version 1 is retired" in result.output
+    assert "schema_version is retired: write _schema: anagraphe:configuration@2" in result.output
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "references: {}\n",
+        "_schema: anagraphe:configuration@1\nreferences: {}\n",
+        "schema_version: 2\nreferences: {}\n",
+    ],
+)
+def test_a_file_of_another_format_stops_with_status_2(tmp_path: Path, text: str) -> None:
+    """An absent key, a wrong identifier and the old key all name the value to write."""
+    root = _repository(tmp_path, {"anagraphe.yml": text})
+    result = _runner().invoke(app, ["check", "--root", str(root)])
+    assert result.exit_code == 2
+    assert "anagraphe:configuration@2" in result.stderr
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
@@ -129,7 +145,7 @@ def test_root_is_read_from_the_environment_below_the_option(tmp_path: Path) -> N
 #: A repository declaring one role, bound by the root index.
 BOUND = {
     "anagraphe.yml": (
-        "schema_version: 2\nbindings:\n  index: _index.md\n  roles:\n"
+        "_schema: anagraphe:configuration@2\nbindings:\n  index: _index.md\n  roles:\n"
         "    onomasia.glossary: {key: glossary}\n"
     ),
     "_index.md": "---\nglossary: base\n---\n",

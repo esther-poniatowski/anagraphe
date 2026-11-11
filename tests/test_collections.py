@@ -55,7 +55,7 @@ def _repository(
     _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
     _write(
         root / "anagraphe.yml",
-        "schema_version: 2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
         "  index_types: config/index-types\n  inspect_git: false\n"
         + textwrap.indent(configuration, "  "),
     )

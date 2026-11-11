@@ -46,7 +46,7 @@ def _repository(root: Path, unlinkable: Any = UNLINKABLE, **section: Any) -> Non
     """Write the fixture notes and a configuration declaring the unlinkable files."""
     files = {
         "anagraphe.yml": yaml.safe_dump(
-            {"schema_version": 2, "references": {"unlinkable": unlinkable, **section}}
+            {"_schema": "anagraphe:configuration@2", "references": {"unlinkable": unlinkable, **section}}
         ),
         **FILES,
     }

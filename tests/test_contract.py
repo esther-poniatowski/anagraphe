@@ -27,7 +27,7 @@ def test_case_conforms(tmp_path: Path, case_id: str) -> None:
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-    declared = {"schema_version": 2, "bindings": SUITE["section"]}
+    declared = {"_schema": "anagraphe:configuration@2", "bindings": SUITE["section"]}
     (tmp_path / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
     config = load_config(tmp_path, tmp_path / "anagraphe.yml").bindings
     assert config is not None

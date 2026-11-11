@@ -69,7 +69,7 @@ def _repository(root: Path) -> None:
             "archive/old.md": "An old pointer to m/a.md.\n",
             "anagraphe.yml": yaml.safe_dump(
                 {
-                    "schema_version": 2,
+                    "_schema": "anagraphe:configuration@2",
                     "indexes": {
                         "vocabulary": "config/vocabulary.yml",
                         "index_types": "config/index-types",

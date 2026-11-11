@@ -33,7 +33,7 @@ def _repository(
 ) -> None:
     """Write the targets, the given files, and a configuration with the section references."""
     _write(root, {**TARGETS, **files})
-    declared = {"schema_version": 2, **(top or {}), "references": section}
+    declared = {"_schema": "anagraphe:configuration@2", **(top or {}), "references": section}
     _write(root, {"anagraphe.yml": yaml.safe_dump(declared)})
 
 

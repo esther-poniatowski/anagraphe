@@ -50,7 +50,7 @@ def _repository(root: Path) -> None:
     _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
     _write(
         root / "anagraphe.yml",
-        "schema_version: 2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
         "  index_types: config/index-types\n  inspect_git: false\n",
     )
     _write(
@@ -159,20 +159,42 @@ def test_atomic_write_restores_replaced_indexes(
 
 
 @pytest.mark.parametrize(
-    ("version", "message"),
+    ("text", "message"),
     [
-        (3, "schema_version must equal 2"),
         (
-            1,
-            "schema_version 1 is retired: version 2 holds the index keys under the section indexes",
+            "indexes: {}\n",
+            "anagraphe.yml declares no _schema: write _schema: anagraphe:configuration@2",
+        ),
+        (
+            "_schema: anagraphe:configuration@3\nindexes: {}\n",
+            "_schema must equal anagraphe:configuration@2, not anagraphe:configuration@3",
+        ),
+        ("_schema: 2\nindexes: {}\n", "_schema must equal anagraphe:configuration@2, not 2"),
+        (
+            "schema_version: 2\nindexes: {}\n",
+            "schema_version is retired: write _schema: anagraphe:configuration@2",
+        ),
+        (
+            "schema_version: 1\nindexes: {}\n",
+            "write _schema: anagraphe:configuration@2 .*index keys under the section indexes",
+        ),
+        (
+            "_schema: anagraphe:configuration@2\nschema_version: 2\nindexes: {}\n",
+            "schema_version is retired",
         ),
     ],
 )
-def test_configuration_requires_version_two(tmp_path: Path, version: int, message: str) -> None:
-    """An unsupported configuration version must fail before repository access."""
-    _write(tmp_path / "anagraphe.yml", f"schema_version: {version}\nindexes: {{}}\n")
+def test_configuration_requires_its_format(tmp_path: Path, text: str, message: str) -> None:
+    """A configuration of another format must fail before repository access."""
+    _write(tmp_path / "anagraphe.yml", text)
     with pytest.raises(ConfigurationError, match=message):
         load_config(tmp_path, tmp_path / "anagraphe.yml")
+
+
+def test_configuration_accepts_its_format(tmp_path: Path) -> None:
+    """The identifier of the format, as a plain YAML scalar, must load."""
+    _write(tmp_path / "anagraphe.yml", "_schema: anagraphe:configuration@2\nreferences: {}\n")
+    assert load_config(tmp_path, tmp_path / "anagraphe.yml").references is not None
 
 
 def test_cli_rejects_explicit_target_without_index(tmp_path: Path) -> None:
@@ -239,7 +261,7 @@ def test_configuration_rejects_path_outside_repository(tmp_path: Path) -> None:
     """A repository-owned input must not resolve outside the repository root."""
     _write(
         tmp_path / "anagraphe.yml",
-        "schema_version: 2\nindexes:\n  vocabulary: ../outside.yml\n  index_types: config/index-types\n",
+        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: ../outside.yml\n  index_types: config/index-types\n",
     )
     with pytest.raises(
         ConfigurationError, match="indexes.vocabulary must stay inside the repository"

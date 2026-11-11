@@ -31,7 +31,7 @@ def _write(root: Path, files: dict[str, str]) -> None:
 def _repository(root: Path, files: dict[str, str], **section: Any) -> None:
     """Write the targets, the given files, and a configuration with the section references."""
     _write(root, {**TARGETS, **files})
-    _write(root, {"anagraphe.yml": yaml.safe_dump({"schema_version": 2, "references": section})})
+    _write(root, {"anagraphe.yml": yaml.safe_dump({"_schema": "anagraphe:configuration@2", "references": section})})
 
 
 def _issues(root: Path) -> list[tuple[str, str, str]]:

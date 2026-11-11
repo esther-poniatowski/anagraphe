@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `anagraphe.yml` names its format under the key `_schema`, as its first key, with
+  the value `anagraphe:configuration@2`. The key `schema_version` is retired: a command reading it
+  stops with status 2 and names the value to write. A file without the key, or with another value,
+  stops the same way.
+
 ### Fixed
 
 - When the target of an entry of `external` is a web address, Anagraphe keeps it whole and does

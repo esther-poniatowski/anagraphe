@@ -5,7 +5,7 @@ The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below th
 places holding a file is an error, unless the command line names another file. The root of a
 command is the folder given by ``--root``, else by the variable ``ANAGRAPHE_ROOT``, else the
 nearest folder, from the current one upwards, that holds the file at one of its places, else the
-current folder. The file declares its ``schema_version``, the sources of the metadata of its files
+current folder. The file declares its format under ``_schema``, the sources of the metadata of its files
 under ``metadata``, the files that every subpackage excludes under ``exclude``, then the section of
 each subpackage that the repository uses:
 
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Mapping
 
 from anagraphe.core.configuration import (
     ConfigurationError,
@@ -39,12 +40,14 @@ CONFIG_FILE = "anagraphe.yml"
 CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
 #: The environment variable naming the root, read when the command line gives none.
 ROOT_VARIABLE = "ANAGRAPHE_ROOT"
-#: The version of the layout of ``anagraphe.yml`` read by this release.
-SCHEMA_VERSION = 2
+#: The key of ``anagraphe.yml`` naming its format.
+FORMAT_KEY = "_schema"
+#: The format of ``anagraphe.yml`` read by this release.
+CONFIGURATION_FORMAT = "anagraphe:configuration@2"
+#: The key that named the version of the layout before ``_schema``, rejected with its replacement.
+RETIRED_FORMAT_KEY = "schema_version"
 #: The top-level keys of ``anagraphe.yml``.
-TOP_LEVEL_KEYS = frozenset(
-    {"schema_version", "metadata", "exclude", "indexes", "references", "bindings"}
-)
+TOP_LEVEL_KEYS = frozenset({FORMAT_KEY, "metadata", "exclude", "indexes", "references", "bindings"})
 
 
 @dataclass(frozen=True)
@@ -95,6 +98,25 @@ def locate_config(root: Path, path: Path | None = None) -> Path:
     raise ConfigurationError(f"no configuration file at {places} below {root}")
 
 
+def _require_format(raw: Mapping[str, Any]) -> None:
+    """Require the format of ``anagraphe.yml``, or raise an error naming the value to write."""
+    instruction = f"write {FORMAT_KEY}: {CONFIGURATION_FORMAT} as the first key of anagraphe.yml"
+    if RETIRED_FORMAT_KEY in raw:
+        layout = (
+            "; this format holds the index keys under the section indexes, and the shared exclude "
+            "at the top level"
+            if raw[RETIRED_FORMAT_KEY] == 1
+            else ""
+        )
+        raise ConfigurationError(f"{RETIRED_FORMAT_KEY} is retired: {instruction}{layout}")
+    if FORMAT_KEY not in raw:
+        raise ConfigurationError(f"anagraphe.yml declares no {FORMAT_KEY}: {instruction}")
+    if raw[FORMAT_KEY] != CONFIGURATION_FORMAT:
+        raise ConfigurationError(
+            f"{FORMAT_KEY} must equal {CONFIGURATION_FORMAT}, not {raw[FORMAT_KEY]}"
+        )
+
+
 def load_config(root: Path, path: Path) -> RepositoryConfig:
     """Validate and resolve the configuration of a repository."""
     root = root.resolve()
@@ -104,14 +126,7 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
     except ValueError as error:
         raise ConfigurationError("configuration path must stay inside the repository") from error
     raw = load_yaml(config_path)
-    version = raw.get("schema_version")
-    if version == 1:
-        raise ConfigurationError(
-            "schema_version 1 is retired: version 2 holds the index keys under the section "
-            "indexes, and the shared exclude at the top level"
-        )
-    if version != SCHEMA_VERSION:
-        raise ConfigurationError(f"schema_version must equal {SCHEMA_VERSION}")
+    _require_format(raw)
     known_keys(raw, TOP_LEVEL_KEYS, "anagraphe.yml")
     reader = MetadataReader(root, parse_metadata(raw.get("metadata"), "metadata"))
     shared = exemptions(raw.get("exclude"), "exclude", root, reader)

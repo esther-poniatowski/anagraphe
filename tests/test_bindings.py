@@ -71,7 +71,7 @@ def _repository(root: Path, files: dict[str, Any] | None = None, **section: Any)
         path.write_text(
             content if isinstance(content, str) else yaml.safe_dump(content), encoding="utf-8"
         )
-    declared = {"schema_version": 2, "bindings": {**SECTION, **section}}
+    declared = {"_schema": "anagraphe:configuration@2", "bindings": {**SECTION, **section}}
     (root / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
     return root
 

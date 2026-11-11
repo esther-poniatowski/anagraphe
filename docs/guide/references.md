@@ -3,8 +3,8 @@
 Anagraphe keeps the pointers between the files of a repository valid. The command
 `anagraphe refs check` reports each pointer that names no file or anchor, or breaks a convention,
 and the command `anagraphe move` moves a file or a folder while rewriting every pointer to it. This
-page assumes an installed Anagraphe and an `anagraphe.yml` at `schema_version: 2`, as the
-[configuration guide](configuration.md) describes.
+page assumes an installed Anagraphe and an `anagraphe.yml` of the format
+`anagraphe:configuration@2`, as the [configuration guide](configuration.md) describes.
 
 ## Kinds of pointer
 
@@ -34,7 +34,7 @@ The section below admits three URL schemes, reads the Markdown links of YAML fil
 declares a syntax of keys for the `source` values of the glossary records:
 
 ```yaml
-schema_version: 2
+_schema: anagraphe:configuration@2
 references:
   exclude:
     paths: [templates/]
