@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the value `anagraphe:configuration@2`. The key `schema_version` is retired: a command reading it
   stops with status 2 and names the value to write. A file without the key, or with another value,
   stops the same way.
+- The schema registry of the section `bindings.records` is read in the format
+  `_schema: kleisis:schema-registry@2`, which Kleisis now writes, and still in the legacy formats
+  `schema_version: 1` and `schema_version: 2`.
+- **Breaking:** a schema registry that declares no format stops the command with status 2 and names
+  the value `_schema: kleisis:schema-registry@2`; version 0.3.0 read it as the format 1. A registry
+  carrying both keys, or another value of either key, stops the same way.
 
 ### Fixed
 

@@ -51,7 +51,7 @@ FILES: dict[str, Any] = {
     },
     "projects/p/other.yml": {"_schema": "test:other@1", "glossary": "from-metadata"},
     "specs/schema-registry.yml": {
-        "schema_version": 2,
+        "_schema": "kleisis:schema-registry@2",
         "schemas": {"test:problem@1": "schemas/problem.schema.yaml"},
         "resources": {"https://example.org/base.schema.yaml": "schemas/base.schema.yaml"},
     },
@@ -170,7 +170,7 @@ PLANTED = {
     "unreadable-schema": (
         {
             "specs/schema-registry.yml": {
-                "schema_version": 2,
+                "_schema": "kleisis:schema-registry@2",
                 "schemas": {"test:problem@1": "schemas/absent.schema.yaml"},
             }
         },
@@ -311,7 +311,7 @@ SCHEMAS: dict[str, tuple[dict[str, Any], dict[str, Any], tuple[str, ...]]] = {
         {"allOf": [{"$ref": "urn:example:base"}]},
         {
             "specs/schema-registry.yml": {
-                "schema_version": 2,
+                "_schema": "kleisis:schema-registry@2",
                 "schemas": {"test:problem@1": "schemas/problem.schema.yaml"},
                 "resources": {"urn:example:base": "schemas/base.schema.yaml"},
             }
@@ -436,6 +436,51 @@ def test_missing_registry_fails_the_configuration(tmp_path: Path) -> None:
     root = _repository(tmp_path, records={"registry": "specs/absent.yml"})
     with pytest.raises(ConfigurationError, match="registry names no file"):
         load_config(root, root / "anagraphe.yml")
+
+
+#: The entries of the fixture registry, below its format marker.
+REGISTRY_ENTRIES: dict[str, Any] = {
+    "schemas": {"test:problem@1": "schemas/problem.schema.yaml"},
+    "resources": {"https://example.org/base.schema.yaml": "schemas/base.schema.yaml"},
+}
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [{"_schema": "kleisis:schema-registry@2"}, {"schema_version": 1}, {"schema_version": 2}],
+    ids=["identifier", "legacy-1", "legacy-2"],
+)
+def test_registry_is_read_in_each_admitted_format(tmp_path: Path, marker: dict[str, Any]) -> None:
+    files = {"specs/schema-registry.yml": {**marker, **REGISTRY_ENTRIES}}
+    binding = _resolver(_repository(tmp_path, files)).resolve(
+        "projects/p/problem.yml", Role("onomasia.glossary")
+    )
+    assert binding.values == ("record",)
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        {},
+        {"_schema": "kleisis:schema-registry@1"},
+        {"_schema": "kleisis:schema-resources@1"},
+        {"schema_version": 3},
+        {"schema_version": "2"},
+        {"_schema": "kleisis:schema-registry@2", "schema_version": 2},
+    ],
+    ids=["absent", "wrong-major", "wrong-type", "wrong-legacy", "legacy-string", "both-keys"],
+)
+def test_registry_in_another_format_stops_the_check_with_status_2(
+    tmp_path: Path, marker: dict[str, Any]
+) -> None:
+    files = {"specs/schema-registry.yml": {**marker, **REGISTRY_ENTRIES}}
+    root = _repository(tmp_path, files)
+    result = CliRunner().invoke(
+        app, ["bindings", "check", "--root", str(root), "--config", str(root / "anagraphe.yml")]
+    )
+    assert result.exit_code == 2
+    assert "configuration: the schema registry" in result.output
+    assert "_schema: kleisis:schema-registry@2" in result.output
 
 
 def test_show_json_names_its_contract_and_its_problems(

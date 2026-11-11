@@ -57,8 +57,11 @@ UNSUPPORTED = (
 )
 #: A URI scheme, which makes a reference an absolute ``$id``.
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
-#: The format versions of the schema registry read by this release.
-REGISTRY_VERSIONS = frozenset({1, 2})
+#: The identifier of the format of the schema registry that Kleisis writes, under ``_schema``.
+REGISTRY_FORMAT = "kleisis:schema-registry@2"
+#: The legacy versions of the registry under ``schema_version``, still read because a repository
+#: regenerates its registry only when it raises its pin of Kleisis.
+LEGACY_REGISTRY_VERSIONS = frozenset({1, 2})
 
 
 def parse_document(rel: str, text: str) -> Any:
@@ -75,6 +78,47 @@ def parse_document(rel: str, text: str) -> Any:
         return yaml.safe_load(text)
     except yaml.YAMLError as error:
         raise ValueError(str(error)) from error
+
+
+def check_registry_format(raw: Mapping[Any, Any], registry: Path) -> None:
+    """Accept a registry marked by ``_schema: kleisis:schema-registry@2``, or by the legacy
+    ``schema_version: 1`` or ``schema_version: 2``.
+
+    Raises
+    ------
+    ConfigurationError
+        If the registry carries neither key, both keys, or another value; the message names the
+        value to write.
+
+    Examples
+    --------
+    >>> check_registry_format({"_schema": "kleisis:schema-registry@2"}, Path("r.yml"))
+    >>> check_registry_format({"schema_version": 1}, Path("r.yml"))
+    >>> check_registry_format({"schema_version": 3}, Path("r.yml"))
+    Traceback (most recent call last):
+    ...
+    anagraphe.core.configuration.ConfigurationError: the schema registry r.yml has schema_version: 3; write _schema: kleisis:schema-registry@2
+    """
+    expected = f"write _schema: {REGISTRY_FORMAT}"
+    if "_schema" in raw and "schema_version" in raw:
+        raise ConfigurationError(
+            f"the schema registry {registry} has both _schema and schema_version; {expected} alone"
+        )
+    if "_schema" in raw:
+        if raw["_schema"] != REGISTRY_FORMAT:
+            raise ConfigurationError(
+                f"the schema registry {registry} has _schema: {raw['_schema']}; {expected}"
+            )
+        return
+    if "schema_version" in raw:
+        version = raw["schema_version"]
+        # A boolean equals 0 or 1 in Python, so the type is compared before the value.
+        if type(version) is not int or version not in LEGACY_REGISTRY_VERSIONS:
+            raise ConfigurationError(
+                f"the schema registry {registry} has schema_version: {version!r}; {expected}"
+            )
+        return
+    raise ConfigurationError(f"the schema registry {registry} names no format; {expected}")
 
 
 @dataclass(frozen=True)
@@ -112,12 +156,7 @@ class SchemaBindings:
             ) from error
         if not isinstance(raw, Mapping):
             raise ConfigurationError(f"the schema registry {self.registry} is not a mapping")
-        version = raw.get("schema_version", 1)
-        if version not in REGISTRY_VERSIONS:
-            raise ConfigurationError(
-                f"the schema registry {self.registry} has the format {version}; "
-                "this release reads the formats 1 and 2"
-            )
+        check_registry_format(raw, self.registry)
         for key, target in (("schemas", self._schemas), ("resources", self._resources)):
             entries = raw.get(key) or {}
             if not isinstance(entries, Mapping):
