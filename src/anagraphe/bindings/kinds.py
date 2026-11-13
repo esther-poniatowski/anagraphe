@@ -5,6 +5,7 @@ The kinds of issue that the check of the bindings can report, with their descrip
 from __future__ import annotations
 
 from anagraphe.core.issues import IssueKind
+from anagraphe.core.schemas import UNREADABLE_SCHEMA, UNRESOLVED_REFERENCE
 
 #: A text that a condition requires to be bound, bound to no value.
 UNBOUND = "unbound-text"
@@ -14,10 +15,9 @@ INVALID = "invalid-binding"
 UNREADABLE_SOURCE = "unreadable-binding-source"
 #: A mark ``x-binds`` that names no role, marks a whole record, or sits where a field has no key path.
 INVALID_MARK = "invalid-schema-binding"
-#: A ``$ref`` of a schema that names no readable schema node inside the repository.
-UNRESOLVED_REFERENCE = "unresolved-schema-reference"
-#: A schema named by the registry that cannot be read, which leaves its records unanalyzed.
-UNREADABLE_SCHEMA = "unreadable-schema"
+# The kinds UNRESOLVED_REFERENCE, a $ref naming no readable schema node inside the repository, and
+# UNREADABLE_SCHEMA, a schema of the registry that cannot be read, belong to the reader of schemas
+# of the core, which records them.
 
 #: Every kind of issue that the check can report.
 KINDS: tuple[IssueKind, ...] = (

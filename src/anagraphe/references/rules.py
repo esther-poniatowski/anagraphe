@@ -17,7 +17,7 @@ from typing import Any, Protocol
 from anagraphe.core.conditions import Condition
 from anagraphe.core.filters import scalars
 from anagraphe.core.links import Target
-from anagraphe.references.anchors import has_block_anchor
+from anagraphe.core.anchors import has_block_anchor
 from anagraphe.references.conventions import Convention
 from anagraphe.references.model import MARKDOWN, WIKILINK, Fragments, Reference
 from anagraphe.references.resolution import Resolution

@@ -20,23 +20,17 @@ from typing import Any, Mapping
 
 from anagraphe.bindings.model import ROLE_PATTERN
 from anagraphe.core.conditions import Condition, parse_condition
-from anagraphe.core.configuration import (
-    ConfigurationError,
-    known_keys,
-    mapping,
-    repository_path,
-)
+from anagraphe.core.configuration import ConfigurationError, known_keys, mapping
 from anagraphe.core.exclusions import Exemptions, exemptions
 from anagraphe.core.metadata import MetadataReader
+from anagraphe.core.schemas import RecordSchemas, parse_records
 
 #: The keys of the section ``bindings``.
 SECTION_KEYS = frozenset({"index", "roles", "records", "exclude"})
 #: The keys of one role.
 ROLE_KEYS = frozenset({"key", "required"})
-#: The keys of the declaration of records.
-RECORD_KEYS = frozenset({"registry", "binding"})
-#: The key of a record naming its contract, as the schema registry of Kleisis writes it by default.
-DEFAULT_BINDING = "_schema"
+
+__all__ = ["BindingConfig", "RecordSchemas", "RoleSpec", "parse_section"]
 
 
 @dataclass(frozen=True)
@@ -47,14 +41,6 @@ class RoleSpec:
     key: str
     #: The files that must be bound for the role; None when no file must be.
     required: Condition | None = None
-
-
-@dataclass(frozen=True)
-class RecordSchemas:
-    """The schema registry of the records, and the key of a record naming its contract."""
-
-    registry: Path
-    binding: str = DEFAULT_BINDING
 
 
 @dataclass(frozen=True)
@@ -93,21 +79,6 @@ def _roles(value: Any, field_name: str) -> dict[str, RoleSpec]:
     return roles
 
 
-def _records(root: Path, value: Any, field_name: str) -> RecordSchemas | None:
-    """Parse the declaration of records, None when the section declares none."""
-    if value is None:
-        return None
-    raw = mapping(value, field_name)
-    known_keys(raw, RECORD_KEYS, field_name)
-    registry = repository_path(root, raw.get("registry"), f"{field_name}.registry")
-    if not registry.is_file():
-        raise ConfigurationError(f"{field_name}.registry names no file: {raw.get('registry')}")
-    binding = raw.get("binding", DEFAULT_BINDING)
-    if not isinstance(binding, str) or not binding:
-        raise ConfigurationError(f"{field_name}.binding must name the key of a record's contract")
-    return RecordSchemas(registry, binding)
-
-
 def parse_section(
     root: Path,
     raw: Mapping[str, Any],
@@ -125,7 +96,7 @@ def parse_section(
     return BindingConfig(
         index=index,
         roles=_roles(raw.get("roles"), f"{field_name}.roles"),
-        records=_records(root, raw.get("records"), f"{field_name}.records"),
+        records=parse_records(root, raw.get("records"), f"{field_name}.records"),
         exemptions=shared.union(
             exemptions(raw.get("exclude"), f"{field_name}.exclude", root, metadata)
         ),
