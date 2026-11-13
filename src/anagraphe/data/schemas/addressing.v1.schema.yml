@@ -1,0 +1,48 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml
+title: Addressing primitives
+description: >-
+  The identifiers of a repository, of a record and of a unit, and the logical target that names a
+  record, a unit inside it, or a repository, as ADR 0006 of Anagraphe states them. A change that
+  makes a valid target invalid, or changes the meaning of a key, publishes a new major version
+  under a new $id.
+$defs:
+  repository-id:
+    title: Repository identifier
+    description: The identifier of a repository, declared under repository.id of its repository.yml.
+    type: string
+    pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+  record-id:
+    title: Record identifier
+    description: The identifier of a record, unique within its repository.
+    type: string
+    pattern: '^[a-z0-9]+([._-][a-z0-9]+)*$'
+  unit-id:
+    title: Unit identifier
+    description: >-
+      The identifier of a unit declared inside a record: the identifier of an item whose
+      definition carries x-identifier in a YAML record, or the name of a block anchor, without its
+      caret, in a Markdown record.
+    type: string
+    pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+  target:
+    title: Logical target
+    description: >-
+      A record of a repository, a unit inside that record, or a repository itself. An absent
+      repository names the repository holding the citing file, and an absent unit names the whole
+      record. A target with a repository and without an id names that repository, and holds no
+      unit.
+    type: object
+    additionalProperties: false
+    properties:
+      repository:
+        $ref: '#/$defs/repository-id'
+      id:
+        $ref: '#/$defs/record-id'
+      unit:
+        $ref: '#/$defs/unit-id'
+    anyOf:
+      - required: [id]
+      - required: [repository]
+    dependentRequired:
+      unit: [id]

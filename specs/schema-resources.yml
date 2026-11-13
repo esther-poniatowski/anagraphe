@@ -1,0 +1,8 @@
+# Inputs of the schema closure of anagraphe; generated files remain outside this record.
+_schema: kleisis:schema-resources@2
+
+paths:
+  owned_schemas: src/anagraphe/data/schemas
+
+exports:
+  - anagraphe:repository@1

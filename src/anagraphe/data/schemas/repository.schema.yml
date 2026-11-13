@@ -1,0 +1,27 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Repository manifest
+description: >-
+  The identity of a repository, written in repository.yml at its root. The contract fixes the block
+  repository and leaves every other root key open, so that the contract of the project
+  specification adds its block project beside it.
+type: object
+required: [_schema, repository]
+properties:
+  _schema:
+    const: anagraphe:repository@1
+    title: Schema
+    description: The logical identifier of the contract that the manifest follows.
+  repository:
+    type: object
+    additionalProperties: false
+    required: [id]
+    properties:
+      id:
+        $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
+        description: The identifier of the repository, which a logical target names.
+      retired:
+        type: array
+        uniqueItems: true
+        items:
+          $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
+        description: The former identifiers of the repository, each never reused.
