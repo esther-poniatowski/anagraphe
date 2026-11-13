@@ -1,0 +1,526 @@
+# Conformance cases of the logical targets of ADR 0006, for the resource addressing.v1 and the
+# contract anagraphe:repository@1. Each read side, in Python and in TypeScript, passes them.
+#
+# A reading reads a value as a target in a citing repository, whose identifier is null when the
+# repository declares none. It states the normalized target, or the reason why the value is no
+# target, among: not-a-mapping, unknown-key, no-record-or-repository, unit-without-record and
+# invalid-component, the first failed check in that order. A value is a target exactly when the
+# definition target of the resource validates it.
+#
+# A contract case states whether a list x-target-contract admits a record, whose contracts are its
+# _schema followed by the x-implements of the root schema of that _schema.
+#
+# A check case writes its files below an empty repository root, over the shared files, declares the
+# section targets of anagraphe.yml, then states the issues of the check. The key remove lists
+# shared files that a case leaves out. An issue is
+# [file, kind, locus]; the issues of a case are listed in sorted order.
+resource: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml
+manifest: anagraphe:repository@1
+
+readings:
+- id: record-of-the-same-repository
+  value: {id: kriegeskorte_nikolaus}
+  repository: geonexus
+  normalized: {repository: geonexus, id: kriegeskorte_nikolaus}
+- id: unit-of-the-same-repository
+  value: {id: mixture-input, unit: definition}
+  repository: geonexus
+  normalized: {repository: geonexus, id: mixture-input, unit: definition}
+- id: record-of-another-repository
+  value: {repository: geonexus, id: smith2024}
+  repository: mixture-input-encoding
+  normalized: {repository: geonexus, id: smith2024}
+- id: unit-of-another-repository
+  note: A dotted record identifier of Gnomon, and a unit holding capitals.
+  value: {repository: mixture-input-encoding, id: ans.grokking.slow-structured-representation, unit: eta_rep}
+  repository: geonexus
+  normalized: {repository: mixture-input-encoding, id: ans.grokking.slow-structured-representation, unit: eta_rep}
+- id: explicit-own-repository
+  note: An explicit own repository names the same record as an absent one.
+  value: {repository: geonexus, id: kriegeskorte_nikolaus}
+  repository: geonexus
+  normalized: {repository: geonexus, id: kriegeskorte_nikolaus}
+- id: repository-itself
+  note: A target without id names the repository, and thereby its project.
+  value: {repository: mixture-input-encoding}
+  repository: geonexus
+  normalized: {repository: mixture-input-encoding}
+- id: repository-without-manifest
+  note: A repository declaring no identifier leaves the repository of its targets absent.
+  value: {id: computational-modelers}
+  repository: null
+  normalized: {id: computational-modelers}
+- id: units-compare-case-by-case
+  value: {id: model.mixture, unit: N}
+  repository: geonexus
+  normalized: {repository: geonexus, id: model.mixture, unit: N}
+- id: scalar
+  value: gnomon:concept.population-coding
+  repository: geonexus
+  invalid: not-a-mapping
+- id: list
+  value: [kriegeskorte_nikolaus]
+  repository: geonexus
+  invalid: not-a-mapping
+- id: null-value
+  value: null
+  repository: geonexus
+  invalid: not-a-mapping
+- id: another-key
+  value: {id: smith2024, title: Smith 2024}
+  repository: geonexus
+  invalid: unknown-key
+- id: path-key
+  value: {path: notes/smith2024.md}
+  repository: geonexus
+  invalid: unknown-key
+- id: empty-mapping
+  value: {}
+  repository: geonexus
+  invalid: no-record-or-repository
+- id: unit-alone
+  value: {unit: eta_rep}
+  repository: geonexus
+  invalid: no-record-or-repository
+- id: repository-with-unit
+  value: {repository: geonexus, unit: eta_rep}
+  repository: geonexus
+  invalid: unit-without-record
+- id: repository-with-a-colon
+  value: {repository: 'gnomon:concept', id: population-coding}
+  repository: geonexus
+  invalid: invalid-component
+- id: capital-in-a-record
+  value: {id: Smith2024}
+  repository: geonexus
+  invalid: invalid-component
+- id: dot-in-a-unit
+  value: {id: model.mixture, unit: eta.rep}
+  repository: geonexus
+  invalid: invalid-component
+- id: caret-in-a-unit
+  value: {id: mixture-input, unit: ^definition}
+  repository: geonexus
+  invalid: invalid-component
+- id: number-as-record
+  value: {id: 2024}
+  repository: geonexus
+  invalid: invalid-component
+- id: empty-unit
+  value: {id: mixture-input, unit: ''}
+  repository: geonexus
+  invalid: invalid-component
+
+contracts:
+- id: unversioned-entry-admits-every-version
+  entries: ['geonexus:contact', 'homilia:contact']
+  contracts: ['geonexus:contact@16']
+  admits: true
+- id: unversioned-entry-admits-a-later-version
+  entries: ['geonexus:contact']
+  contracts: ['geonexus:contact@17']
+  admits: true
+- id: versioned-entry-admits-its-version
+  entries: ['geonexus:contact@16']
+  contracts: ['geonexus:contact@16']
+  admits: true
+- id: versioned-entry-rejects-another-version
+  entries: ['geonexus:contact@16']
+  contracts: ['geonexus:contact@17']
+  admits: false
+- id: another-namespace
+  entries: ['geonexus:contact']
+  contracts: ['homilia:contact@1']
+  admits: false
+- id: name-is-compared-whole
+  entries: ['geonexus:contact']
+  contracts: ['geonexus:contact-list@1']
+  admits: false
+- id: implemented-contract
+  note: A root schema of the vault implementing the contract of the tool.
+  entries: ['ekthesis:audience']
+  contracts: ['geonexus:audience@1', 'ekthesis:audience@2']
+  admits: true
+
+section:
+  records: {registry: specs/schema-registry.yml}
+files:
+  specs/schema-registry.yml: |
+    _schema: kleisis:schema-registry@2
+    schemas:
+      test:person@1: schemas/person.schema.yml
+      test:member@1: schemas/member.schema.yml
+      test:argument@1: schemas/argument.schema.yml
+      test:citing@1: schemas/citing.schema.yml
+    exports: []
+    resources:
+      https://example.org/person.base.schema.yml: schemas/person.base.schema.yml
+  schemas/person.base.schema.yml: |
+    $id: https://example.org/person.base.schema.yml
+    x-identifier: identity.id
+    properties:
+      identity:
+        properties:
+          id: {type: string}
+  schemas/person.schema.yml: |
+    allOf:
+      - $ref: https://example.org/person.base.schema.yml
+    required: [_schema]
+    properties:
+      _schema: {const: test:person@1}
+  schemas/member.schema.yml: |
+    allOf:
+      - $ref: https://example.org/person.base.schema.yml
+    x-implements: test:person@1
+    properties:
+      _schema: {const: test:member@1}
+  schemas/argument.schema.yml: |
+    properties:
+      _schema: {const: test:argument@1}
+      ideas:
+        type: array
+        items: {$ref: '#/$defs/idea'}
+    $defs:
+      idea:
+        x-identifier: id
+        properties:
+          id: {type: string}
+  schemas/citing.schema.yml: |
+    properties:
+      _schema: {const: test:citing@1}
+      profile:
+        $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+        x-target-contract: ['test:person']
+        not: {required: [unit]}
+      pinned:
+        $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+        x-target-contract: ['test:person@2']
+      source:
+        $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+      cites:
+        type: array
+        items:
+          $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+      by_role:
+        additionalProperties:
+          $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+      maybe:
+        oneOf:
+          - type: string
+          - $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+  repository.yml: |
+    _schema: anagraphe:repository@1
+    repository:
+      id: lab
+  people/ada.yml: |
+    _schema: test:person@1
+    identity: {id: ada}
+  people/bo.yml: |
+    _schema: test:member@1
+    identity: {id: bo}
+  args/one.yml: |
+    _schema: test:argument@1
+    metadata: {id: arg.one}
+    ideas:
+      - {id: claim}
+      - {id: premise}
+  notes/n.md: |
+    ---
+    id: note-n
+    ---
+    # Heading
+
+    A definition. ^definition
+
+cases:
+- id: valid-repository
+  note: >-
+    Every check runs on valid records: the manifest with retired identifiers and an open block,
+    the identifiers read through x-identifier, through allOf and $ref, and by default, the units of
+    a YAML record and of a note, the target fields reached through properties, items,
+    additionalProperties and oneOf, an implemented contract, and a target naming the repository.
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository:
+        id: lab
+        retired: [old-lab]
+      project: {short: Lab, kind: research}
+    notes/plain.md: "Text without an identifier.\n"
+    cite.yml: |
+      _schema: test:citing@1
+      metadata: {id: cite}
+      profile: {id: ada}
+      source: {id: note-n, unit: definition}
+      cites:
+        - {id: arg.one, unit: claim}
+        - {repository: lab, id: bo}
+        - {repository: lab}
+      by_role:
+        lead: {id: arg.one}
+      maybe: free text
+    member-cite.yml: |
+      _schema: test:citing@1
+      metadata: {id: member-cite}
+      profile: {id: bo}
+      maybe: {id: ada}
+  issues: []
+- id: invalid-target
+  note: Each condition of invalid-target, in a field reached through each keyword.
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      profile: ada
+      source: {id: ada, title: Ada}
+      cites:
+        - {}
+        - {unit: claim}
+        - {repository: lab, unit: claim}
+        - {id: Ada}
+      by_role:
+        lead: [ada]
+      maybe: {id: ada, path: people/ada.yml}
+  issues:
+  - [cite.yml, invalid-target, /by_role/lead]
+  - [cite.yml, invalid-target, /cites/0]
+  - [cite.yml, invalid-target, /cites/1]
+  - [cite.yml, invalid-target, /cites/2]
+  - [cite.yml, invalid-target, /cites/3]
+  - [cite.yml, invalid-target, /maybe]
+  - [cite.yml, invalid-target, /profile]
+  - [cite.yml, invalid-target, /source]
+- id: invalid-identifier-declaration
+  note: A path that is not dotted property names, and a path naming no property of its schema.
+  files:
+    schemas/person.base.schema.yml: |
+      $id: https://example.org/person.base.schema.yml
+      x-identifier: identity..id
+      properties:
+        identity:
+          properties:
+            id: {type: string}
+    schemas/argument.schema.yml: |
+      properties:
+        _schema: {const: test:argument@1}
+        ideas:
+          type: array
+          items: {$ref: '#/$defs/idea'}
+      $defs:
+        idea:
+          x-identifier: label
+          properties:
+            id: {type: string}
+  issues:
+  - [schemas/argument.schema.yml, invalid-identifier-declaration, /$defs/idea/x-identifier]
+  - [schemas/person.base.schema.yml, invalid-identifier-declaration, /x-identifier]
+- id: invalid-target-contract
+  files:
+    schemas/citing.schema.yml: |
+      properties:
+        _schema: {const: test:citing@1}
+        profile:
+          $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+          x-target-contract: []
+        pinned:
+          $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+          x-target-contract: test:person
+        source:
+          $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
+          x-target-contract: ['Test Person']
+  issues:
+  - [schemas/citing.schema.yml, invalid-target-contract, /properties/pinned/x-target-contract]
+  - [schemas/citing.schema.yml, invalid-target-contract, /properties/profile/x-target-contract]
+  - [schemas/citing.schema.yml, invalid-target-contract, /properties/source/x-target-contract]
+- id: missing-identifier
+  note: A declared identifier field left empty; a default identifier left out is no finding.
+  files:
+    people/cy.yml: |
+      _schema: test:person@1
+      identity: {name: Cy}
+    people/dee.yml: |
+      _schema: test:person@1
+      identity: {id: null}
+    args/two.yml: |
+      _schema: test:argument@1
+      ideas: []
+  issues:
+  - [people/cy.yml, missing-identifier, /identity/id]
+  - [people/dee.yml, missing-identifier, /identity/id]
+- id: invalid-identifier
+  files:
+    notes/bad.md: "---\nid: Note Bad\n---\n"
+    data/number.yml: "metadata: {id: 2024}\n"
+    people/cy.yml: |
+      _schema: test:person@1
+      identity: {id: cy.}
+  issues:
+  - [data/number.yml, invalid-identifier, /metadata/id]
+  - [notes/bad.md, invalid-identifier, /id]
+  - [people/cy.yml, invalid-identifier, /identity/id]
+- id: duplicate-identifier
+  note: Reported at each record; a target naming the identifier receives no finding of its own.
+  files:
+    notes/dup.md: "---\nid: ada\n---\n"
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: ada}
+  issues:
+  - [notes/dup.md, duplicate-identifier, /id]
+  - [people/ada.yml, duplicate-identifier, /identity/id]
+- id: nested-repository
+  note: A file of a submodule belongs to its own repository, so it holds no identifier here.
+  files:
+    sub/.git: "gitdir: ../.git/modules/sub\n"
+    sub/ada.md: "---\nid: ada\n---\n"
+    sub/ghost.md: "---\nid: Not Read\n---\n"
+  issues: []
+- id: invalid-repository-manifest-without-id
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository: {name: lab}
+  issues:
+  - [repository.yml, invalid-repository-manifest, /repository]
+- id: invalid-repository-manifest-identifier
+  note: An identifier outside the pattern of repository-id; the targets of a repository then name no manifest.
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository: {id: Lab_1}
+    cite.yml: |
+      _schema: test:citing@1
+      source: {repository: lab, id: ada}
+  issues:
+  - [cite.yml, unverified-target, /source]
+  - [repository.yml, invalid-repository-manifest, /repository/id]
+- id: invalid-repository-manifest-reused-identifier
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository: {id: lab, retired: [lab]}
+  issues:
+  - [repository.yml, invalid-repository-manifest, /repository/retired]
+- id: invalid-repository-manifest-format
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@2
+      repository: {id: lab}
+  issues:
+  - [repository.yml, invalid-repository-manifest, /_schema]
+- id: invalid-repository-manifest-both-formats
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      schema_version: 1
+      repository: {id: lab}
+  issues:
+  - [repository.yml, invalid-repository-manifest, /schema_version]
+- id: invalid-repository-manifest-unparsed
+  files:
+    repository.yml: "repository: {id: lab\n"
+  issues:
+  - [repository.yml, invalid-repository-manifest, '']
+- id: legacy-repository-manifest
+  note: The legacy form still declares the identifier, so a target naming it lies in the same repository.
+  files:
+    repository.yml: |
+      schema_version: 1
+      repository:
+        id: lab
+    cite.yml: |
+      _schema: test:citing@1
+      source: {repository: lab, id: ada}
+  issues:
+  - [repository.yml, legacy-repository-manifest, /schema_version]
+- id: unknown-record
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: ghost}
+      cites:
+        - {repository: lab, id: ghost}
+  issues:
+  - [cite.yml, unknown-record, /cites/0]
+  - [cite.yml, unknown-record, /source]
+- id: unknown-unit
+  note: A heading is not a unit, and a unit of a YAML record is the identifier of a declared item.
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: note-n, unit: heading}
+      cites:
+        - {id: arg.one, unit: conclusion}
+        - {id: ada, unit: identity}
+  issues:
+  - [cite.yml, unknown-unit, /cites/0]
+  - [cite.yml, unknown-unit, /cites/1]
+  - [cite.yml, unknown-unit, /source]
+- id: ambiguous-unit
+  note: The units of a record share one namespace, which a block anchor and an item may both enter.
+  files:
+    notes/twice.md: "---\nid: twice\n---\nOne. ^claim\n\nTwo. ^claim\n"
+    args/one.yml: |
+      _schema: test:argument@1
+      metadata: {id: arg.one}
+      ideas:
+        - {id: claim}
+        - {id: claim}
+        - {id: premise}
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: twice, unit: claim}
+      cites:
+        - {id: arg.one, unit: claim}
+        - {id: arg.one, unit: premise}
+  issues:
+  - [cite.yml, ambiguous-unit, /cites/0]
+  - [cite.yml, ambiguous-unit, /source]
+- id: target-contract-mismatch
+  note: Another contract, and another version than a pinned entry admits.
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      profile: {id: arg.one}
+      pinned: {id: ada}
+  issues:
+  - [cite.yml, target-contract-mismatch, /pinned]
+  - [cite.yml, target-contract-mismatch, /profile]
+- id: unbound-target
+  note: A typed field naming a note without contract; an untyped field admits that note.
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      profile: {id: note-n}
+      source: {id: note-n}
+  issues:
+  - [cite.yml, unbound-target, /profile]
+- id: unverified-target
+  note: A target into another repository, and one into a repository named without a manifest.
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {repository: other-lab, id: ghost, unit: x}
+        - {repository: other-lab}
+        - {repository: old-lab, id: ada}
+  issues:
+  - [cite.yml, unverified-target, /cites/0]
+  - [cite.yml, unverified-target, /cites/1]
+  - [cite.yml, unverified-target, /cites/2]
+- id: unverified-target-without-manifest
+  note: A repository without a manifest resolves only its targets without repository.
+  remove: [repository.yml]
+  files:
+    cite.yml: |
+      _schema: test:citing@1
+      source: {repository: lab, id: ada}
+      profile: {id: ada}
+  issues:
+  - [cite.yml, unverified-target, /source]
+- id: unreadable-record
+  files:
+    data/broken.yml: "key: [unclosed\n"
+    notes/broken.md: "---\nid: broken\n"
+  issues:
+  - [data/broken.yml, unreadable-record, '']
+  - [notes/broken.md, unreadable-record, '']

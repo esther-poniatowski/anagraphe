@@ -3,6 +3,9 @@ Command-line interface: one group of commands per subpackage, and one check of a
 
 - ``anagraphe indexes check|write`` reports or writes the generated regions of the indexes;
 - ``anagraphe refs check`` reports the references that do not resolve or break a convention;
+- ``anagraphe bindings check|show`` checks the bindings of the texts, or prints those of one file;
+- ``anagraphe targets check`` reports the logical targets that do not resolve within the
+  repository, and the defects of the identifiers and of the manifest;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
   the indexes, once confirmed on a terminal or by ``--yes``.
@@ -16,7 +19,7 @@ summary line per check. It exits with 0 when no issue blocks, 1 when one does, a
 configuration or a target is invalid. A target error is printed after ``target:``, and every other
 error after ``configuration:``.
 
-The commands ``check``, ``indexes check`` and ``refs check`` also write their findings as a SARIF
+The check commands also write their findings as a SARIF
 log of the findings profile of Elenchos under ``--format sarif``, on standard output or at the path
 of ``--output``. The text report is then printed on standard error when the log takes standard
 output, and the exit status is unchanged.
@@ -61,6 +64,10 @@ from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.service import KINDS as REFERENCE_KINDS
 from anagraphe.references.service import UNREADABLE, ReferenceChecker
 from anagraphe.refactor import MovePlan, MoveService
+from anagraphe.targets.configuration import TargetConfig
+from anagraphe.targets.kinds import KINDS as TARGET_KINDS
+from anagraphe.targets.kinds import UNANALYZED as TARGET_UNANALYZED
+from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 indexes_app = typer.Typer(
@@ -74,7 +81,12 @@ bindings_app = typer.Typer(
 )
 app.add_typer(indexes_app, name="indexes")
 app.add_typer(refs_app, name="refs")
+targets_app = typer.Typer(
+    no_args_is_help=True,
+    help="Check the logical targets, the identifiers of the records and the repository manifest.",
+)
 app.add_typer(bindings_app, name="bindings")
+app.add_typer(targets_app, name="targets")
 
 Paths = Annotated[
     list[Path] | None,
@@ -138,6 +150,7 @@ CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
     "indexes": INDEX_KINDS,
     "references": REFERENCE_KINDS,
     "bindings": BINDING_KINDS,
+    "targets": TARGET_KINDS,
 }
 
 #: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
@@ -145,6 +158,7 @@ UNANALYZED: dict[str, frozenset[str]] = {
     "indexes": frozenset({UNREADABLE_METADATA}),
     "references": frozenset({UNREADABLE}),
     "bindings": BINDING_UNANALYZED,
+    "targets": TARGET_UNANALYZED,
 }
 
 
@@ -309,6 +323,24 @@ def _bindings(
     return report
 
 
+def _targets(
+    root: Path,
+    config: TargetConfig,
+    paths: tuple[Path, ...],
+    strict: bool = True,
+    findings: Findings | None = None,
+) -> Report:
+    """Check the logical targets, print their report, and record it for the log."""
+    try:
+        report = TargetChecker(root, config).check(paths, strict)
+    except (ConfigurationError, OSError, TargetError) as error:
+        _fail(error, findings)
+    _emit(report, f"targets: checked {report.processed} records", findings)
+    if findings is not None:
+        findings.record("targets", report)
+    return report
+
+
 def _section[S](section: S | None, name: str, findings: Findings | None = None) -> S:
     """Return a declared section, or exit naming the section that the command requires."""
     if section is None:
@@ -347,6 +379,8 @@ def check(
         reports.append(_references(resolved, repository.references, targets, False, findings))
     if repository.bindings is not None:
         reports.append(_bindings(resolved, repository.bindings, targets, False, findings))
+    if repository.targets is not None:
+        reports.append(_targets(resolved, repository.targets, targets, False, findings))
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
     _exit(*reports, findings=findings)
@@ -405,6 +439,23 @@ def bindings_check(
     resolved, repository = _load(root, config, findings)
     bindings = _section(repository.bindings, "bindings", findings)
     report = _bindings(resolved, bindings, _here(paths), findings=findings)
+    _exit(report, findings=findings)
+
+
+@targets_app.command("check")
+def targets_check(
+    paths: Paths = None,
+    root: Root = None,
+    config: Config = None,
+    output_format: Format = OutputFormat.TEXT,
+    output: Output = None,
+) -> None:
+    """Report the targets that do not resolve within the repository, and the defects of the
+    identifiers, of their declarations and of repository.yml."""
+    findings = Findings(output_format, output)
+    resolved, repository = _load(root, config, findings)
+    section = _section(repository.targets, "targets", findings)
+    report = _targets(resolved, section, _here(paths), findings=findings)
     _exit(report, findings=findings)
 
 
