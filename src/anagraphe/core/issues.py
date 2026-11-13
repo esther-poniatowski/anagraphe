@@ -110,6 +110,25 @@ def link(target: str) -> str:
     return f"link:{target}"
 
 
+def distinct(issues: list[Issue]) -> list[Issue]:
+    """Return the issues in their order, each identity once: its file, kind, locus and
+    discriminator.
+
+    Examples
+    --------
+    >>> [issue.line for issue in distinct([Issue("a", 1, "k", "x"), Issue("a", 2, "k", "y")])]
+    [1]
+    """
+    seen: set[tuple[str, str, str, str]] = set()
+    kept: list[Issue] = []
+    for issue in issues:
+        identity = (issue.rel, issue.kind, issue.locus, issue.discriminator)
+        if identity not in seen:
+            seen.add(identity)
+            kept.append(issue)
+    return kept
+
+
 @dataclass(frozen=True)
 class Report:
     """The outcome of one check: the files it processed and the issues it found."""

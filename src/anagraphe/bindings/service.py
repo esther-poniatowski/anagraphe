@@ -18,7 +18,7 @@ from anagraphe.bindings.kinds import INVALID, KINDS, UNBOUND, UNREADABLE_SOURCE
 from anagraphe.bindings.model import Role
 from anagraphe.bindings.resolution import BindingResolver
 from anagraphe.core.files import select
-from anagraphe.core.issues import Issue, Report
+from anagraphe.core.issues import Issue, Report, distinct
 from anagraphe.core.metadata import SourceKind
 
 __all__ = ["KINDS", "BindingChecker"]
@@ -72,7 +72,7 @@ class BindingChecker:
                 Issue(problem.rel, None, problem.kind, problem.detail, locus=problem.pointer)
                 for problem in schemas.problems
             )
-        return Report(len(files), tuple(_distinct(issues)))
+        return Report(len(files), tuple(distinct(issues)))
 
     def check_file(self, rel: str) -> list[Issue]:
         """Return the issues of one file: an unbound text, for each role requiring it."""
@@ -94,15 +94,3 @@ class BindingChecker:
                     )
                 )
         return issues
-
-
-def _distinct(issues: list[Issue]) -> list[Issue]:
-    """Return the issues in their order, each identity once."""
-    seen: set[tuple[str, str, str, str]] = set()
-    kept: list[Issue] = []
-    for issue in issues:
-        identity = (issue.rel, issue.kind, issue.locus, issue.discriminator)
-        if identity not in seen:
-            seen.add(identity)
-            kept.append(issue)
-    return kept
