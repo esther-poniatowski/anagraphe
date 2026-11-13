@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The logical targets of ADR 0006. A record names a record, a unit inside it, or a repository by
+  the mapping `{repository, id, unit}`, defined in the schema resource
+  `https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml`, which the
+  package ships with the contract `anagraphe:repository@1` of `repository.yml`. The registry
+  `specs/schema-registry.yml` of Anagraphe maps both for Kleisis.
+- The section `targets` of `anagraphe.yml`, and the command `anagraphe targets check`, which
+  `anagraphe check` also runs. The check reads `repository.yml`, the identifier of every record
+  through `x-identifier` or the default key `id`, and the units of each record, then reports each
+  finding of the first version of ADR 0006. A target into another repository is reported as
+  `unverified-target`, at the level `note`.
+- The package `anagraphe.targets` reads, normalizes and compares targets, and matches the entries of
+  `x-target-contract`. The conformance cases `specs/conformance/targets.yml` fix each reading.
+- An issue may take the level `note`, which the text report prints as `note:` and the findings log
+  as the level `note`. A note does not block, and the summary line counts the notes when one is
+  reported.
+
 ### Changed
+
+- The walk of the schemas of record contracts moved from `anagraphe.bindings.schemas` to
+  `anagraphe.core.schemas`, and the block anchors from `anagraphe.references.anchors` to
+  `anagraphe.core.anchors`. The readings of the bindings are unchanged.
 
 - **Breaking:** `anagraphe.yml` names its format under the key `_schema`, as its first key, with
   the value `anagraphe:configuration@2`. The key `schema_version` is retired: a command reading it

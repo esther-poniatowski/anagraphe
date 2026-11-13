@@ -13,6 +13,7 @@ guide/configuration
 guide/index-specification
 guide/references
 guide/bindings
+guide/targets
 ```
 
 ```{toctree}
@@ -20,6 +21,7 @@ guide/bindings
 :caption: Specifications
 
 specification/bindings-contract
+specification/logical-targets
 ```
 
 ```{toctree}

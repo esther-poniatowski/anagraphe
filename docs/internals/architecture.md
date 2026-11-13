@@ -7,7 +7,7 @@ listed before it:
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
 | core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, block anchors, the regions of a Markdown file read from Merismos, the schemas of record contracts read through the schema registry, configuration primitives, file walks, cached reads, atomic writes, Git state |
-| capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings` | generating the indexes, checking the references between files, and resolving the bindings of texts |
+| capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings`, `anagraphe.targets` | generating the indexes, checking the references between files, resolving the bindings of texts, and checking the logical targets between records |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 
 No capability imports another. Each capability parses its own section of `anagraphe.yml`
@@ -15,7 +15,8 @@ with the primitives of the core, and the composition layer joins the sections in
 configuration.
 
 Each capability also declares the kinds of issue that it can report, in
-`anagraphe.indexes.kinds` and `anagraphe.references.service`. The writer of the findings log,
+`anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe.bindings.kinds` and
+`anagraphe.targets.kinds`. The writer of the findings log,
 `anagraphe.core.sarif`, receives these catalogues and the issues from the command line, so it
 imports no capability. An issue carries its locus from the code that creates it, since only that
 code holds the key or the target that it tested.
@@ -57,6 +58,16 @@ fields marked by `x-binds` in its schema, found once per contract through the sc
 check selects the texts read through their frontmatter, the records when the repository declares
 records, and the files that a condition `required` selects, then reports the kinds of
 `anagraphe.bindings.kinds`.
+
+## Targets
+
+Within `anagraphe.targets`, the model reads a target and matches the entries of
+`x-target-contract`, with the patterns compiled from the resource of the package data. The
+declarations of each contract, its identifier field, its units, its target fields and its
+`x-implements`, are read once from the walk of the schemas of the core, which leaves the URI of the
+resource unresolved. The check first reads the manifest, then the identifier of every record of the
+repository into one table, and then reports the identifiers and the targets of the selected
+records against that table. The generated record registry is to replace that table.
 
 ## Moves
 

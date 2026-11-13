@@ -25,6 +25,7 @@ anagraphe indexes write [PATHS]... [--root PATH] [--config PATH]
 anagraphe refs check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--format FORMAT] [--root PATH] [--config PATH]
+anagraphe targets check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 ```
 
@@ -36,6 +37,7 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe refs check` | reports the references that name no file or anchor, or break a convention |
 | `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
 | `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
+| `anagraphe targets check` | reports the logical targets that do not resolve within the repository, and the defects of the identifiers, of their declarations and of `repository.yml` |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
 
 | Option | Purpose | Default |
@@ -44,7 +46,7 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `-c`, `--config PATH` | selects the configuration file, relative to the current folder | `config/tools/anagraphe.yml` or `anagraphe.yml` below the root; both existing is an error |
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
-| `--format FORMAT` | of the four check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
+| `--format FORMAT` | of the check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
 | `-o`, `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current folder, and creates its missing folders | standard output |
 | `--dry-run` | of `move`: prints the plan and changes no file | applies the plan |
 | `--yes` | of `move`: applies the plan without asking for a confirmation | asks on a terminal, and stops with status `2` without one |
@@ -52,12 +54,15 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 Every path typed on the command line, a target, `OLD`, `NEW`, `--config` or `--output`, is read from
 the current folder; every path written in the configuration is read from the root. For the
 indexes, each path may name an index, a directory, or a member whose parent index must be
-processed. For the references and the bindings, each path names a file or a directory to check.
+processed. For the references, the bindings and the targets, each path names a file or a directory
+to check.
 
 ## Output and exit status
 
-Each command prints one line per issue, `path:line: [warning: ]kind: detail`, then one summary
-line per section. The summary counts the violations, the warnings and the issues of each kind.
+Each command prints one line per issue, `path:line: [warning: |note: ]kind: detail`, then one
+summary line per section. The summary counts the violations, the warnings, the notes when one is
+reported, and the issues of each kind. A warning and a note do not block, so they leave the exit
+status at `0`.
 
 | Status | Meaning |
 | --- | --- |
@@ -80,7 +85,7 @@ result:
 | Field | Value |
 | --- | --- |
 | `ruleId` | `<section>/<kind>` |
-| `level` | `error` for a violation, `warning` for a warning |
+| `level` | `error` for a violation, `warning` for a warning, `note` for a note |
 | `message.text` | the detail of the issue |
 | physical location | the file relative to the root, with the line of an issue that has one; an issue of the whole file or of a key of the metadata holds no region |
 | logical location | `path:<file>`, followed by `#<locus>` when the issue has a locus |

@@ -46,6 +46,7 @@ reference naming no file or anchor.
 - [x] Check the declared references of Markdown links and YAML record fields.
 - [x] Move a file or a folder, rewriting every pointer to it and updating the affected indexes.
 - [x] Resolve the bindings of texts to the roles of tools along the directory chain, records included through `x-binds`.
+- [x] Check the logical targets between records within one repository, with the identifiers and the repository manifest that they name.
 - [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
 - [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
 - [ ] Move and rename anchors, and rename the identifiers of a declared namespace.
@@ -61,8 +62,8 @@ from the root, and the vocabulary and index-type schemas named by that configura
 anagraphe indexes write
 ```
 
-The check command verifies the same rendering, the declared references and the bindings of texts,
-without changing a file:
+The check command verifies the same rendering, the declared references, the bindings of texts and
+the logical targets, without changing a file:
 
 ```sh
 anagraphe check
@@ -79,6 +80,8 @@ anagraphe check
 | [Reference specification](docs/guide/references.md) | declares the references between files, and repairs the reported ones |
 | [Bindings](docs/guide/bindings.md) | binds the texts to the resources read by tools, along the directory chain |
 | [Bindings contract](docs/specification/bindings-contract.md) | fixes the version of the bindings read by a tool |
+| [Logical targets](docs/guide/targets.md) | names a record, a unit or a repository by identifier, and checks the names |
+| [Logical targets specification](docs/specification/logical-targets.md) | fixes the readings of a target for every read side |
 | [Architecture](docs/internals/architecture.md) | separates the generic core from repository adapters |
 
 ## Contributing

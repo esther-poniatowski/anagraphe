@@ -8,8 +8,8 @@ A file named by `--config` is read from the current folder, and its absence is a
 under `_schema`, as its first key, and a command stops with status 2 when the key is absent or
 holds another value than `anagraphe:configuration@2`. The file also declares one
 section per capability: `indexes` to generate the indexes, `references` to check the references
-between files, and `bindings` to resolve the bindings of texts. A section left out disables its
-capability. Each declared path is
+between files, `bindings` to resolve the bindings of texts, and `targets` to check the logical
+targets between records. A section left out disables its capability. Each declared path is
 relative to the repository root selected by the root option. Absolute paths and paths that resolve
 outside that root are invalid.
 
@@ -34,8 +34,8 @@ references: {}
 
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
-the keys of the section `references`, and the [bindings guide](bindings.md) those of the section
-`bindings`. The rest of this page states the keys of the section
+the keys of the section `references`, the [bindings guide](bindings.md) those of the section
+`bindings`, and the [targets guide](targets.md) those of the section `targets`. The rest of this page states the keys of the section
 `indexes`.
 
 ## Metadata sources

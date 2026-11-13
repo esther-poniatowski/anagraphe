@@ -14,7 +14,8 @@ A tool reads and compares two targets written in one repository::
 
     from anagraphe.targets import Target, read_manifest
 
-    repository = read_manifest(root).manifest.id
+    manifest = read_manifest(root).manifest
+    repository = manifest.id if manifest is not None else None
     same = Target.parse(a).normalized(repository) == Target.parse(b).normalized(repository)
 """
 
