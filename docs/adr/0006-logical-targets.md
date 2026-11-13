@@ -276,8 +276,8 @@ syntax, which this record leaves to its own decision.
 - At the root of the schema of a contract, read through `allOf` and `$ref`, `x-identifier` names
   the field holding the identifier of the record.
 - Without it, the identifier of a record is the key `id` of its metadata source: the frontmatter of
-  a Markdown note, or the block `metadata` of a YAML document. This default is the `metadata.id` of
-  the decision on cross-repository resolution.
+  a Markdown note, or the block `metadata` of a YAML document, never a key `id` at the root of a
+  YAML document. This default is the `metadata.id` of the decision on cross-repository resolution.
 - On a definition reached as the items of an array, `x-identifier` names the field holding the
   identifier of each item, and makes each item a unit of the record. The items of a mapping keyed
   by identifier, such as the entries of an Onomasia notation, are not units in this version, since
@@ -436,7 +436,7 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
   capability `anagraphe.targets` and the bindings then share it without importing each other, as
   [ADR 0003](0003-pointers-across-moves.md) requires of the capabilities.
 - **Registry reading**: Anagraphe resolves an absolute `$ref` through the `resources` map of a
-  registry of format 2, which the bindings do not yet read.
+  registry of format 2, as the bindings already do.
 - **TypeScript**: the TypeScript read side implements the same conformance cases when it moves out
   of Ekphrasis, under step 2 of the [order of extraction][tool-roles-order].
 - **Moves**: a move rewrites no target, since a target holds no path. A rename of a record

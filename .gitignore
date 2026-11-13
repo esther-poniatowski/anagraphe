@@ -38,3 +38,6 @@ docs/_build/
 # Task workspaces of agents, kept out of the repository.
 .agent-work/
 .agent-tmp/
+
+# State folder of Kleisis, regenerated from specs/schema-resources.yml.
+.kleisis/
