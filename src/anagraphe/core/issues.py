@@ -21,6 +21,14 @@ class IssueKind:
     description: str
     #: Whether an issue of the kind gates a commit by default.
     blocking: bool = True
+    #: Whether a non-blocking issue of the kind is a note, which records a fact for the gate to
+    #: weigh, rather than a warning.
+    note: bool = False
+
+    @property
+    def level(self) -> str:
+        """Return the level of the kind: ``error``, ``warning`` or ``note``."""
+        return level(self.blocking, self.note)
 
 
 @dataclass(frozen=True)
@@ -33,16 +41,24 @@ class Issue:
     line: int | None
     kind: str
     detail: str
-    #: Whether the issue gates a commit. A non-blocking issue is reported as a warning.
+    #: Whether the issue gates a commit. A non-blocking issue is reported as a warning, or as a note
+    #: when :attr:`note` is set.
     blocking: bool = True
     #: The place of the defect inside the file; empty for the whole file.
     locus: str = ""
     #: The offending content separating two issues of one kind at one locus; empty when the locus
     #: suffices. It derives from the issue alone, never from its line.
     discriminator: str = ""
+    #: Whether a non-blocking issue is a note rather than a warning.
+    note: bool = False
+
+    @property
+    def level(self) -> str:
+        """Return the level of the issue: ``error``, ``warning`` or ``note``."""
+        return level(self.blocking, self.note)
 
     def format(self) -> str:
-        """Return the line printed for the issue: ``path:line: [warning: ]kind: detail``.
+        """Return the line printed for the issue: ``path:line: [warning: |note: ]kind: detail``.
 
         Examples
         --------
@@ -50,9 +66,24 @@ class Issue:
         'a.md:3: warning: broken: b.md: names no file'
         >>> Issue("a.md", None, "stale-block", "a block differs").format()
         'a.md:1: stale-block: a block differs'
+        >>> Issue("a.md", None, "unverified-target", "x", blocking=False, note=True).format()
+        'a.md:1: note: unverified-target: x'
         """
-        marker = "" if self.blocking else "warning: "
+        marker = "" if self.blocking else f"{self.level}: "
         return f"{self.rel}:{self.line or 1}: {marker}{self.kind}: {self.detail}"
+
+
+def level(blocking: bool, note: bool = False) -> str:
+    """Return the level of an issue: ``error`` when it blocks, else ``note`` or ``warning``.
+
+    Examples
+    --------
+    >>> level(True), level(False), level(False, note=True)
+    ('error', 'warning', 'note')
+    """
+    if blocking:
+        return "error"
+    return "note" if note else "warning"
 
 
 def pointer(*keys: str | int) -> str:
@@ -93,8 +124,13 @@ class Report:
 
     @property
     def warning_count(self) -> int:
-        """Return the number of non-blocking issues."""
-        return len(self.issues) - self.blocking_count
+        """Return the number of warnings: the non-blocking issues that are not notes."""
+        return sum(issue.level == "warning" for issue in self.issues)
+
+    @property
+    def note_count(self) -> int:
+        """Return the number of notes."""
+        return sum(issue.level == "note" for issue in self.issues)
 
     def kinds(self) -> Counter[str]:
         """Return the number of issues of each kind, in the order of their first report."""

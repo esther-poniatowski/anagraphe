@@ -11,8 +11,8 @@ The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else the
 from the current one upwards, holding a configuration, else the current folder. Every path typed on
 the command line, a target, ``--config`` or ``--output``, is read from the current folder.
 
-Every command prints one line per issue, ``path:line: [warning: ]kind: detail``, then one summary
-line per check. It exits with 0 when no issue blocks, 1 when one does, and 2 when the
+Every command prints one line per issue, ``path:line: [warning: |note: ]kind: detail``, then one
+summary line per check. It exits with 0 when no issue blocks, 1 when one does, and 2 when the
 configuration or a target is invalid. A target error is printed after ``target:``, and every other
 error after ``configuration:``.
 
@@ -246,8 +246,9 @@ def _emit(report: Report, summary: str, findings: Findings | None = None) -> Non
     for issue in report.issues:
         echo(issue.format())
     kinds = ", ".join(f"{count} {kind}" for kind, count in report.kinds().items())
+    notes = f", {report.note_count} notes" if report.note_count else ""
     echo(
-        f"\n{summary}: {report.blocking_count} violations, {report.warning_count} warnings"
+        f"\n{summary}: {report.blocking_count} violations, {report.warning_count} warnings{notes}"
         + (f" ({kinds})" if kinds else "")
     )
 

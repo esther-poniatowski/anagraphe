@@ -54,11 +54,6 @@ class Section:
         return f"{self.name}/{kind}"
 
 
-def level(blocking: bool) -> str:
-    """Return the SARIF level of an issue: ``error`` when it blocks, ``warning`` otherwise."""
-    return "error" if blocking else "warning"
-
-
 def logical_name(issue: Issue) -> str:
     """Return ``path:<file>``, followed by ``#<locus>`` when the locus is not empty.
 
@@ -96,7 +91,7 @@ def _result(section: Section, issue: Issue) -> dict[str, Any]:
         physical["region"] = {"startLine": issue.line}
     result: dict[str, Any] = {
         "ruleId": section.rule_id(issue.kind),
-        "level": level(issue.blocking),
+        "level": issue.level,
         "message": {"text": issue.detail},
         "locations": [
             {
@@ -145,7 +140,7 @@ def sarif_log(
         {
             "id": section.rule_id(kind.kind),
             "shortDescription": {"text": kind.description},
-            "defaultConfiguration": {"level": level(kind.blocking)},
+            "defaultConfiguration": {"level": kind.level},
         }
         for section in sections
         for kind in section.kinds

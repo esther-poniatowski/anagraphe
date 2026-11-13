@@ -21,7 +21,7 @@ from typer.testing import CliRunner
 
 from anagraphe import __version__
 from anagraphe.cli import CATALOGUES, app
-from anagraphe.core.issues import Issue, IssueKind
+from anagraphe.core.issues import Issue, IssueKind, Report
 from anagraphe.core.sarif import Section, logical_name, sarif_log
 from anagraphe.references.rules import RULES
 
@@ -277,6 +277,19 @@ def test_result_maps_an_issue() -> None:
         "partialFingerprints": {"discriminator/v1": "t-1"},
     }
     assert violations(log) == []
+
+
+def test_a_note_keeps_its_level_in_the_rule_and_the_result() -> None:
+    """A kind and an issue marked as notes take the level note, and count as no warning."""
+    kind = IssueKind("unverified-target", "x", blocking=False, note=True)
+    issue = Issue("a.yml", None, "unverified-target", "d", blocking=False, note=True, locus="/t")
+    log = sarif_log([Section("targets", (kind,), (issue,))], "1")
+    rule = log["runs"][0]["tool"]["driver"]["rules"][0]
+    assert rule["defaultConfiguration"] == {"level": "note"}
+    assert [result["level"] for result in _results(log)] == ["note"]
+    assert violations(log) == []
+    report = Report(1, (issue, Issue("a.yml", None, "k", "d", blocking=False)))
+    assert (report.blocking_count, report.warning_count, report.note_count) == (0, 1, 1)
 
 
 def test_empty_discriminator_writes_no_fingerprint() -> None:
