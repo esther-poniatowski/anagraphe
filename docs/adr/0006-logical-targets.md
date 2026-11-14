@@ -328,7 +328,7 @@ Pointer of the target, or of the declaring field, as its locus, under
 | `unbound-target` | error | the field declares `x-target-contract`, and the record declares no `_schema` | yes |
 | `unverified-target` | note | the target names another repository, whose form alone is checked | yes, until the resolver exists |
 | the failures of the [decision on cross-repository resolution][resolution-failures] | error | an unknown repository, an unavailable or denied state, a stale registry, an escaping path, a digest mismatch, an unverified bundle | no: the task `record-resolver` names them |
-| a renamed record | warning | the target names an identifier retired by a declared rename, and the resolver follows the rename | no: the record registry holds the renames |
+| a renamed record | warning | the target names an identifier retired by a declared rename, and the resolver follows the rename | no: ADR 0007 names it `renamed-target` |
 
 A target of the same repository is one without `repository`, or one whose repository equals the
 identifier of the manifest at the checked root. A repository without a manifest resolves only its
@@ -338,8 +338,9 @@ target that names it, because Ekthesis lets an idea and a part share an identifi
 Anagraphe reports `invalid-target` even when the domain tool of the citing record validates the
 same record against its schema, so that Anagraphe stays usable without that tool. A gate that runs
 both tools removes one of the two findings through its suppressions.
-The first version builds the identifiers of the repository in memory from the walk of the check;
-the generated record registry replaces that walk under the task `record-registry`.
+The first version builds the identifiers of the repository in memory from the walk of the check.
+Under [ADR 0007](0007-record-registry.md), the walk stays within one repository, and the record
+registry serves the other repositories.
 
 ### Final Answers
 
@@ -423,7 +424,7 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
 | Task | Needs from this record | Left open after it |
 | --- | --- | --- |
 | `record-reference-schema` | the definition `target` and its `$id`; the rule of `x-identifier` and its default; the contract `anagraphe:repository@1` | the division of the metadata schema, under step 2 of the order of extraction; the resource defines no `cites` entry, since the vault retired the key |
-| `record-registry` | the field holding each identifier, the pattern of `record-id`, and the findings `missing-identifier`, `duplicate-identifier` and `invalid-identifier`, which the registry reports in the same terms | the format of the registry and of the declared renames |
+| `record-registry` | the field holding each identifier, the pattern of `record-id`, and the findings `missing-identifier`, `duplicate-identifier` and `invalid-identifier`, which the registry reports in the same terms | the format of the registry and of the declared renames, fixed by ADR 0007 |
 | `record-resolver` | the normalization of a target, the manifest that names a repository, and the matching of `x-target-contract` | the findings of cross-repository failures, which replace `unverified-target` |
 | `record-state-provider` | the pattern of `repository-id` only | nothing further from this record |
 | `glossary-import-closure` | the target as the form of `imports[*].from`, whose compositional effect the glossary schema declares, under a new version of the Onomasia glossary | the traversal, owned by Onomasia and Ekthesis |
