@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-14
+
 ### Added
 
 - The logical targets of ADR 0006. A record names a record, a unit inside it, or a repository by
@@ -31,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `anagraphe.core.schemas`, and the block anchors from `anagraphe.references.anchors` to
   `anagraphe.core.anchors`. The readings of the bindings are unchanged.
 
+## [0.4.0] - 2026-11-11
+
+### Changed
+
 - **Breaking:** `anagraphe.yml` names its format under the key `_schema`, as its first key, with
   the value `anagraphe:configuration@2`. The key `schema_version` is retired: a command reading it
   stops with status 2 and names the value to write. A file without the key, or with another value,
@@ -41,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Breaking:** a schema registry that declares no format stops the command with status 2 and names
   the value `_schema: kleisis:schema-registry@2`; version 0.3.0 read it as the format 1. A registry
   carrying both keys, or another value of either key, stops the same way.
+
+## [0.3.1] - 2026-11-10
 
 ### Fixed
 
