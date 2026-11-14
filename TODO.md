@@ -1,5 +1,6 @@
 # Anagraphe task list
 
+- [ ] **High priority: TypeScript read package.** Move the TypeScript read side of the addressing out of Ekphrasis into a package of Anagraphe, as the [decision on tool roles](https://github.com/esther-poniatowski/geonexus/blob/main/docs/_decisions/tool-roles.md) states under "Resolver languages". The package covers field paths, identifier declarations by `x-identifier`, logical targets and registry reading, behind ports for binding, schema loading and files. First settle the delivery: test whether npm installs a package from a subdirectory of this repository, built by its `prepare` script; otherwise the package takes a repository of its own. Then pass the conformance cases of [ADR 0006](docs/adr/0006-logical-targets.md), and declare the implemented version of the addressing specification.
 - [x] Establish the package, command, configuration, and repository names as `anagraphe` ✅ 2026-10-27
 - [x] Extract the generic index renderer behind repository-owned configuration ✅ 2026-10-27
 - [ ] Port the complete generated-index regression corpus from Geonexus
