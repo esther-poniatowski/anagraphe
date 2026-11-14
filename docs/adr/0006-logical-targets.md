@@ -4,7 +4,9 @@
 questions"; proposed on 2026-11-12. The record implements the logical target that the decision of
 `geonexus` on [tool roles][tool-roles-references] assigns to Anagraphe, under rules 1 and 2 of its
 section "References across fields", and the canonical target of the decision of `geonexus` on
-[cross-repository record resolution][resolution-canonical].
+[cross-repository record resolution][resolution-canonical]. On 2026-11-14, the vault removed the
+key `cites` from that decision, since its decision on collection order had retired the key. This
+record was amended on the same day to match.
 
 ---
 
@@ -157,9 +159,10 @@ here. The other tables above state the determining reason of each option.
   - **Mapping only**: MEDIUM (a flow mapping on one line)
 
 The compact string would win if a target had to stand where only a scalar fits, such as a key of a
-mapping or the target of a Markdown link. No consumer field in scope requires either, and a
-Markdown body names its targets through citation keys, under the
-[canonical reference][resolution-canonical].
+mapping or the target of a Markdown link. No consumer field in scope requires either. The target
+of a link in a Markdown body is left open. The [amended canonical reference][resolution-amended]
+assigns the form of that target to the reader views of the vault. These views could admit a compact
+string as a second written form, normalized to the mapping `{repository, id, unit}`.
 
 ---
 
@@ -206,9 +209,8 @@ profile: {id: kriegeskorte_nikolaus}
 ```yaml
 ---
 id: mixture-input
-cites:
-  - relation: cites-as-evidence
-    target: {repository: geonexus, id: smith2024}
+# a field that the schema of the note declares as a target
+derives_from: {repository: geonexus, id: smith2024}
 ---
 ```
 
@@ -237,10 +239,9 @@ rule 3 of [references across fields][tool-roles-references] admits, and Kleisis 
 resource with its closure. The conformance cases `specs/conformance/targets.yml` fix each reading,
 as `specs/conformance/bindings.yml` does for the bindings.
 
-Adding a definition to the resource keeps its `$id`; the definition of a `cites` entry, or the
-field-path syntax, may arrive that way. A change that makes a valid target invalid, or changes the
-meaning of a key, publishes `addressing.v2.schema.yml`, and the file `v1` stays until no consumer
-references it.
+Adding a definition to the resource keeps its `$id`; the field-path syntax, for instance, may arrive
+that way. A change that makes a valid target invalid, or changes the meaning of a key, publishes
+`addressing.v2.schema.yml`, and the file `v1` stays until no consumer references it.
 
 A consumer field references the definition by its absolute URI, and types it beside the `$ref`:
 
@@ -421,7 +422,7 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
 
 | Task | Needs from this record | Left open after it |
 | --- | --- | --- |
-| `record-reference-schema` | the definition `target` and its `$id`; the rule of `x-identifier` and its default; the contract `anagraphe:repository@1` | the definition of a `cites` entry with its citation key, to be added to the same resource without a new `$id`; the division of the metadata schema |
+| `record-reference-schema` | the definition `target` and its `$id`; the rule of `x-identifier` and its default; the contract `anagraphe:repository@1` | the division of the metadata schema, under step 2 of the order of extraction; the resource defines no `cites` entry, since the vault retired the key |
 | `record-registry` | the field holding each identifier, the pattern of `record-id`, and the findings `missing-identifier`, `duplicate-identifier` and `invalid-identifier`, which the registry reports in the same terms | the format of the registry and of the declared renames |
 | `record-resolver` | the normalization of a target, the manifest that names a repository, and the matching of `x-target-contract` | the findings of cross-repository failures, which replace `unverified-target` |
 | `record-state-provider` | the pattern of `repository-id` only | nothing further from this record |
@@ -529,6 +530,7 @@ The researcher answered the open questions of the proposal on 2026-11-13:
 [tool-roles-order]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/tool-roles.md#order-of-extraction
 [resolution]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/cross-repository-record-resolution.md
 [resolution-canonical]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/cross-repository-record-resolution.md#canonical-reference
+[resolution-amended]: https://github.com/esther-poniatowski/geonexus/blob/main/docs/_decisions/cross-repository-record-resolution.md#canonical-reference
 [resolution-context]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/cross-repository-record-resolution.md#resolution-context
 [resolution-failures]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/cross-repository-record-resolution.md#failure-and-access-rules
 [independent-decision]: https://github.com/esther-poniatowski/geonexus/blob/c9616185754637dd1254c3454502e9b5604d8750/docs/_decisions/independent-research-and-exposition.md#decision
