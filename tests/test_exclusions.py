@@ -27,7 +27,10 @@ def _write(root: Path, files: dict[str, str]) -> None:
 
 def _configure(root: Path, **sections: Any) -> None:
     """Write a configuration holding the given sections."""
-    _write(root, {"anagraphe.yml": yaml.safe_dump({"_schema": "anagraphe:configuration@2", **sections})})
+    _write(
+        root,
+        {"anagraphe.yml": yaml.safe_dump({"_schema": "anagraphe:configuration@2", **sections})},
+    )
 
 
 def _broken(root: Path) -> list[str]:

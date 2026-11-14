@@ -310,7 +310,10 @@ def test_malformed_section_is_rejected(
 
 def test_configuration_requires_a_section(tmp_path: Path) -> None:
     """A configuration declaring no section enables nothing, and is rejected."""
-    _write(tmp_path, {"anagraphe.yml": "_schema: anagraphe:configuration@2\nexclude: {paths: [vendor/]}\n"})
+    _write(
+        tmp_path,
+        {"anagraphe.yml": "_schema: anagraphe:configuration@2\nexclude: {paths: [vendor/]}\n"},
+    )
     with pytest.raises(ConfigurationError, match="declares no section: indexes, references"):
         load_config(tmp_path, tmp_path / "anagraphe.yml")
 

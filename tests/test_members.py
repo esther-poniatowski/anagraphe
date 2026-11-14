@@ -64,7 +64,11 @@ def _repository(
     }
     _write(
         root,
-        {"anagraphe.yml": yaml.safe_dump({"_schema": "anagraphe:configuration@2", **(top or {}), "indexes": indexes})},
+        {
+            "anagraphe.yml": yaml.safe_dump(
+                {"_schema": "anagraphe:configuration@2", **(top or {}), "indexes": indexes}
+            )
+        },
     )
 
 
