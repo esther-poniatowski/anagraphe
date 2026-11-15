@@ -213,7 +213,7 @@ def test_registry_maps_the_resource_and_the_contract_to_package_files() -> None:
     assert yaml.safe_load(resource.read_text("utf-8"))["$id"] == ADDRESSING_ID
     contract = PROJECT / registry["schemas"][REPOSITORY_CONTRACT]
     assert contract.name == REPOSITORY_FILE and contract.parent == resource.parent
-    assert registry["exports"] == [REPOSITORY_CONTRACT]
+    assert REPOSITORY_CONTRACT in registry["exports"]
 
 
 # --- The command line.

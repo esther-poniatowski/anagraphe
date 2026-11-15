@@ -12,6 +12,14 @@ each selected record, the check reports its identifier, then each value of its t
 3. a target of the same repository names a record of the repository, then a unit of that record,
    and its record satisfies each ``x-target-contract`` of the field.
 
+When the section ``records`` is declared, the check also reads the retired identifiers of the
+record registry. A target naming an identifier retired with a successor is reported as
+``renamed-target``, a warning, and the check follows the successors to the record holding the last
+one, against which it checks the unit and the contract. A target naming an identifier retired
+without a successor, or whose successors reach no record, is reported as ``retired-target``. A
+registry that is absent or invalid supplies no retired identifier; the check of the registry
+reports it.
+
 A target naming a duplicated identifier receives no finding of its own, since
 ``duplicate-identifier`` reports its cause. The check writes no file.
 """
@@ -19,11 +27,12 @@ A target naming a duplicated identifier receives no finding of its own, since
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path
+from typing import Mapping
 
-from anagraphe.core.files import select, walk
+from anagraphe.core.files import select
 from anagraphe.core.issues import Issue, Report, distinct, pointer
-from anagraphe.core.schemas import SchemaReader, values_at
+from anagraphe.core.schemas import values_at
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.declarations import Declarations, TargetField
 from anagraphe.targets.kinds import (
@@ -34,6 +43,8 @@ from anagraphe.targets.kinds import (
     KINDS,
     LEGACY_REPOSITORY_MANIFEST,
     MISSING_IDENTIFIER,
+    RENAMED_TARGET,
+    RETIRED_TARGET,
     TARGET_CONTRACT_MISMATCH,
     UNBOUND_TARGET,
     UNKNOWN_RECORD,
@@ -43,34 +54,56 @@ from anagraphe.targets.kinds import (
 )
 from anagraphe.targets.manifest import MANIFEST_FILE, ManifestReading, read_manifest
 from anagraphe.targets.model import InvalidTarget, Target, admits
-from anagraphe.targets.records import Record, is_record, read_record
+from anagraphe.targets.records import Record
+from anagraphe.targets.registry.configuration import RecordsConfig
+from anagraphe.targets.registry.contract import Retirement, follow, read_registry
 from anagraphe.targets.resource import matches
+from anagraphe.targets.walk import RecordWalk
 
 __all__ = ["KINDS", "TargetChecker"]
-
-#: The entry marking the root of a Git repository, a directory or a file in a submodule.
-GIT_ENTRY = ".git"
 
 
 @dataclass
 class TargetChecker:
-    """Check the logical targets of one repository against its records."""
+    """Check the logical targets of one repository against its records.
+
+    Parameters
+    ----------
+    root : Path
+        The root of the repository.
+    config : TargetConfig
+        The section ``targets``.
+    registry : RecordsConfig or None
+        The section ``records``, whose registry supplies the retired identifiers; None when the
+        repository declares no registry.
+    """
 
     root: Path
     config: TargetConfig
+    registry: RecordsConfig | None = None
     manifest: ManifestReading = field(init=False)
-    declarations: Declarations | None = field(init=False)
-    _nested: dict[PurePosixPath, bool] = field(default_factory=dict, init=False)
-    _records: dict[str, Record] = field(default_factory=dict, init=False)
-    _table: dict[str, list[Record]] = field(default_factory=dict, init=False)
+    walk: RecordWalk = field(init=False)
+    #: The retired identifiers of the registry, empty without a valid registry.
+    retired: Mapping[str, Retirement] = field(init=False)
 
     def __post_init__(self) -> None:
         self.root = self.root.resolve()
         self.manifest = read_manifest(self.root)
-        records = self.config.records
-        self.declarations = (
-            Declarations(SchemaReader(self.root, records.registry)) if records is not None else None
+        reserved = frozenset({self.registry.rel}) if self.registry is not None else frozenset()
+        self.walk = RecordWalk(self.root, self.config, reserved)
+        reading = (
+            read_registry(self.registry.path, self.registry.rel)
+            if self.registry is not None
+            else None
         )
+        self.retired = (
+            reading.registry.retired if reading is not None and reading.registry is not None else {}
+        )
+
+    @property
+    def declarations(self) -> Declarations | None:
+        """Return the declarations of the contracts of the schema registry, None without one."""
+        return self.walk.declarations
 
     @property
     def repository(self) -> str | None:
@@ -79,19 +112,14 @@ class TargetChecker:
 
     def covers(self, rel: str) -> bool:
         """Whether a file is a record of the checked repository; the manifest is none."""
-        return is_record(rel) and rel != MANIFEST_FILE and not self._in_nested_repository(rel)
+        return self.walk.covers(rel)
 
     def check(self, paths: tuple[Path, ...] = (), strict: bool = True) -> Report:
         """Check the records below the given targets, the whole repository without a target."""
         selected = select(self.root, paths, self.config.exemptions, self.covers, strict)
-        for rel in walk(self.root, self.root, self.config.exemptions):
-            if self.covers(rel):
-                record = self._record(rel)
-                if record.problem is None and matches("record-id", record.identifier):
-                    self._table.setdefault(record.identifier, []).append(record)
         issues = self._manifest_issues()
         for rel in selected:
-            issues.extend(self.check_record(self._record(rel)))
+            issues.extend(self.check_record(self.walk.record(rel)))
         issues.extend(self._schema_issues())
         # The text report prints no locus, so the detail of a located issue opens on its pointer.
         located = [
@@ -136,7 +164,7 @@ class TargetChecker:
                     locus=at,
                 )
             ]
-        holders = self._table.get(record.identifier, [])
+        holders = self.walk.table.get(record.identifier, [])
         if len(holders) > 1:
             others = ", ".join(other.rel for other in holders if other.rel != record.rel)
             return [
@@ -176,20 +204,64 @@ class TargetChecker:
             ]
         if target.id is None:
             return []
-        holders = self._table.get(target.id, [])
-        if not holders:
+        holders = self.walk.table.get(target.id, [])
+        if holders:
+            if len(holders) > 1:
+                return []
+            return self._resolved_issues(record, target_field, at, target, holders[0])
+        if target.id in self.retired:
+            return self._retired_issues(record, target_field, at, target)
+        return [
+            Issue(
+                record.rel,
+                None,
+                UNKNOWN_RECORD,
+                f"{written}: no record of the repository holds the identifier {target.id}",
+                locus=at,
+            )
+        ]
+
+    def _retired_issues(
+        self, record: Record, target_field: TargetField, at: str, target: Target
+    ) -> list[Issue]:
+        """Return the issues of a target naming a retired identifier: the rename followed to the
+        record of its last successor, then the issues of that record; or the retirement."""
+        assert target.id is not None
+        written = str(target)
+        table = self.walk.table
+        chain = follow(self.retired, target.id, table.__contains__)
+        if chain is None:
+            successor = self.retired[target.id].replaced_by
+            reason = (
+                f"replaced by {successor}, whose successors reach no record"
+                if successor is not None
+                else "without a successor"
+            )
             return [
                 Issue(
                     record.rel,
                     None,
-                    UNKNOWN_RECORD,
-                    f"{written}: no record of the repository holds the identifier {target.id}",
+                    RETIRED_TARGET,
+                    f"{written}: the identifier {target.id} is retired {reason}",
                     locus=at,
                 )
             ]
+        live = chain[-1]
+        holders = table[live]
+        followed = replace(target, id=live)
+        renamed = Issue(
+            record.rel,
+            None,
+            RENAMED_TARGET,
+            f"{written}: the identifier {target.id} is retired and replaced by {live}"
+            + (f" through {', '.join(chain[:-1])}" if len(chain) > 1 else "")
+            + f"; write {followed}",
+            blocking=False,
+            locus=at,
+        )
         if len(holders) > 1:
-            return []
-        return self._resolved_issues(record, target_field, at, target, holders[0])
+            return [renamed]
+        return [renamed, *self._resolved_issues(record, target_field, at, followed, holders[0])]
 
     def _resolved_issues(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, record: Record, target_field: TargetField, at: str, target: Target, held: Record
@@ -261,33 +333,7 @@ class TargetChecker:
 
     def _schema_issues(self) -> list[Issue]:
         """Return the defects of the schemas of the registry, every contract read once."""
-        declarations = self.declarations
-        if declarations is None:
-            return []
-        for contract in declarations.reader.contracts():
-            declarations.of(contract)
-        return [
-            Issue(problem.rel, None, problem.kind, problem.detail, locus=problem.pointer)
-            for problem in (*declarations.reader.problems, *declarations.problems)
-        ]
-
-    def _record(self, rel: str) -> Record:
-        """Return a record of the repository, read once."""
-        if rel not in self._records:
-            binding = self.config.records.binding if self.config.records is not None else "_schema"
-            self._records[rel] = read_record(self.root, rel, binding, self.declarations)
-        return self._records[rel]
-
-    def _in_nested_repository(self, rel: str) -> bool:
-        """Whether a file lies below the root of a nested repository, such as a submodule."""
-        for folder in PurePosixPath(rel).parents:
-            if folder == PurePosixPath("."):
-                return False
-            if folder not in self._nested:
-                self._nested[folder] = (self.root / folder / GIT_ENTRY).exists()
-            if self._nested[folder]:
-                return True
-        return False
+        return self.walk.schema_issues()
 
 
 def _listed(declarations: tuple[tuple[str, ...], ...]) -> str:

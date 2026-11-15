@@ -5,4 +5,5 @@ paths:
   owned_schemas: src/anagraphe/data/schemas
 
 exports:
+  - anagraphe:record-registry@1
   - anagraphe:repository@1

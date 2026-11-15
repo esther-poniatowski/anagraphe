@@ -10,13 +10,13 @@ listed before it:
 | capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings`, `anagraphe.targets` | generating the indexes, checking the references between files, resolving the bindings of texts, and checking the logical targets between records |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 
-No capability imports another. Each capability parses its own section of `anagraphe.yml`
+No capability imports another. Each capability parses its own sections of `anagraphe.yml`
 with the primitives of the core, and the composition layer joins the sections into one
-configuration.
+configuration. The capability `anagraphe.targets` owns two sections, `targets` and `records`.
 
 Each capability also declares the kinds of issue that it can report, in
-`anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe.bindings.kinds` and
-`anagraphe.targets.kinds`. The writer of the findings log,
+`anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe.bindings.kinds`,
+`anagraphe.targets.kinds` and `anagraphe.targets.registry.kinds`. The writer of the findings log,
 `anagraphe.core.sarif`, receives these catalogues and the issues from the command line, so it
 imports no capability. An issue carries its locus from the code that creates it, since only that
 code holds the key or the target that it tested.
@@ -67,7 +67,11 @@ declarations of each contract, its identifier field, its units, its target field
 `x-implements`, are read once from the walk of the schemas of the core, which leaves the URI of the
 resource unresolved. The check first reads the manifest, then the identifier of every record of the
 repository into one table, and then reports the identifiers and the targets of the selected
-records against that table. The generated record registry is to replace that table.
+records against that table. The module `anagraphe.targets.walk` defines the walk, and the record
+registry of `anagraphe.targets.registry` shares it. The registry maps the identifiers of the walk
+to their files, and the check of the targets reads its retired identifiers. The committed registry
+is the source for a resolver of another repository, a task still open, whereas the check within one
+repository keeps its walk.
 
 ## Moves
 

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The record registry of ADR 0007. Each repository commits a registry in the contract
+  `anagraphe:record-registry@1`, whose schema
+  `https://github.com/esther-poniatowski/anagraphe/schemas/record-registry.v1.schema.yml` the
+  package ships and the registry `specs/schema-registry.yml` exports. The registry maps each record
+  identifier to the path and the format of its record, and keeps the retired identifiers with
+  their date and their successor. The conformance cases `specs/conformance/record-registry.yml`
+  fix its reading and the findings of its check.
+- The section `records` of `anagraphe.yml`, whose key `path` names the registry,
+  `record-registry.yml` at the root by default. The section requires the section `targets`.
+- The command `anagraphe records write`, which generates the registry from the walk of the check
+  of the targets and carries over its retired identifiers. The write changes no file when the
+  records, the registry or `repository.yml` hold a defect, such as a missing, invalid, duplicate or
+  retired identifier, an identifier of the registry naming no record and not retired, or a schema
+  that cannot be read.
+- The command `anagraphe records check`, which `anagraphe check` also runs, and which reports
+  `invalid-record-registry`, `stale-registry`, `vanished-identifier`, `reused-identifier` and
+  `unknown-successor` at the JSON Pointer of each entry.
+- The command `anagraphe records retire ID [--replaced-by NEW]`, which moves an identifier that no
+  record holds from `records` into `retired`, with the date of the day and an optional successor.
+  The command refuses while a schema cannot be read, since a record may hold the identifier
+  unseen.
+
+### Changed
+
+- When the section `records` is declared, `anagraphe targets check` reads the retired identifiers
+  of the registry. A target naming an identifier retired by a rename is reported as
+  `renamed-target`, a warning, and is checked against the record of its last successor. A target
+  naming an identifier retired without a successor is reported as `retired-target`, an error. Both
+  findings replace `unknown-record` for a retired identifier.
+- An atomic write of the core creates a file that does not exist yet, and removes it if a later
+  file of the same write cannot be replaced.
+
 ## [0.5.0] - 2026-11-14
 
 ### Added

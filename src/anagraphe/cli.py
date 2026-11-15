@@ -6,6 +6,8 @@ Command-line interface: one group of commands per subpackage, and one check of a
 - ``anagraphe bindings check|show`` checks the bindings of the texts, or prints those of one file;
 - ``anagraphe targets check`` reports the logical targets that do not resolve within the
   repository, and the defects of the identifiers and of the manifest;
+- ``anagraphe records write|check|retire`` writes the record registry, reports its differences
+  from the records, or retires an identifier that no record holds any longer;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
   the indexes, once confirmed on a terminal or by ``--yes``.
@@ -67,6 +69,9 @@ from anagraphe.refactor import MovePlan, MoveService
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.kinds import KINDS as TARGET_KINDS
 from anagraphe.targets.kinds import UNANALYZED as TARGET_UNANALYZED
+from anagraphe.targets.registry import RecordsConfig, RegistryService, RetireRefused
+from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
+from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -85,8 +90,13 @@ targets_app = typer.Typer(
     no_args_is_help=True,
     help="Check the logical targets, the identifiers of the records and the repository manifest.",
 )
+records_app = typer.Typer(
+    no_args_is_help=True,
+    help="Write and check the record registry, and retire the identifiers that it lists.",
+)
 app.add_typer(bindings_app, name="bindings")
 app.add_typer(targets_app, name="targets")
+app.add_typer(records_app, name="records")
 
 Paths = Annotated[
     list[Path] | None,
@@ -151,6 +161,7 @@ CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
     "references": REFERENCE_KINDS,
     "bindings": BINDING_KINDS,
     "targets": TARGET_KINDS,
+    "records": RECORD_KINDS,
 }
 
 #: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
@@ -159,6 +170,7 @@ UNANALYZED: dict[str, frozenset[str]] = {
     "references": frozenset({UNREADABLE}),
     "bindings": BINDING_UNANALYZED,
     "targets": TARGET_UNANALYZED,
+    "records": RECORD_UNANALYZED,
 }
 
 
@@ -323,16 +335,17 @@ def _bindings(
     return report
 
 
-def _targets(
+def _targets(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     root: Path,
     config: TargetConfig,
+    registry: RecordsConfig | None,
     paths: tuple[Path, ...],
     strict: bool = True,
     findings: Findings | None = None,
 ) -> Report:
     """Check the logical targets, print their report, and record it for the log."""
     try:
-        report = TargetChecker(root, config).check(paths, strict)
+        report = TargetChecker(root, config, registry).check(paths, strict)
     except (ConfigurationError, OSError, TargetError) as error:
         _fail(error, findings)
     _emit(report, f"targets: checked {report.processed} records", findings)
@@ -380,9 +393,14 @@ def check(
     if repository.bindings is not None:
         reports.append(_bindings(resolved, repository.bindings, targets, False, findings))
     if repository.targets is not None:
-        reports.append(_targets(resolved, repository.targets, targets, False, findings))
+        reports.append(
+            _targets(resolved, repository.targets, repository.records, targets, False, findings)
+        )
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
+    # The registry is checked against the whole repository, whatever the targets.
+    if repository.records is not None and repository.targets is not None:
+        reports.append(_records(resolved, repository.targets, repository.records, findings))
     _exit(*reports, findings=findings)
 
 
@@ -455,8 +473,107 @@ def targets_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     section = _section(repository.targets, "targets", findings)
-    report = _targets(resolved, section, _here(paths), findings=findings)
+    report = _targets(resolved, section, repository.records, _here(paths), findings=findings)
     _exit(report, findings=findings)
+
+
+def _registry(
+    root: Path, repository: RepositoryConfig, findings: Findings | None = None
+) -> RegistryService:
+    """Return the service of the record registry, or exit naming the section that it requires."""
+    records = _section(repository.records, "records", findings)
+    # The configuration refuses the section records without the section targets.
+    assert repository.targets is not None
+    return RegistryService(root, repository.targets, records)
+
+
+def _records(
+    root: Path,
+    targets: TargetConfig,
+    records: RecordsConfig,
+    findings: Findings | None = None,
+) -> Report:
+    """Check the record registry, print its report, and record it for the log."""
+    try:
+        report = RegistryService(root, targets, records).check()
+    except (ConfigurationError, OSError) as error:
+        _fail(error, findings)
+    _emit(report, f"records: checked {records.rel} against {report.processed} records", findings)
+    if findings is not None:
+        findings.record("records", report)
+    return report
+
+
+@records_app.command("write")
+def records_write(root: Root = None, config: Config = None) -> None:
+    """Generate the record registry from the records of the repository, carrying over its retired
+    identifiers; write nothing when the records, the registry or repository.yml hold a defect.
+    """
+    resolved, repository = _load(root, config)
+    service = _registry(resolved, repository)
+    try:
+        result = service.write()
+    except (ConfigurationError, OSError) as error:
+        _fail(error)
+    if result.registry is None:
+        report = Report(0, result.issues)
+        _emit(report, f"records: wrote no {service.rel}, since issues block the write")
+        _exit(report)
+        return
+    verb = "wrote" if result.changed else "left unchanged"
+    typer.echo(
+        f"records: {verb} {service.rel}, with {len(result.registry.records)} records and "
+        f"{len(result.registry.retired)} retired identifiers"
+    )
+
+
+@records_app.command("check")
+def records_check(
+    root: Root = None,
+    config: Config = None,
+    output_format: Format = OutputFormat.TEXT,
+    output: Output = None,
+) -> None:
+    """Report the differences between the record registry and the records, and write no file."""
+    findings = Findings(output_format, output)
+    resolved, repository = _load(root, config, findings)
+    service = _registry(resolved, repository, findings)
+    report = _records(resolved, service.targets, service.records, findings)
+    _exit(report, findings=findings)
+
+
+@records_app.command("retire")
+def records_retire(
+    identifier: Annotated[
+        str, typer.Argument(metavar="ID", help="Identifier of records that no record holds.")
+    ],
+    replaced_by: Annotated[
+        str | None,
+        typer.Option(
+            "--replaced-by",
+            metavar="NEW",
+            help="Successor of a rename: a record, or another retired identifier.",
+        ),
+    ] = None,
+    root: Root = None,
+    config: Config = None,
+) -> None:
+    """Move an identifier that no record holds any longer from records into retired, with the day
+    and its successor; a retired identifier is never reused."""
+    resolved, repository = _load(root, config)
+    service = _registry(resolved, repository)
+    try:
+        registry = service.retire(identifier, replaced_by)
+    except RetireRefused as error:
+        typer.echo(f"records: cannot retire {identifier}: {error}", err=True)
+        raise typer.Exit(1) from error
+    except (ConfigurationError, OSError) as error:
+        _fail(error)
+    retirement = registry.retired[identifier]
+    successor = (
+        f", replaced by {retirement.replaced_by}" if retirement.replaced_by is not None else ""
+    )
+    typer.echo(f"records: retired {identifier} on {retirement.date}{successor}, in {service.rel}")
 
 
 @bindings_app.command("show")

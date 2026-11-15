@@ -1,9 +1,10 @@
 """
 The kinds of issue that the check of the logical targets can report, with their descriptions.
 
-The kinds of the first version are those of ADR 0006. Three further kinds report a file or a schema
-that the check cannot read, so that no record is skipped without a finding: an unreadable record,
-and the two kinds of the reader of schemas of the core, which the bindings report as well.
+The kinds of the first version are those of ADR 0006, and ADR 0007 adds the two kinds of a target
+naming a retired identifier. Three further kinds report a file or a schema that the check cannot
+read, so that no record is skipped without a finding: an unreadable record, and the two kinds of
+the reader of schemas of the core, which the bindings report as well.
 """
 
 from __future__ import annotations
@@ -29,6 +30,10 @@ INVALID_REPOSITORY_MANIFEST = "invalid-repository-manifest"
 LEGACY_REPOSITORY_MANIFEST = "legacy-repository-manifest"
 #: A target of the same repository naming an identifier that no record holds.
 UNKNOWN_RECORD = "unknown-record"
+#: A target naming an identifier retired with a successor, which the check follows to its record.
+RENAMED_TARGET = "renamed-target"
+#: A target naming an identifier retired without a successor reaching a record.
+RETIRED_TARGET = "retired-target"
 #: A target naming a unit that its record does not declare.
 UNKNOWN_UNIT = "unknown-unit"
 #: A target naming a unit that two units of its record hold.
@@ -63,6 +68,15 @@ KINDS: tuple[IssueKind, ...] = (
         LEGACY_REPOSITORY_MANIFEST, "repository.yml writes schema_version: 1.", blocking=False
     ),
     IssueKind(UNKNOWN_RECORD, "No record of the repository holds the identifier of a target."),
+    IssueKind(
+        RENAMED_TARGET,
+        "A target names an identifier retired by a rename; the check follows it to the successor.",
+        blocking=False,
+    ),
+    IssueKind(
+        RETIRED_TARGET,
+        "A target names an identifier retired without a successor that reaches a record.",
+    ),
     IssueKind(UNKNOWN_UNIT, "The record of a target holds no unit of its identifier."),
     IssueKind(AMBIGUOUS_UNIT, "Two units of the record of a target hold its identifier."),
     IssueKind(

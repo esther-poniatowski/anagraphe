@@ -26,6 +26,9 @@ anagraphe refs check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] 
 anagraphe bindings check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe bindings show PATH [--role ROLE]... [--merge RULE] [--format FORMAT] [--root PATH] [--config PATH]
 anagraphe targets check [PATHS]... [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
+anagraphe records write [--root PATH] [--config PATH]
+anagraphe records check [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
+anagraphe records retire ID [--replaced-by NEW] [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 ```
 
@@ -38,6 +41,9 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
 | `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
 | `anagraphe targets check` | reports the logical targets that do not resolve within the repository, and the defects of the identifiers, of their declarations and of `repository.yml` |
+| `anagraphe records write` | generates the record registry from the records, carrying over its retired identifiers, and writes no file when the records, the registry or `repository.yml` hold a defect |
+| `anagraphe records check` | checks the record registry against the records, and changes no file |
+| `anagraphe records retire` | moves an identifier held by no record from the records of the registry into its retired identifiers, with the date and an optional successor |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
 
 | Option | Purpose | Default |
@@ -46,6 +52,7 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `-c`, `--config PATH` | selects the configuration file, relative to the current folder | `config/tools/anagraphe.yml` or `anagraphe.yml` below the root; both existing is an error |
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
+| `--replaced-by NEW` | of `records retire`: the successor of a rename, a record or a retired identifier | no successor |
 | `--format FORMAT` | of the check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
 | `-o`, `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current folder, and creates its missing folders | standard output |
 | `--dry-run` | of `move`: prints the plan and changes no file | applies the plan |
@@ -55,7 +62,8 @@ Every path typed on the command line, a target, `OLD`, `NEW`, `--config` or `--o
 the current folder; every path written in the configuration is read from the root. For the
 indexes, each path may name an index, a directory, or a member whose parent index must be
 processed. For the references, the bindings and the targets, each path names a file or a directory
-to check.
+to check. The command `records check` reads every record of the repository, even when
+`anagraphe check` runs it with paths.
 
 ## Output and exit status
 
@@ -67,7 +75,7 @@ status at `0`.
 | Status | Meaning |
 | --- | --- |
 | `0` | no issue blocks |
-| `1` | at least one violation is reported |
+| `1` | at least one violation is reported, or `records write` or `records retire` refuses its change |
 | `2` | the configuration, a named target, or a required section is invalid or absent; the log cannot be written; or a move lacks its confirmation without a terminal |
 
 ## Findings log
@@ -96,4 +104,5 @@ the metadata, such as `/aliases` or `/groups`, and empty for an issue of the who
 declares itself failed in two cases. In the first, an invalid configuration or target stopped it,
 and it holds the results of the sections that ran, none when no section ran. In the second, a file
 could not be parsed, as `unreadable-file`, `unreadable-metadata`, `unreadable-binding-source` and
-`unreadable-schema` report.
+`unreadable-schema` report, or the record registry could not be compared, as
+`invalid-record-registry` reports.

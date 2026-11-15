@@ -12,7 +12,10 @@ each subpackage that the repository uses:
 - ``indexes``, parsed by :mod:`anagraphe.indexes.configuration`;
 - ``references``, parsed by :mod:`anagraphe.references.configuration`;
 - ``bindings``, parsed by :mod:`anagraphe.bindings.configuration`;
-- ``targets``, parsed by :mod:`anagraphe.targets.configuration`.
+- ``targets``, parsed by :mod:`anagraphe.targets.configuration`;
+- ``records``, parsed by :mod:`anagraphe.targets.registry.configuration`, which names the record
+  registry. Its records are those of the walk of the section ``targets``, so it requires that
+  section.
 
 A section left out disables its subpackage, so a repository adopts each one apart.
 """
@@ -35,6 +38,7 @@ from anagraphe.bindings import configuration as bindings
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
 from anagraphe.targets import configuration as targets
+from anagraphe.targets.registry import configuration as records
 
 #: The name of the configuration file.
 CONFIG_FILE = "anagraphe.yml"
@@ -50,10 +54,10 @@ CONFIGURATION_FORMAT = "anagraphe:configuration@2"
 RETIRED_FORMAT_KEY = "schema_version"
 #: The top-level keys of ``anagraphe.yml``.
 TOP_LEVEL_KEYS = frozenset(
-    {FORMAT_KEY, "metadata", "exclude", "indexes", "references", "bindings", "targets"}
+    {FORMAT_KEY, "metadata", "exclude", "indexes", "references", "bindings", "targets", "records"}
 )
 #: The sections of ``anagraphe.yml``, one per capability.
-SECTIONS = ("indexes", "references", "bindings", "targets")
+SECTIONS = ("indexes", "references", "bindings", "targets", "records")
 
 
 @dataclass(frozen=True)
@@ -64,6 +68,7 @@ class RepositoryConfig:
     references: references.ReferenceConfig | None = None
     bindings: bindings.BindingConfig | None = None
     targets: targets.TargetConfig | None = None
+    records: records.RecordsConfig | None = None
     #: The metadata of each file, read from the source that the repository declares for it.
     metadata: MetadataReader | None = None
 
@@ -158,8 +163,18 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
             if "targets" in raw
             else None
         ),
+        records=(
+            records.parse_section(root, mapping(raw["records"], "records"))
+            if "records" in raw
+            else None
+        ),
         metadata=reader,
     )
     if not any(name in raw for name in SECTIONS):
         raise ConfigurationError(f"anagraphe.yml declares no section: {', '.join(SECTIONS)}")
+    if config.records is not None and config.targets is None:
+        raise ConfigurationError(
+            "the section records reads its records through the walk of the section targets; "
+            "declare targets"
+        )
     return config

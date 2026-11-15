@@ -158,6 +158,32 @@ def test_atomic_write_restores_replaced_indexes(
     assert {index: index.read_bytes() for index in indexes} == before
 
 
+def test_atomic_write_creates_a_file_and_removes_it_on_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A created file takes the mode granted by the umask, and a later failure removes it."""
+    files.write_atomically(tmp_path, {"new.yml": "a: 1\n"})
+    assert (tmp_path / "new.yml").read_text(encoding="utf-8") == "a: 1\n"
+    assert (tmp_path / "new.yml").stat().st_mode & 0o777 == 0o666 & ~files._umask()
+    (tmp_path / "kept.yml").write_text("b: 1\n", encoding="utf-8")
+    replace = files.os.replace
+    calls = 0
+
+    def fail_second_replacement(source: Path, target: Path) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("injected replacement failure")
+        replace(source, target)
+
+    monkeypatch.setattr(files.os, "replace", fail_second_replacement)
+    with pytest.raises(OSError, match="injected replacement failure"):
+        files.write_atomically(tmp_path, {"created.yml": "c: 1\n", "kept.yml": "b: 2\n"})
+    assert not (tmp_path / "created.yml").exists()
+    assert (tmp_path / "kept.yml").read_text(encoding="utf-8") == "b: 1\n"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["kept.yml", "new.yml"]
+
+
 @pytest.mark.parametrize(
     ("text", "message"),
     [

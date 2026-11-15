@@ -1,0 +1,70 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/esther-poniatowski/anagraphe/schemas/record-registry.v1.schema.yml
+title: Record registry
+description: >-
+  The map from the identifiers of the records of one repository to their files, and the permanent
+  list of its retired identifiers, as ADR 0007 of Anagraphe states them. The command anagraphe
+  records write generates the file, and no line is written by hand. Beyond this schema, the
+  contract requires that no chain of replaced_by returns to an identifier that it has left. A
+  change that makes a valid registry invalid, or changes the meaning of a key, publishes a new
+  major version under a new $id.
+type: object
+additionalProperties: false
+required: [_schema, repository, records, retired]
+properties:
+  _schema:
+    const: anagraphe:record-registry@1
+    title: Schema
+    description: The logical identifier of the contract that the registry follows.
+  repository:
+    $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
+    description: The identifier of the repository, declared under repository.id of its repository.yml.
+  records:
+    type: object
+    description: The file of each record of the repository, keyed by the identifier of the record.
+    propertyNames:
+      $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/record-id'
+    additionalProperties:
+      $ref: '#/$defs/entry'
+  retired:
+    type: object
+    description: >-
+      The identifiers that no record holds any longer, each never reused, keyed by the identifier.
+    propertyNames:
+      $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/record-id'
+    additionalProperties:
+      $ref: '#/$defs/retirement'
+$defs:
+  entry:
+    title: Record entry
+    type: object
+    additionalProperties: false
+    required: [path, format]
+    properties:
+      path:
+        type: string
+        description: >-
+          The path of the file of the record, relative to the root of the repository, with
+          slashes, and without an empty, a . or a .. segment.
+        pattern: '^[^/\\]([^\\]*[^/\\])?$'
+        not:
+          pattern: '(^|/)\.{1,2}(/|$)|//'
+      format:
+        enum: [markdown, yaml, json]
+        description: The format of the file, read from its suffix.
+  retirement:
+    title: Retired identifier
+    type: object
+    additionalProperties: false
+    required: [date]
+    properties:
+      date:
+        type: string
+        format: date
+        pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        description: The day on which the identifier was retired, written as a YAML date.
+      replaced_by:
+        $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/record-id'
+        description: >-
+          The identifier that replaces the retired one after a rename: a record, or another retired
+          identifier whose own successor is followed.

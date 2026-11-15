@@ -48,4 +48,5 @@ adr/0003-pointers-across-moves
 adr/0004-findings-output
 adr/0005-text-bindings
 adr/0006-logical-targets
+adr/0007-record-registry
 ```

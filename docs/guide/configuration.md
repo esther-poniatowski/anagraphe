@@ -9,7 +9,8 @@ under `_schema`, as its first key, and a command stops with status 2 when the ke
 holds another value than `anagraphe:configuration@2`. The file also declares one
 section per capability: `indexes` to generate the indexes, `references` to check the references
 between files, `bindings` to resolve the bindings of texts, and `targets` to check the logical
-targets between records. A section left out disables its capability. Each declared path is
+targets between records. The section `records` names the record registry and enables its
+commands. A section left out disables its capability. Each declared path is
 relative to the repository root selected by the root option. Absolute paths and paths that resolve
 outside that root are invalid.
 
@@ -35,7 +36,7 @@ references: {}
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
 the keys of the section `references`, the [bindings guide](bindings.md) those of the section
-`bindings`, and the [targets guide](targets.md) those of the section `targets`. The rest of this page states the keys of the section
+`bindings`, and the [targets guide](targets.md) those of the sections `targets` and `records`. The rest of this page states the keys of the section
 `indexes`.
 
 ## Metadata sources

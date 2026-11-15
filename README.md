@@ -47,6 +47,7 @@ reference naming no file or anchor.
 - [x] Move a file or a folder, rewriting every pointer to it and updating the affected indexes.
 - [x] Resolve the bindings of texts to the roles of tools along the directory chain, records included through `x-binds`.
 - [x] Check the logical targets between records within one repository, with the identifiers and the repository manifest that they name.
+- [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
 - [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
 - [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
 - [ ] Move and rename anchors, and rename the identifiers of a declared namespace.
@@ -62,8 +63,8 @@ from the root, and the vocabulary and index-type schemas named by that configura
 anagraphe indexes write
 ```
 
-The check command verifies the same rendering, the declared references, the bindings of texts and
-the logical targets, without changing a file:
+The check command verifies the same rendering, the declared references, the bindings of texts,
+the logical targets and the record registry, without changing a file:
 
 ```sh
 anagraphe check

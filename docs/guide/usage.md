@@ -25,14 +25,15 @@ anagraphe indexes write docs/
 The check command compares source files with the deterministic rendering and preserves every byte.
 When the configuration declares the section `references`, the same command checks the references,
 when it declares the section `bindings`, the bindings of the texts, and when it declares the
-section `targets`, the logical targets between records:
+section `targets`, the logical targets between records. The section `records` adds the check of the
+record registry:
 
 ```sh
 anagraphe check
 ```
 
 An exit status of `1` reports an index violation, a stale block, a broken reference, an invalid
-binding or an unresolved target. An exit
+binding, an unresolved target or a finding of the record registry. An exit
 status of `2` reports an invalid configuration, or a target that names no file to read.
 
 ## Move a file or a folder
