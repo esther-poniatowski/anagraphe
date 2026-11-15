@@ -41,3 +41,8 @@ docs/_build/
 
 # State folder of Kleisis, regenerated from specs/schema-resources.yml.
 .kleisis/
+
+# Dependencies, build output and generated module of the TypeScript read package.
+packages/read/node_modules/
+packages/read/dist/
+packages/read/src/generated/

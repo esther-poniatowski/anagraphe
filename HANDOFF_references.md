@@ -16,6 +16,11 @@ This handoff directs the agent that continues the pointers of Anagraphe: their c
 9. **Done (2026-10-31): indexes on the metadata sources.** `indexes.members` declares the listed types, by default Markdown and YAML, and `anagraphe.indexes.notes` reads the entry fields through `anagraphe.core.metadata`, with [the member tests](tests/test_members.py). Each consumer excludes the YAML files that hold no record: 19 in Mixture, 9 in Symmetry and 65 in the vault would otherwise join an index, such as `anagraphe.yml`, `environment.yml`, the schemas and the vocabularies.
 10. **Open: conversion to the convention.** A command rewrites each pointer that breaks its convention into an admitted format and style, such as the wikilinks of a folder into Markdown links.
 11. **Done (2026-11-01): the vault adoption.** The vault runs `anagraphe refs check` in its gate, declares its schemes under `references.schemes` and its pattern `utils/macros/*` among the exclusions, and retired its link checker.
+12. **Done (2026-11-15): the TypeScript read package.** The package [`@anagraphe/read`](packages/read/README.md) reads the addressing as the Python read side reads it, and runs the conformance cases of `specs/conformance/targets.yml` and `specs/conformance/record-registry.yml`. The following steps remain open:
+    - Ekphrasis supplies the adapters of its three ports and retires its own index;
+    - the field-path syntax awaits its decision.
+
+    The package generates the grammars `CONTRACT_ENTRY` and `PROPERTY_PATH` from constants of the Python read side. Moving them into the resource `addressing.v1` would make the resource their single source.
 
 ## Active constraints
 

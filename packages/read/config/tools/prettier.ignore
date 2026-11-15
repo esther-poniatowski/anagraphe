@@ -1,0 +1,6 @@
+# Files excluded from Prettier, passed through `--ignore-path` by the scripts `format` and
+# `format:check`. Prettier resolves these paths from this folder. The generated module keeps the
+# form written by its generator, which its drift test compares byte for byte.
+../../node_modules/
+../../dist/
+../../src/generated/

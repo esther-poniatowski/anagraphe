@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The TypeScript package `@anagraphe/read`, in the directory `packages/read`. The package reads the
+  addressing as the Python read side reads it (targets, identifier declarations, units, manifest and
+  record registry), and passes the conformance cases of `specs/conformance/targets.yml` and
+  `specs/conformance/record-registry.yml`. A host supplies adapters for three ports: the binding of
+  a record, the loading of a schema, and the files. The live index of the package resolves a target
+  of the open repository against its records, then against the retired identifiers of the registry.
+  Each release attaches the package as a tarball.
+- The constant `anagraphe.targets.IMPLEMENTED_SPECIFICATION`. The constant names the versions of
+  the addressing, of the manifest and of the record registry implemented by the Python read side,
+  and the TypeScript package exports the same mapping.
+- The specification of the record registry, `docs/specification/record-registry.md`: how a read
+  side reads the registry and looks up an identifier in it.
 - The record registry of ADR 0007. Each repository commits a registry in the contract
   `anagraphe:record-registry@1`, whose schema
   `https://github.com/esther-poniatowski/anagraphe/schemas/record-registry.v1.schema.yml` the

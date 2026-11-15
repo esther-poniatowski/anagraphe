@@ -33,9 +33,11 @@ tag_format = "v{version}"
 major_on_zero = false
 allow_zero_version = true
 
-# Version sources
+# Version sources. The TypeScript read package keeps the version of Anagraphe: the pattern of a
+# variable matches the quoted key "version" of its package.json. Its package-lock.json is left out,
+# since the same pattern would also rewrite the version of each dependency.
 version_toml = ["pyproject.toml:project.version"]
-version_variables = ["CITATION.cff:version"]
+version_variables = ["CITATION.cff:version", "packages/read/package.json:version"]
 
 # Distributions: built on the runner after the version is stamped, and uploaded to the release by
 # `dist_glob_patterns`. The key `assets` would instead stage files in the release commit, so it

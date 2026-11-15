@@ -34,6 +34,34 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
+  read-package:
+    # The TypeScript read package, which runs the conformance cases of specs/conformance/.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/read/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate the resources from the packaged schemas
+        run: npm run generate
+      - name: Run type checker (tsc)
+        run: npm run typecheck
+      - name: Run linter (eslint)
+        run: npm run lint
+      - name: Check formatting (prettier)
+        run: npm run format:check
+      - name: Run tests (vitest)
+        run: npm test
+      - name: Check the tarball
+        run: npm pack --dry-run
   docs:
     runs-on: ubuntu-latest
     needs: test

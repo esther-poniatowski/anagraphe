@@ -48,6 +48,7 @@ reference naming no file or anchor.
 - [x] Resolve the bindings of texts to the roles of tools along the directory chain, records included through `x-binds`.
 - [x] Check the logical targets between records within one repository, with the identifiers and the repository manifest that they name.
 - [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
+- [x] Read the logical targets and the record registry in TypeScript, for a host without Python, through the package [`@anagraphe/read`](packages/read/README.md).
 - [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
 - [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
 - [ ] Move and rename anchors, and rename the identifiers of a declared namespace.

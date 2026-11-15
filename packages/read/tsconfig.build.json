@@ -1,0 +1,14 @@
+// Emission of the package: JavaScript and declarations of `src/` into `dist/`, without the Node
+// types, so that the published declarations require none.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "sourceMap": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}
