@@ -143,7 +143,7 @@ keep an identifier retired after its record is deleted.
 #### Written form
 
 The registry is a YAML document under the contract `anagraphe:record-registry@1`. Anagraphe publishes
-that contract with an absolute `$id`, as it publishes `anagraphe:repository@1`. The mappings of the
+that contract with an absolute `$id`, as it publishes the resource `addressing.v1`. The mappings of the
 registry are keyed by identifier and sorted, so that each record occupies one line:
 
 ```yaml
