@@ -58,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A JSON document holding `NaN`, `Infinity` or `-Infinity`, which RFC 8259 excludes, is no longer
+  read as JSON by the Python read side, as the TypeScript read side rejects it.
+- The TypeScript read package orders the keys of a mapping holding a merge key `<<` as PyYAML
+  orders them.
 - A YAML timestamp naming an impossible date, such as `2026-02-30`, no longer stops Anagraphe with a
   `ValueError`. A frontmatter or a manifest holding one is reported as unreadable, a configuration
   or a schema registry holding one is a configuration error, and a scalar reading as one is quoted.

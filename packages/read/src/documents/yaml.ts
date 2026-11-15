@@ -10,8 +10,26 @@
  * A timestamp is read as a `Date`, as PyYAML constructs a date, or as the string that it writes
  * when the caller asks for it, as the record registry reads its dates. A day absent from the
  * calendar fails a reading of dates, where PyYAML raises.
+ *
+ * A merge key `<<` is expanded here as PyYAML expands it, rather than by the package `yaml`, since
+ * the two order the keys of the result differently: PyYAML moves the merged pairs before the own
+ * pairs of the mapping, the pairs of the last source of a list first, and each key keeps the
+ * position of its first occurrence while its last value wins.
  */
-import { parseDocument, type ScalarTag, type Tags } from "yaml";
+import {
+  isAlias,
+  isMap,
+  isScalar,
+  isSeq,
+  parseDocument,
+  Scalar,
+  visit,
+  type Document,
+  type Pair,
+  type ScalarTag,
+  type Tags,
+  type YAMLMap,
+} from "yaml";
 
 /** How a reading returns its timestamps and its integers. */
 export interface YamlOptions {
@@ -142,15 +160,71 @@ function pythonScalars(options: YamlOptions): ScalarTag[] {
   ];
 }
 
-/** The tags of the YAML 1.1 schema kept beside the scalars of PyYAML: collections and strings. */
+/**
+ * The tags of the YAML 1.1 schema kept beside the scalars of PyYAML: collections and strings. The
+ * tag `merge` is left out, since {@link expandMerges} expands the merge keys.
+ */
 const KEPT = new Set(
-  ["map", "seq", "str", "binary", "merge", "omap", "pairs", "set"].map(
+  ["map", "seq", "str", "binary", "omap", "pairs", "set"].map(
     (name) => `tag:yaml.org,2002:${name}`,
   ),
 );
 
 /** Raised for a key that is a mapping or a sequence, which PyYAML refuses as unhashable. */
 class UnhashableKey extends Error {}
+
+/** Raised for a merge whose value is no mapping and no list of mappings, which PyYAML refuses. */
+class InvalidMerge extends Error {}
+
+/** Whether a key is the merge key: the plain scalar `<<`, which a quoted `'<<'` is not. */
+function isMergeKey(key: unknown): boolean {
+  return isScalar(key) && key.type === Scalar.PLAIN && key.value === "<<";
+}
+
+/** Returns the mapping that a merge names, an alias resolved, or `null` when it is no mapping. */
+function mergedMapping(node: unknown, document: Document): YAMLMap | null {
+  const resolved: unknown = isAlias(node) ? node.resolve(document) : node;
+  return isMap(resolved) ? resolved : null;
+}
+
+/**
+ * Replaces the merge keys of a mapping by the pairs that they merge, placed before its own pairs,
+ * as the method `flatten_mapping` of PyYAML does; a merged mapping is expanded first.
+ */
+function expandMapping(map: YAMLMap, document: Document, expanded: Set<YAMLMap>): void {
+  if (expanded.has(map)) return;
+  expanded.add(map);
+  const merged: Pair[] = [];
+  const own: Pair[] = [];
+  for (const pair of map.items) {
+    if (!isMergeKey(pair.key)) {
+      own.push(pair);
+      continue;
+    }
+    const sources = isSeq(pair.value)
+      ? pair.value.items.map((item) => mergedMapping(item, document))
+      : [mergedMapping(pair.value, document)];
+    if (sources.some((source) => source === null)) {
+      throw new InvalidMerge("expected a mapping or list of mappings for merging");
+    }
+    // PyYAML extends the merged pairs by the sources of a list in reverse order.
+    for (const source of (sources as YAMLMap[]).reverse()) {
+      expandMapping(source, document, expanded);
+      merged.push(...source.items);
+    }
+  }
+  if (own.length < map.items.length) map.items = [...merged, ...own];
+}
+
+/** Expands every merge key of a document, as PyYAML does before it constructs a mapping. */
+function expandMerges(document: Document): void {
+  const expanded = new Set<YAMLMap>();
+  visit(document, {
+    Map(_, map) {
+      expandMapping(map, document, expanded);
+    },
+  });
+}
 
 /** Returns the string that Python writes for a scalar key of a mapping. */
 function pythonKey(key: unknown): string {
@@ -214,10 +288,13 @@ export function readYaml(text: string, options: YamlOptions = {}): YamlReading {
   if (error !== undefined) return { ok: false, error: error.message.split("\n")[0] ?? "" };
   const nonStringKeys: string[] = [];
   try {
+    expandMerges(document);
     const value = plain(document.toJS({ mapAsMap: true }), "", nonStringKeys);
     return { ok: true, value, nonStringKeys };
   } catch (error) {
-    if (error instanceof UnhashableKey) return { ok: false, error: error.message };
+    if (error instanceof UnhashableKey || error instanceof InvalidMerge) {
+      return { ok: false, error: error.message };
+    }
     throw error;
   }
 }

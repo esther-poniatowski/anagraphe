@@ -25,7 +25,6 @@ Examples
 
 from __future__ import annotations
 
-import json
 import tomllib
 from dataclasses import dataclass
 from enum import StrEnum
@@ -36,6 +35,7 @@ import yaml
 
 from anagraphe.core.conditions import Condition, parse_condition
 from anagraphe.core.configuration import ConfigurationError, known_keys, mapping
+from anagraphe.core.json_text import load_json
 
 #: The suffixes of a YAML document.
 YAML_SUFFIXES = (".yml", ".yaml")
@@ -233,7 +233,7 @@ class Source:
             if self.kind is SourceKind.YAML:
                 return yaml.safe_load(text), None
             if self.kind is SourceKind.JSON:
-                return json.loads(text), None
+                return load_json(text), None
             return tomllib.loads(text), None
         except (yaml.YAMLError, ValueError) as error:
             return None, f"the document is not valid {self.kind.name}: {_first_line(error)}"

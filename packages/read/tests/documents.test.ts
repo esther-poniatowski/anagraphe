@@ -67,6 +67,30 @@ describe("the scalars of a YAML text", () => {
     });
   });
 
+  it("orders the keys of a merged mapping as PyYAML orders them", () => {
+    // Each expected order is the order of the keys that yaml.safe_load of PyYAML returns.
+    const keys = (text: string): string[] =>
+      Object.keys((value(text) as Record<string, Record<string, unknown>>).b ?? {});
+    expect(keys("a: &a {x: 1, y: 2}\nb:\n  z: 0\n  <<: *a\n  y: 9\n")).toEqual(["x", "y", "z"]);
+    expect(keys("a: &a {x: 1, y: 2}\nc: &c {y: 3, w: 4}\nb:\n  <<: [*a, *c]\n  v: 5\n")).toEqual([
+      "y",
+      "w",
+      "x",
+      "v",
+    ]);
+    expect(keys("a: &a {x: 1}\nb:\n  k: 1\n  <<: *a\n  x: 2\n")).toEqual(["x", "k"]);
+    expect(value("a: &a {x: 1, y: 2}\nb:\n  y: 7\n  <<: *a\n")).toMatchObject({
+      b: { x: 1, y: 7 },
+    });
+  });
+
+  it("merges no quoted key, admits an empty list, and refuses a merge of a scalar", () => {
+    expect(value("b: {'<<': {x: 1}}\n")).toEqual({ b: { "<<": { x: 1 } } });
+    expect(value("b: {<<: []}\n")).toEqual({ b: {} });
+    expect(readYaml("b: {<<: 1}\n").ok).toBe(false);
+    expect(readYaml("b: {<<: [1]}\n").ok).toBe(false);
+  });
+
   it("records the mappings holding a key that is no string, written as Python writes it", () => {
     const reading = readYaml("records:\n  2024: a\n  yes: b\n  ok: {c~d/e: {1: x}}\n");
     expect(reading.ok && reading.value).toEqual({

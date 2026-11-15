@@ -524,3 +524,13 @@ cases:
   issues:
   - [data/broken.yml, unreadable-record, '']
   - [notes/broken.md, unreadable-record, '']
+- id: values-outside-the-standards
+  note: >-
+    JSON under RFC 8259 holds no NaN or Infinity, and a YAML timestamp names a day of the calendar,
+    so a record holding either value cannot be read.
+  files:
+    data/constant.json: '{"metadata": {"id": "constant"}, "ratio": NaN}'
+    notes/dated.md: "---\nid: dated\ncreated: 2026-02-30\n---\n"
+  issues:
+  - [data/constant.json, unreadable-record, '']
+  - [notes/dated.md, unreadable-record, '']

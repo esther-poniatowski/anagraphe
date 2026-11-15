@@ -28,7 +28,6 @@ an example, a command or no path at all.
 from __future__ import annotations
 
 import bisect
-import json
 import re
 import tomllib
 from dataclasses import dataclass, field
@@ -38,6 +37,7 @@ import yaml
 
 from anagraphe.core.conditions import Condition, parse_condition
 from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings_in_order
+from anagraphe.core.json_text import load_json
 from anagraphe.core.links import VALUE_LINK, VALUE_WIKILINK
 from anagraphe.core.regions import CODE_KIND, markdown_regions
 from anagraphe.references.model import (
@@ -247,7 +247,7 @@ class FieldSyntax:
     def _plain(self, rel: str, text: str) -> Iterator[Candidate]:
         """Yield the candidates of a JSON or TOML document, each value located by its text."""
         try:
-            document = json.loads(text) if rel.endswith(".json") else tomllib.loads(text)
+            document = load_json(text) if rel.endswith(".json") else tomllib.loads(text)
         except ValueError as error:
             raise ExtractionError(f"cannot parse the document: {error}") from error
         position = 0

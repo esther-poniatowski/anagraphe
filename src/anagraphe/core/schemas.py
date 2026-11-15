@@ -19,7 +19,6 @@ a node describes no value of a single key path, so the walk visits it without a 
 
 from __future__ import annotations
 
-import json
 import posixpath
 import re
 import urllib.parse
@@ -30,6 +29,7 @@ from typing import Any, Iterator, Mapping
 import yaml
 
 from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, repository_path
+from anagraphe.core.json_text import load_json
 from anagraphe.core.issues import pointer
 
 #: The keywords whose subschemas describe the same value as their schema.
@@ -79,7 +79,7 @@ def parse_document(rel: str, text: str) -> Any:
         If the document does not parse; a YAML error is converted.
     """
     if rel.endswith(".json"):
-        return json.loads(text)
+        return load_json(text)
     try:
         return yaml.safe_load(text)
     except yaml.YAMLError as error:
