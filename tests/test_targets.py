@@ -23,6 +23,7 @@ from anagraphe.configuration import load_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.targets import (
     ADDRESSING_ID,
+    IMPLEMENTED_SPECIFICATION,
     REPOSITORY_CONTRACT,
     InvalidTarget,
     Target,
@@ -31,6 +32,7 @@ from anagraphe.targets import (
 )
 from anagraphe.targets import kinds as target_kinds
 from anagraphe.targets.kinds import KINDS
+from anagraphe.targets.registry.contract import REGISTRY_FILE
 from anagraphe.targets.resource import ADDRESSING_FILE, REPOSITORY_FILE, schema
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -204,6 +206,15 @@ def test_packaged_schemas_are_valid_and_identified() -> None:
         "target",
     }
     assert schema(REPOSITORY_FILE)["properties"]["_schema"]["const"] == REPOSITORY_CONTRACT
+
+
+def test_implemented_specification_names_the_packaged_versions() -> None:
+    """The declared versions are the $id of the resource and the contracts of the two schemas."""
+    assert dict(IMPLEMENTED_SPECIFICATION) == {
+        "addressing": schema(ADDRESSING_FILE)["$id"],
+        "repository": schema(REPOSITORY_FILE)["properties"]["_schema"]["const"],
+        "registry": schema(REGISTRY_FILE)["properties"]["_schema"]["const"],
+    }
 
 
 def test_registry_maps_the_resource_and_the_contract_to_package_files() -> None:

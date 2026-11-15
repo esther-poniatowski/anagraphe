@@ -118,3 +118,16 @@ Adding a definition to the resource keeps its `$id`. A change that makes a valid
 changes the meaning of a key, publishes `addressing.v2.schema.yml` under a new `$id`, and the file
 `v1` stays until no consumer references it. The contract `anagraphe:repository@1` follows the same
 rule under a new contract identifier.
+
+Since the `$id` and each contract identifier carry their major version, each read side declares its
+implemented versions as a mapping with the keys below:
+
+| Key | Version |
+| --- | --- |
+| `addressing` | the `$id` of the resource of the addressing |
+| `repository` | the contract of the manifest, `anagraphe:repository@1` |
+| `registry` | the contract of the [record registry](record-registry.md), `anagraphe:record-registry@1` |
+
+The Python read side exports the mapping as `anagraphe.targets.IMPLEMENTED_SPECIFICATION`, and the
+TypeScript package `@anagraphe/read` exports it as `IMPLEMENTED_SPECIFICATION`. The two mappings let
+the gate of a consumer report two read sides that declare different versions.

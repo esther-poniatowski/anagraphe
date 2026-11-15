@@ -24,9 +24,11 @@ from anagraphe.targets.manifest import Manifest, ManifestReading, check_manifest
 from anagraphe.targets.model import InvalidTarget, Reason, Target, admits, parse_contracts
 from anagraphe.targets.resource import ADDRESSING_ID, REPOSITORY_CONTRACT, TARGET_REFERENCE
 from anagraphe.targets.service import TargetChecker
+from anagraphe.targets.specification import IMPLEMENTED_SPECIFICATION
 
 __all__ = [
     "ADDRESSING_ID",
+    "IMPLEMENTED_SPECIFICATION",
     "REPOSITORY_CONTRACT",
     "TARGET_REFERENCE",
     "InvalidTarget",
