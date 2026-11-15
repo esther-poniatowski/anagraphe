@@ -106,6 +106,17 @@ readings:
   value: {id: 2024}
   repository: geonexus
   invalid: invalid-component
+- id: trailing-newline-in-a-record
+  note: >-
+    A pattern admits a whole string, so a final line break is no part of an identifier, under the
+    reading of ECMA-262 that JSON Schema follows.
+  value: {id: "ada\n"}
+  repository: geonexus
+  invalid: invalid-component
+- id: trailing-newline-in-a-repository
+  value: {repository: "geonexus\n", id: ada}
+  repository: geonexus
+  invalid: invalid-component
 - id: empty-unit
   value: {id: mixture-input, unit: ''}
   repository: geonexus

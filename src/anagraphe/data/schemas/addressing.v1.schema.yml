@@ -11,12 +11,12 @@ $defs:
     title: Repository identifier
     description: The identifier of a repository, declared under repository.id of its repository.yml.
     type: string
-    pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+    pattern: '^[a-z0-9]+(-[a-z0-9]+)*$(?!\n)'
   record-id:
     title: Record identifier
     description: The identifier of a record, unique within its repository.
     type: string
-    pattern: '^[a-z0-9]+([._-][a-z0-9]+)*$'
+    pattern: '^[a-z0-9]+([._-][a-z0-9]+)*$(?!\n)'
   unit-id:
     title: Unit identifier
     description: >-
@@ -24,21 +24,21 @@ $defs:
       definition carries x-identifier in a YAML record, or the name of a block anchor, without its
       caret, in a Markdown record.
     type: string
-    pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+    pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$(?!\n)'
   contract-entry:
     title: Contract entry
     description: >-
       An entry of x-target-contract, naming a contract as namespace:name, which admits every version
       of that contract, or as namespace:name@n, which admits version n only.
     type: string
-    pattern: '^[a-z][a-z0-9-]*:[a-z][a-z0-9.-]*(@[1-9][0-9]*)?$'
+    pattern: '^[a-z][a-z0-9-]*:[a-z][a-z0-9.-]*(@[1-9][0-9]*)?$(?!\n)'
   property-path:
     title: Property path
     description: >-
       The value of x-identifier: a dotted path of property names, followed from the node that
       carries the keyword to the field holding an identifier.
     type: string
-    pattern: '^[A-Za-z_][A-Za-z0-9_-]*(\.[A-Za-z_][A-Za-z0-9_-]*)*$'
+    pattern: '^[A-Za-z_][A-Za-z0-9_-]*(\.[A-Za-z_][A-Za-z0-9_-]*)*$(?!\n)'
   field-path:
     title: Field path
     description: >-
@@ -47,14 +47,14 @@ $defs:
       stands between brackets, counted from zero, and a key that a bare key cannot hold stands
       between brackets as a JSON string. The empty text names the root.
     type: string
-    pattern: '^(?:(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\[(?:0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])(?:\.[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\[(?:0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])*)?$'
+    pattern: '^(?:(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\[(?:0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])(?:\.[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\[(?:0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])*)?$(?!\n)'
   field-path-pattern:
     title: Field-path pattern
     description: >-
       A field path that may also hold the wildcards [*], naming every item of a sequence, and *,
       naming every key of a mapping, so that one pattern names several nodes.
     type: string
-    pattern: '^(?:(?:(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\*)|\[(?:\*|0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])(?:\.(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\*)|\[(?:\*|0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])*)?$'
+    pattern: '^(?:(?:(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\*)|\[(?:\*|0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])(?:\.(?:[^.\[\]"''*\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|\*)|\[(?:\*|0|[1-9][0-9]{0,14}|"(?:[^"\\\u0000-\u001f]|\\["\\/bfnrt]|\\u[0-9A-Fa-f]{4})*")\])*)?$(?!\n)'
   target:
     title: Logical target
     description: >-

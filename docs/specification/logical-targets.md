@@ -24,8 +24,11 @@ published as package data, and defines the definitions below under `$defs`:
 | `target` | the mapping `{repository, id, unit}`, each key typed by one of the three identifier definitions |
 
 Each definition other than `target` states a pattern, which admits a string only when it matches
-the whole string. The resource is the single source of the patterns: the Python read side compiles
-them from the packaged file, and the TypeScript read side generates them from it. The registry of
+the whole string. JSON Schema reads a pattern under ECMA-262, where `$` matches at the end of the
+string only, whereas the validator of Python also matches `$` before a final line break.
+Therefore, each pattern closes on `$(?!\n)`, an ending read alike by both engines. The resource
+is the single source of the patterns: the Python read side compiles them from the packaged file,
+and the TypeScript read side generates them from it. The registry of
 Anagraphe, `specs/schema-registry.yml`, in the format `kleisis:schema-registry@2`, maps the `$id`
 of the resource under `resources`, and the contract `anagraphe:repository@1` under `schemas`.
 

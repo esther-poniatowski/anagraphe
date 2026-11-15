@@ -60,12 +60,12 @@ export function matches(definition: IdentifierDefinition, value: unknown): value
 }
 
 /**
- * The pattern of a unit identifier without its anchors, so that a block anchor `^name` can be read
- * inside a line.
+ * The pattern of a unit identifier without its anchors, the closing `$(?!\n)` included, so that a
+ * block anchor `^name` can be read inside a line.
  */
 export const UNIT_NAME = ADDRESSING_SCHEMA.$defs["unit-id"].pattern
   .replace(/^\^/, "")
-  .replace(/\$$/, "");
+  .replace(/\$(?:\(\?!\\n\))?$/, "");
 
 /** A contract identifier admitted in `x-target-contract`: `namespace:name`, or with `@<version>`. */
 export const CONTRACT_ENTRY = whole(ADDRESSING_SCHEMA.$defs["contract-entry"].pattern);

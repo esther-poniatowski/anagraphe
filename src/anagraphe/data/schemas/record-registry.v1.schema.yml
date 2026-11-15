@@ -46,9 +46,9 @@ $defs:
         description: >-
           The path of the file of the record, relative to the root of the repository, with
           slashes, and without an empty, a . or a .. segment.
-        pattern: '^[^/\\]([^\\]*[^/\\])?$'
+        pattern: '^[^/\\]([^\\]*[^/\\])?$(?!\n)'
         not:
-          pattern: '(^|/)\.{1,2}(/|$)|//'
+          pattern: '(^|/)\.{1,2}(/|$(?!\n))|//'
       format:
         enum: [markdown, yaml, json]
         description: The format of the file, read from its suffix.
@@ -61,7 +61,7 @@ $defs:
       date:
         type: string
         format: date
-        pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$(?!\n)'
         description: The day on which the identifier was retired, written as a YAML date.
       replaced_by:
         $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/record-id'
