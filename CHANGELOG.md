@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The field paths of ADR 0008, `docs/adr/0008-field-paths.md`, with their specification,
+  `docs/specification/field-paths.md`. The definitions `field-path` and `field-path-pattern` of
+  the resource `addressing.v1` state the grammar of a field path, such as `subject.foils[1].symbol`,
+  and of a pattern holding the wildcards `[*]` and `*`. The conformance cases
+  `specs/conformance/field-paths.yml` fix the parsing, the canonical printing, the conversions to
+  and from a JSON Pointer, and the expansion of a pattern.
+- The module `anagraphe.targets.field_paths`, exported from `anagraphe.targets`, and the module
+  `field-path` of `@anagraphe/read`. Both parse and print field paths and patterns, convert them to
+  and from JSON Pointers within a document, and expand a pattern, with the checks derived from the
+  patterns of the resource.
+- The key `read_sides` of the section `targets`. The key names each file holding the versions
+  implemented by another read side of the repository, with the JSON Pointer of that declaration.
+  `anagraphe targets check` compares each declaration with `IMPLEMENTED_SPECIFICATION`, and reports
+  `read-side-mismatch` and `unreadable-read-side`.
 - The TypeScript package `@anagraphe/read`, in the directory `packages/read`. The package reads the
   addressing as the Python read side reads it (targets, identifier declarations, units, manifest and
   record registry), and passes the conformance cases of `specs/conformance/targets.yml` and

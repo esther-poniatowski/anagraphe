@@ -1,0 +1,526 @@
+# Conformance cases of the field paths of ADR 0008, for the definitions field-path and
+# field-path-pattern of the resource addressing.v1. Each read side, in Python and in TypeScript,
+# passes them. The specification docs/specification/field-paths.md states each reading.
+#
+# A path case parses its text into segments, then prints the segments in the canonical form. A
+# segment is a key, written as a string, or a position, written as an integer. A pattern case
+# writes its wildcards as {any: item} for [*] and {any: key} for *, so that a literal key * stays a
+# string. A text is admitted by its parser exactly when the pattern of its definition matches the
+# whole text, and parse(print(segments)) returns the segments.
+#
+# A rejection states the reason of the first failed check from the left, and its offset in the
+# text. Each offset below lies in a text without a character outside the Basic Multilingual Plane,
+# where the two read sides count alike.
+#
+# A pointer case converts segments into a JSON Pointer, or converts a JSON Pointer into a field
+# path within a document, written in its canonical form, or states the reason and the offset of
+# the failure. An expansion case lists the field paths of the nodes that a pattern names in a
+# document, in document order. No case expands * over a mapping whose keys read as array indices,
+# since a JavaScript object enumerates such keys first.
+resource: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml
+definitions: {path: field-path, pattern: field-path-pattern}
+
+paths:
+- id: root
+  text: ''
+  segments: []
+  printed: ''
+- id: one-key
+  text: statement
+  segments: [statement]
+  printed: statement
+- id: keys-and-a-position
+  text: subject.foils[1].symbol
+  segments: [subject, foils, 1, symbol]
+  printed: subject.foils[1].symbol
+- id: profile-example
+  text: relations[2].target
+  segments: [relations, 2, target]
+  printed: relations[2].target
+- id: opens-on-a-position
+  text: '[0].name'
+  segments: [0, name]
+  printed: '[0].name'
+- id: opens-on-a-quoted-key
+  text: '["a b"].c'
+  segments: [a b, c]
+  printed: '["a b"].c'
+- id: key-holding-a-dot
+  text: maturity["task.epistemic_aim"]
+  segments: [maturity, task.epistemic_aim]
+  printed: maturity["task.epistemic_aim"]
+- id: empty-key
+  text: '[""]'
+  segments: ['']
+  printed: '[""]'
+- id: empty-key-inside
+  text: a[""].b
+  segments: [a, '', b]
+  printed: a[""].b
+- id: key-written-in-digits
+  note: A key written in digits stays a key; a position always stands between brackets.
+  text: a.0
+  segments: [a, '0']
+  printed: a.0
+- id: key-written-in-digits-at-the-start
+  text: '0'
+  segments: ['0']
+  printed: '0'
+- id: literal-star-key
+  text: '["*"]'
+  segments: ['*']
+  printed: '["*"]'
+- id: key-holding-a-star
+  text: a["b*"]
+  segments: [a, b*]
+  printed: a["b*"]
+- id: key-holding-quotes
+  text: '["say \"hi\""]'
+  segments: [say "hi"]
+  printed: '["say \"hi\""]'
+- id: key-holding-an-apostrophe
+  text: '["it''s"]'
+  segments: [it's]
+  printed: '["it''s"]'
+- id: key-holding-brackets
+  text: '["a]b"]["c[0]"]'
+  segments: ['a]b', 'c[0]']
+  printed: '["a]b"]["c[0]"]'
+- id: key-holding-a-backslash
+  note: A bare key may hold a backslash, so the printer writes this key bare.
+  text: '["a\\b"]'
+  segments: ['a\b']
+  printed: 'a\b'
+- id: slash-and-tilde-are-bare
+  text: a/b.c~1d
+  segments: [a/b, c~1d]
+  printed: a/b.c~1d
+- id: words-of-yaml-are-keys
+  text: true.null.yes
+  segments: ['true', 'null', 'yes']
+  printed: true.null.yes
+- id: letters-outside-ascii
+  text: été.日本
+  segments: [été, 日本]
+  printed: été.日本
+- id: letter-outside-the-basic-plane
+  text: a.𝛼
+  segments: [a, 𝛼]
+  printed: a.𝛼
+- id: quoted-key-printed-bare
+  note: The parser accepts a quoted key that a bare key can hold, and the printer writes it bare.
+  text: '["abc"].d'
+  segments: [abc, d]
+  printed: abc.d
+- id: escaped-solidus
+  text: '["\/"]'
+  segments: [/]
+  printed: /
+- id: unicode-escapes
+  text: '["\u00e9t\u00E9"]'
+  segments: [été]
+  printed: été
+- id: escaped-tab
+  text: '["a\tb"]'
+  segments: ["a\tb"]
+  printed: '["a\tb"]'
+- id: control-escaped-in-lowercase
+  text: '["\u001F"]'
+  segments: ["\x1f"]
+  printed: '["\u001f"]'
+- id: no-break-space-is-quoted
+  text: '["a\u00a0b"]'
+  segments: ["a\xa0b"]
+  printed: "[\"a\xa0b\"]"
+- id: largest-position
+  text: '[999999999999999]'
+  segments: [999999999999999]
+  printed: '[999999999999999]'
+
+invalid-paths:
+- id: opening-dot
+  text: .a
+  reason: empty-key
+  offset: 0
+- id: closing-dot
+  text: a.
+  reason: empty-key
+  offset: 2
+- id: two-dots
+  text: a..b
+  reason: empty-key
+  offset: 2
+- id: dot-before-a-bracket
+  text: a.[0]
+  reason: empty-key
+  offset: 2
+- id: lone-dot
+  text: .
+  reason: empty-key
+  offset: 0
+- id: space-in-a-key
+  text: a b
+  reason: invalid-character
+  offset: 1
+- id: opening-space
+  text: ' a'
+  reason: invalid-character
+  offset: 0
+- id: closing-space
+  text: 'a '
+  reason: invalid-character
+  offset: 1
+- id: closing-newline
+  text: "a\n"
+  reason: invalid-character
+  offset: 1
+- id: closing-bracket-in-a-key
+  text: a]b
+  reason: invalid-character
+  offset: 1
+- id: quote-in-a-key
+  text: a"b
+  reason: invalid-character
+  offset: 1
+- id: apostrophe-in-a-key
+  text: it's
+  reason: invalid-character
+  offset: 2
+- id: key-after-a-bracket
+  text: '[0]a'
+  reason: invalid-character
+  offset: 3
+- id: star-inside-a-key
+  text: a*
+  reason: invalid-character
+  offset: 1
+- id: wildcard-key
+  text: a.*
+  reason: wildcard
+  offset: 2
+- id: wildcard-key-alone
+  text: '*'
+  reason: wildcard
+  offset: 0
+- id: key-opening-on-a-star
+  text: a.*b
+  reason: wildcard
+  offset: 2
+- id: wildcard-item
+  text: a[*]
+  reason: wildcard
+  offset: 1
+- id: unclosed-bracket
+  text: a[1
+  reason: unclosed-bracket
+  offset: 1
+- id: unclosed-string
+  text: a["b]
+  reason: unclosed-bracket
+  offset: 1
+- id: quote-opening-a-string-in-a-bracket
+  note: Each quote inside a bracket opens or closes a string, so the bracket below has no close.
+  text: x[1"]
+  reason: unclosed-bracket
+  offset: 1
+- id: leading-zero
+  text: a[01]
+  reason: invalid-index
+  offset: 1
+- id: negative-position
+  text: a[-1]
+  reason: invalid-index
+  offset: 1
+- id: past-the-end-token
+  text: a[-]
+  reason: invalid-index
+  offset: 1
+- id: sixteen-digits
+  text: '[1000000000000000]'
+  reason: invalid-index
+  offset: 0
+- id: empty-brackets
+  note: The form of Gnomon for every item.
+  text: a[]
+  reason: invalid-bracket
+  offset: 1
+- id: space-in-brackets
+  text: a[ 0]
+  reason: invalid-bracket
+  offset: 1
+- id: name-in-brackets
+  text: a[x]
+  reason: invalid-bracket
+  offset: 1
+- id: plus-sign
+  text: a[+1]
+  reason: invalid-bracket
+  offset: 1
+- id: single-quoted-key
+  text: a['b']
+  reason: invalid-bracket
+  offset: 1
+- id: raw-tab-in-a-string
+  text: "[\"a\tb\"]"
+  reason: invalid-quoted-key
+  offset: 0
+- id: unknown-escape
+  text: '["\x"]'
+  reason: invalid-quoted-key
+  offset: 0
+- id: short-unicode-escape
+  text: '["\u12"]'
+  reason: invalid-quoted-key
+  offset: 0
+- id: space-after-a-string
+  text: '["a" ]'
+  reason: invalid-quoted-key
+  offset: 0
+- id: two-strings
+  text: '["a""b"]'
+  reason: invalid-quoted-key
+  offset: 0
+
+patterns:
+- id: root
+  text: ''
+  segments: []
+  printed: ''
+- id: every-item
+  text: subject.foils[*].symbol
+  segments: [subject, foils, {any: item}, symbol]
+  printed: subject.foils[*].symbol
+- id: every-key
+  text: terms.*.label
+  segments: [terms, {any: key}, label]
+  printed: terms.*.label
+- id: every-key-at-the-start
+  text: '*'
+  segments: [{any: key}]
+  printed: '*'
+- id: every-item-at-the-start
+  text: '[*][*]'
+  segments: [{any: item}, {any: item}]
+  printed: '[*][*]'
+- id: literal-star-key
+  text: a["*"]
+  segments: [a, '*']
+  printed: a["*"]
+- id: no-wildcard
+  text: a.b[0]
+  segments: [a, b, 0]
+  printed: a.b[0]
+
+invalid-patterns:
+- id: key-opening-on-a-star
+  text: a.*b
+  reason: invalid-character
+  offset: 3
+- id: two-stars
+  text: a.**
+  reason: invalid-character
+  offset: 3
+- id: two-stars-in-brackets
+  text: a[**]
+  reason: invalid-bracket
+  offset: 1
+- id: dot-after-a-wildcard
+  text: '*.'
+  reason: empty-key
+  offset: 2
+- id: space-before-a-star
+  text: '[ *]'
+  reason: invalid-bracket
+  offset: 0
+
+to-pointer:
+- id: root
+  segments: []
+  pointer: ''
+- id: profile-example
+  segments: [relations, 2, target]
+  pointer: /relations/2/target
+- id: slash-in-a-key
+  segments: [a/b]
+  pointer: /a~1b
+- id: escape-in-a-key
+  note: The tilde is escaped first, so the key c~1d keeps its two characters.
+  segments: [c~1d]
+  pointer: /c~01d
+- id: empty-key
+  segments: ['']
+  pointer: /
+- id: tilde-and-slash
+  segments: ['~', /]
+  pointer: /~0/~1
+- id: key-written-in-digits
+  segments: [items, '0']
+  pointer: /items/0
+
+from-pointer:
+- id: root
+  pointer: ''
+  document: {a: 1}
+  path: ''
+- id: profile-example
+  pointer: /relations/2/target
+  document: {relations: [{target: a}, {target: b}, {target: c}]}
+  path: relations[2].target
+- id: slash-in-a-key
+  pointer: /a~1b
+  document: {a/b: 1}
+  path: a/b
+- id: escape-in-a-key
+  pointer: /c~01d
+  document: {c~1d: 1}
+  path: c~1d
+- id: empty-key
+  pointer: /
+  document: {'': 1}
+  path: '[""]'
+- id: tilde-key
+  pointer: /~0
+  document: {'~': 1}
+  path: '~'
+- id: digits-under-a-mapping
+  note: A token is a position exactly when its parent node is a sequence.
+  pointer: /items/0
+  document: {items: {'0': x}}
+  path: items.0
+- id: digits-under-a-sequence
+  pointer: /items/0
+  document: {items: [x]}
+  path: items[0]
+- id: absent-key
+  note: A token below a mapping is a key, so an absent key converts; nothing below it does.
+  pointer: /identity/id
+  document: {identity: {name: Cy}}
+  path: identity.id
+- id: absent-key-at-the-root
+  pointer: /id
+  document: {}
+  path: id
+- id: below-an-absent-key
+  pointer: /identity/id/x
+  document: {identity: {}}
+  reason: no-node
+  offset: 12
+- id: below-a-scalar
+  pointer: /a/b
+  document: {a: 1}
+  reason: no-node
+  offset: 2
+- id: leading-zero
+  pointer: /items/01
+  document: {items: [a, b]}
+  reason: invalid-index
+  offset: 6
+- id: past-the-end-token
+  pointer: /items/-
+  document: {items: [a, b]}
+  reason: invalid-index
+  offset: 6
+- id: negative-position
+  pointer: /items/-1
+  document: {items: [a, b]}
+  reason: invalid-index
+  offset: 6
+- id: empty-token-under-a-sequence
+  pointer: /items/
+  document: {items: [a]}
+  reason: invalid-index
+  offset: 6
+- id: escaped-tilde-under-a-sequence
+  pointer: /items/~0
+  document: {items: [a]}
+  reason: invalid-index
+  offset: 6
+- id: position-out-of-range
+  pointer: /items/2
+  document: {items: [a, b]}
+  reason: index-out-of-range
+  offset: 6
+- id: unknown-escape
+  pointer: /a~2b
+  document: {a~2b: 1}
+  reason: invalid-escape
+  offset: 2
+- id: closing-tilde
+  pointer: /a~
+  document: {a: 1}
+  reason: invalid-escape
+  offset: 2
+- id: escape-checked-before-the-document
+  pointer: /x/a~2
+  document: {}
+  reason: invalid-escape
+  offset: 4
+- id: no-opening-slash
+  pointer: a/b
+  document: {a: {b: 1}}
+  reason: not-a-pointer
+  offset: 0
+
+property-paths:
+- id
+- identity.id
+- metadata.id
+- _private.step-2
+
+expansions:
+- id: every-item
+  pattern: subject.foils[*].symbol
+  document:
+    subject:
+      foils:
+        - {name: laminar flow, symbol: L}
+        - {name: Gaussian statistics, symbol: G}
+  paths: ['subject.foils[0].symbol', 'subject.foils[1].symbol']
+- id: every-key-in-document-order
+  pattern: terms.*.label
+  document: {terms: {b: {label: x}, a: {label: y}, c: {other: z}}}
+  paths: [terms.b.label, terms.a.label]
+- id: nested-wildcards
+  pattern: '*[*]'
+  document: {x: [1, 2], y: [3], z: 4}
+  paths: ['x[0]', 'x[1]', 'y[0]']
+- id: keys-printed-in-brackets
+  pattern: '*'
+  document: {a b: 1, '': 2, '*': 3}
+  paths: ['["a b"]', '[""]', '["*"]']
+- id: literal-star-key
+  pattern: '["*"]'
+  document: {'*': 1, b: 2}
+  paths: ['["*"]']
+- id: root
+  pattern: ''
+  document: 5
+  paths: ['']
+- id: present-node
+  pattern: a.b
+  document: {a: {b: 1}}
+  paths: [a.b]
+- id: null-value-is-a-node
+  pattern: a
+  document: {a: null}
+  paths: [a]
+- id: absent-key
+  pattern: a.c
+  document: {a: {b: 1}}
+  paths: []
+- id: position-out-of-range
+  pattern: a[1]
+  document: {a: [1]}
+  paths: []
+- id: every-item-of-a-mapping
+  pattern: a[*]
+  document: {a: {x: 1}}
+  paths: []
+- id: every-key-of-a-sequence
+  pattern: a.*
+  document: {a: [1, 2]}
+  paths: []
+- id: every-key-of-a-scalar
+  pattern: '*'
+  document: 5
+  paths: []

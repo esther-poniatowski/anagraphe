@@ -72,3 +72,9 @@ export const CONTRACT_ENTRY = whole(ADDRESSING_SCHEMA.$defs["contract-entry"].pa
 
 /** A dotted path of property names, as `x-identifier` writes it. */
 export const PROPERTY_PATH = whole(ADDRESSING_SCHEMA.$defs["property-path"].pattern);
+
+/** A field path naming one node of a document, as the definition `field-path` admits it. */
+export const FIELD_PATH = whole(ADDRESSING_SCHEMA.$defs["field-path"].pattern);
+
+/** A field-path pattern, with its wildcards, as the definition `field-path-pattern` admits it. */
+export const FIELD_PATH_PATTERN = whole(ADDRESSING_SCHEMA.$defs["field-path-pattern"].pattern);

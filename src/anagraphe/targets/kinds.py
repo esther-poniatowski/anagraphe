@@ -2,7 +2,8 @@
 The kinds of issue that the check of the logical targets can report, with their descriptions.
 
 The kinds of the first version are those of ADR 0006, and ADR 0007 adds the two kinds of a target
-naming a retired identifier. Three further kinds report a file or a schema that the check cannot
+naming a retired identifier. The versioning rules of the logical-targets specification add
+the two kinds of the comparison with the versions declared by another read side of the repository. Three further kinds report a file or a schema that the check cannot
 read, so that no record is skipped without a finding: an unreadable record, and the two kinds of
 the reader of schemas of the core, which the bindings report as well.
 """
@@ -46,6 +47,10 @@ UNBOUND_TARGET = "unbound-target"
 UNVERIFIED_TARGET = "unverified-target"
 #: A record whose frontmatter or document cannot be parsed, which leaves it unread.
 UNREADABLE_RECORD = "unreadable-record"
+#: A declared read side implementing other versions of the specification than this read side.
+READ_SIDE_MISMATCH = "read-side-mismatch"
+#: A declared read side whose file or pointer yields no mapping of strings to compare.
+UNREADABLE_READ_SIDE = "unreadable-read-side"
 
 #: Every kind of issue that the check can report.
 KINDS: tuple[IssueKind, ...] = (
@@ -96,6 +101,14 @@ KINDS: tuple[IssueKind, ...] = (
     IssueKind(
         UNREADABLE_RECORD,
         "The frontmatter or the document of a record cannot be parsed, so it is unread.",
+    ),
+    IssueKind(
+        READ_SIDE_MISMATCH,
+        "A declared read side implements other versions of the specification than Anagraphe.",
+    ),
+    IssueKind(
+        UNREADABLE_READ_SIDE,
+        "The file or the pointer of a declared read side yields no mapping of strings.",
     ),
     IssueKind(
         UNRESOLVED_REFERENCE, "A $ref of a schema names no readable schema node in the repository."

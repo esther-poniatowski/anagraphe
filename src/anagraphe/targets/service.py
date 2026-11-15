@@ -21,7 +21,9 @@ registry that is absent or invalid supplies no retired identifier; the check of 
 reports it.
 
 A target naming a duplicated identifier receives no finding of its own, since
-``duplicate-identifier`` reports its cause. The check writes no file.
+``duplicate-identifier`` reports its cause. Whatever the selected files, the check also compares
+the versions declared by the read sides of the key ``read_sides`` with those of Anagraphe, as
+:mod:`anagraphe.targets.read_sides` states. The check writes no file.
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ from anagraphe.targets.kinds import (
 )
 from anagraphe.targets.manifest import MANIFEST_FILE, ManifestReading, read_manifest
 from anagraphe.targets.model import InvalidTarget, Target, admits
+from anagraphe.targets.read_sides import check_read_sides
 from anagraphe.targets.records import Record
 from anagraphe.targets.registry.configuration import RecordsConfig
 from anagraphe.targets.registry.contract import Retirement, follow, read_registry
@@ -118,6 +121,7 @@ class TargetChecker:
         """Check the records below the given targets, the whole repository without a target."""
         selected = select(self.root, paths, self.config.exemptions, self.covers, strict)
         issues = self._manifest_issues()
+        issues.extend(check_read_sides(self.config.read_sides))
         for rel in selected:
             issues.extend(self.check_record(self.walk.record(rel)))
         issues.extend(self._schema_issues())

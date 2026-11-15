@@ -2,17 +2,17 @@
 
 The configuration file `anagraphe.yml` binds Anagraphe to one repository. Without the option
 `--config`, a command reads `config/tools/anagraphe.yml` below the repository root, or
-`anagraphe.yml` at the root; when both files exist, the command stops with an error naming both.
-A file named by `--config` is read from the current folder, and its absence is an error. The
-[CLI reference](cli-reference.md) states how a command finds the root. The file names its format
-under `_schema`, as its first key, and a command stops with status 2 when the key is absent or
-holds another value than `anagraphe:configuration@2`. The file also declares one
-section per capability: `indexes` to generate the indexes, `references` to check the references
-between files, `bindings` to resolve the bindings of texts, and `targets` to check the logical
-targets between records. The section `records` names the record registry and enables its
-commands. A section left out disables its capability. Each declared path is
-relative to the repository root selected by the root option. Absolute paths and paths that resolve
-outside that root are invalid.
+`anagraphe.yml` at the root; when both files exist, the command stops with an error naming both. A
+file named by `--config` is read from the current folder, and its absence is an error. The [CLI
+reference](cli-reference.md) states how a command finds the root. The file names its format under
+`_schema`, as its first key, and a command stops with status 2 when the key is absent or holds
+another value than `anagraphe:configuration@2`. The file also declares one section per capability:
+`indexes` to generate the indexes, `references` to check the references between files, `bindings` to
+resolve the bindings of texts, and `targets` to check the logical targets between records and the
+versions declared by the other read sides. The section `records` names the record registry and
+enables its commands. A section left out disables its capability. Each declared path is relative to
+the repository root selected by the root option. Absolute paths and paths that resolve outside that
+root are invalid.
 
 ## Layout of the file
 

@@ -10,7 +10,7 @@ configuration and the findings of the check.
 ## Resources
 
 The resource `https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml` is
-published as package data, and defines six definitions under `$defs`:
+published as package data, and defines the definitions below under `$defs`:
 
 | Definition | Content |
 | --- | --- |
@@ -19,6 +19,8 @@ published as package data, and defines six definitions under `$defs`:
 | `unit-id` | the identifier of a unit inside a record |
 | `contract-entry` | an entry of `x-target-contract`, which names a contract |
 | `property-path` | the dotted path of property names that `x-identifier` holds |
+| `field-path` | the text naming one node of a document, as the [field-path specification](field-paths.md) states it |
+| `field-path-pattern` | a field path that may hold the wildcards `[*]` and `*` |
 | `target` | the mapping `{repository, id, unit}`, each key typed by one of the three identifier definitions |
 
 Each definition other than `target` states a pattern, which admits a string only when it matches
@@ -80,10 +82,10 @@ several nodes of the key path declare `x-target-contract`, the record satisfies 
 
 ## Identifiers and units
 
-The keyword `x-identifier` holds a dotted path of property names, as the definition
-`property-path` admits. Followed from the key path of its node, the path names a property
-that the schema of the contract declares. The keyword is read on two kinds of node, outside `anyOf` and
-`oneOf`:
+The keyword `x-identifier` holds a dotted path of property names, as the definition `property-path`
+admits, a field path as the [field-path specification](field-paths.md) states. Followed from the key
+path of its node, the path names a property that the schema of the contract declares. The keyword is
+read on two kinds of node, outside `anyOf` and `oneOf`:
 
 - on the root of the schema of a contract, read through `allOf` and `$ref`, it names the field of
   the identifier of the record; the first declaration in the order of the walk applies;
@@ -132,5 +134,6 @@ implemented versions as a mapping with the keys below:
 | `registry` | the contract of the [record registry](record-registry.md), `anagraphe:record-registry@1` |
 
 The Python read side exports the mapping as `anagraphe.targets.IMPLEMENTED_SPECIFICATION`, and the
-TypeScript package `@anagraphe/read` exports it as `IMPLEMENTED_SPECIFICATION`. The two mappings let
-the gate of a consumer report two read sides that declare different versions.
+TypeScript package `@anagraphe/read` exports it as `IMPLEMENTED_SPECIFICATION`. A host bundling the
+package writes that mapping into a file of its repository, and `anagraphe targets check` compares
+it with the mapping of Anagraphe, as the [targets guide](../guide/targets.md) states.

@@ -1,7 +1,7 @@
 /**
  * The TypeScript read side of the addressing of Anagraphe: logical targets, identifier
- * declarations, units, repository manifests and record registries, read as the Python read side
- * reads them, and the live index of the records of an open repository.
+ * declarations, units, repository manifests, record registries and field paths, read as the Python
+ * read side reads them, and the live index of the records of an open repository.
  *
  * A host supplies three ports: {@link BindingResolver}, {@link SchemaLoader} and
  * {@link FileSource}. {@link IMPLEMENTED_SPECIFICATION} declares the versions of the specification
@@ -41,6 +41,27 @@ export {
   type TargetReading,
 } from "./target.js";
 export { pointer, valuesAt, type KeyPath, type Located, type Step } from "./key-path.js";
+export {
+  ANY_ITEM,
+  ANY_KEY,
+  FieldPathError,
+  PointerError,
+  expand,
+  fromPointer,
+  isFieldPath,
+  isFieldPathPattern,
+  matchNodes,
+  parseFieldPath,
+  parseFieldPathPattern,
+  pointerTokens,
+  printFieldPath,
+  toPointer,
+  type FieldPathReason,
+  type MatchedNode,
+  type PatternSegment,
+  type PointerReason,
+  type Segment,
+} from "./field-path.js";
 export {
   INVALID_IDENTIFIER_DECLARATION,
   INVALID_TARGET_CONTRACT,

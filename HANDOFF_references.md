@@ -16,9 +16,10 @@ This handoff directs the agent that continues the pointers of Anagraphe: their c
 9. **Done (2026-10-31): indexes on the metadata sources.** `indexes.members` declares the listed types, by default Markdown and YAML, and `anagraphe.indexes.notes` reads the entry fields through `anagraphe.core.metadata`, with [the member tests](tests/test_members.py). Each consumer excludes the YAML files that hold no record: 19 in Mixture, 9 in Symmetry and 65 in the vault would otherwise join an index, such as `anagraphe.yml`, `environment.yml`, the schemas and the vocabularies.
 10. **Open: conversion to the convention.** A command rewrites each pointer that breaks its convention into an admitted format and style, such as the wikilinks of a folder into Markdown links.
 11. **Done (2026-11-01): the vault adoption.** The vault runs `anagraphe refs check` in its gate, declares its schemes under `references.schemes` and its pattern `utils/macros/*` among the exclusions, and retired its link checker.
-12. **Done (2026-11-15): the TypeScript read package.** The package [`@anagraphe/read`](packages/read/README.md) reads the addressing as the Python read side reads it, and runs the conformance cases of `specs/conformance/targets.yml` and `specs/conformance/record-registry.yml`. The following steps remain open:
-    - Ekphrasis supplies the adapters of its three ports and retires its own index;
-    - the field-path syntax awaits its decision.
+12. **Done (2026-11-15): the TypeScript read package.** The package [`@anagraphe/read`](packages/read/README.md) reads the addressing as the Python read side reads it, field paths included under [ADR 0008](docs/adr/0008-field-paths.md), and runs the conformance cases of `specs/conformance/`. The following steps remain open, each in Ekphrasis:
+    - Ekphrasis supplies the adapters of the three ports, and retires its own index;
+    - Ekphrasis replaces its field-path parser and printer by those of the package, and narrows its reading of `x-identifier` to the definition `property-path`;
+    - Ekphrasis writes the `IMPLEMENTED_SPECIFICATION` of the bundled package into its plugin manifest under the key `anagrapheRead`. A consumer names that declaration under `targets.read_sides`, as the [targets guide](docs/guide/targets.md) states.
 
 ## Active constraints
 

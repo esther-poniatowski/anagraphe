@@ -126,6 +126,7 @@ targets:
 | `records.registry` | the schema registry of Kleisis, relative to the root | no record reaches a schema: the check reads the default identifiers and the manifest only |
 | `records.binding` | the key of a record naming its contract | `_schema` |
 | `exclude` | files left out of the check, after the shared exclusions | none |
+| `read_sides` | the places where other read sides declare their implemented versions, each `{path, pointer}`, as the section "Compare the read sides" below states | none |
 
 The command `anagraphe targets check`, and `anagraphe check` with every declared section, read every
 Markdown note and every YAML or JSON document of the repository for its identifier. A file of a
@@ -175,6 +176,55 @@ severity. When a record or a schema cannot be read, the findings log declares th
 A domain tool may validate the same record against its schema, and report an invalid target as
 well. Anagraphe still reports `invalid-target`, so that it stays usable without that tool, and a
 gate running both tools removes one of the two findings through its suppressions.
+
+## Compare the read sides
+
+A repository may hold a second read side of the addressing: a host that bundles the TypeScript
+package `@anagraphe/read`, such as the Obsidian plugin Ekphrasis once it adopts the package. The
+two read sides must implement the same versions of the specification, so the host writes the
+`IMPLEMENTED_SPECIFICATION` of the package into a file, and the section `targets` names that file
+under `read_sides`:
+
+```yaml
+targets:
+  read_sides:
+    - {path: .obsidian/plugins/ekphrasis/manifest.json, pointer: /anagrapheRead}
+```
+
+| Key | Content |
+| --- | --- |
+| `path` | the JSON or YAML file holding the declaration, relative to the root; a suffix `.json` selects JSON |
+| `pointer` | the JSON Pointer of the declaration in the file, the empty pointer for the whole file |
+
+The declaration maps the keys `addressing`, `repository` and `registry` to strings, as the
+[logical targets specification](../specification/logical-targets.md) defines them under
+"Versioning". In the manifest of such a plugin, the
+declaration stands beside the keys of the manifest:
+
+```json
+{
+  "anagrapheRead": {
+    "addressing": "https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml",
+    "repository": "anagraphe:repository@1",
+    "registry": "anagraphe:record-registry@1"
+  }
+}
+```
+
+The command `anagraphe targets check`, and `anagraphe check`, compare each declaration, key by key,
+with the `IMPLEMENTED_SPECIFICATION` of Anagraphe, even when the command selects only some files.
+Each finding names the declared file, and the declared pointer as its locus:
+
+| Kind | Level | Issue | Repair |
+| --- | --- | --- | --- |
+| `read-side-mismatch` | error | the declaration differs from the versions of Anagraphe; the detail names each differing key, with the declared and the implemented value | align the releases of the two read sides |
+| `unreadable-read-side` | error | the file cannot be read or parsed, the pointer names an absent node, or the value is other than a mapping of strings to strings | correct the file or the pointer |
+
+A malformed key `read_sides`, such as a pointer holding `~2` or a path outside the repository, stops
+the command as an invalid configuration. The comparison covers the identifiers of the versions only:
+a definition added to the resource `addressing.v1` keeps its `$id`, so two read sides declaring
+that `$id` may still differ by such an addition, as the field paths of
+[ADR 0008](../adr/0008-field-paths.md) are.
 
 ## Keep the record registry
 

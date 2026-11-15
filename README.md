@@ -49,6 +49,8 @@ reference naming no file or anchor.
 - [x] Check the logical targets between records within one repository, with the identifiers and the repository manifest that they name.
 - [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
 - [x] Read the logical targets and the record registry in TypeScript, for a host without Python, through the package [`@anagraphe/read`](packages/read/README.md).
+- [x] Parse, print and expand field paths, and convert them to and from JSON Pointers, in Python and in TypeScript.
+- [x] Compare the versions of the specification declared by another read side of the repository with those of Anagraphe.
 - [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
 - [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
 - [ ] Move and rename anchors, and rename the identifiers of a declared namespace.
@@ -84,6 +86,7 @@ anagraphe check
 | [Bindings contract](docs/specification/bindings-contract.md) | fixes the version of the bindings read by a tool |
 | [Logical targets](docs/guide/targets.md) | names a record, a unit or a repository by identifier, and checks the names |
 | [Logical targets specification](docs/specification/logical-targets.md) | fixes the readings of a target for every read side |
+| [Field paths specification](docs/specification/field-paths.md) | fixes the grammar of a field path and its conversions to and from a JSON Pointer |
 | [Architecture](docs/internals/architecture.md) | separates the generic core from repository adapters |
 
 ## Contributing

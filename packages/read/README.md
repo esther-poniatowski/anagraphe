@@ -2,8 +2,9 @@
 
 The package `@anagraphe/read` reads the addressing of Anagraphe in TypeScript, as the Python read
 side of Anagraphe reads it. The package serves a host without Python, such as the Obsidian plugin
-Ekphrasis on mobile. The package passes the conformance cases of `specs/conformance/targets.yml` and
-`specs/conformance/record-registry.yml`, and Python alone writes the record registry.
+Ekphrasis on mobile. The package passes the conformance cases of `specs/conformance/targets.yml`,
+`specs/conformance/record-registry.yml` and `specs/conformance/field-paths.yml`, and Python alone
+writes the record registry.
 
 ## Installation
 
@@ -129,11 +130,13 @@ The functions, the class and the constants are grouped by reading:
 | record registry | `readRegistry`, `checkRegistry`, `lookup`, `follow`, `REGISTRY_FILE` |
 | live index | `RepositoryIndex` |
 | key paths and YAML | `valuesAt`, `pointer`, `readYaml` |
+| field paths | `parseFieldPath`, `parseFieldPathPattern`, `printFieldPath`, `isFieldPath`, `isFieldPathPattern`, `toPointer`, `fromPointer`, `pointerTokens`, `matchNodes`, `expand`, `ANY_ITEM`, `ANY_KEY`, `FieldPathError`, `PointerError` |
 | resources | `ADDRESSING_ID`, `TARGET_REFERENCE`, `REPOSITORY_CONTRACT`, `REGISTRY_CONTRACT`, `REGISTRY_ID`, `matches`, `IMPLEMENTED_SPECIFICATION` |
 | kinds of problem | `INVALID_IDENTIFIER_DECLARATION`, `INVALID_TARGET_CONTRACT`, `UNRESOLVED_REFERENCE`, `UNREADABLE_SCHEMA`, `INVALID_REPOSITORY_MANIFEST`, `LEGACY_REPOSITORY_MANIFEST` |
 
-The [logical targets specification](../../docs/specification/logical-targets.md) and the
-[record registry specification](../../docs/specification/record-registry.md) state each reading.
+The [logical targets specification](../../docs/specification/logical-targets.md), the
+[record registry specification](../../docs/specification/record-registry.md) and the
+[field paths specification](../../docs/specification/field-paths.md) state each reading.
 The function `readYaml` reads a YAML text as PyYAML reads it, so that a scalar such as `y`, `09` or
 `1e3` remains a string, as on the Python read side. The constant `IMPLEMENTED_SPECIFICATION`
 declares the implemented versions, as the

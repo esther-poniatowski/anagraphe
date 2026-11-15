@@ -23,6 +23,7 @@ guide/targets
 specification/bindings-contract
 specification/logical-targets
 specification/record-registry
+specification/field-paths
 ```
 
 ```{toctree}
@@ -50,4 +51,5 @@ adr/0004-findings-output
 adr/0005-text-bindings
 adr/0006-logical-targets
 adr/0007-record-registry
+adr/0008-field-paths
 ```
