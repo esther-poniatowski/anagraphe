@@ -22,6 +22,7 @@ guide/targets
 
 specification/bindings-contract
 specification/logical-targets
+specification/record-registry
 ```
 
 ```{toctree}
