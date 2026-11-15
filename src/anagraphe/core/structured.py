@@ -101,7 +101,8 @@ def _plain(value: str) -> bool:
         return False
     try:
         return bool(yaml.safe_load(value) == value)
-    except yaml.YAMLError:
+    except (yaml.YAMLError, ValueError):
+        # A value reading as an impossible date, such as 2026-02-30, raises a ValueError.
         return False
 
 

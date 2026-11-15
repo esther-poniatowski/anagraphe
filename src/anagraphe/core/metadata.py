@@ -70,7 +70,8 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
         return ({}, text)
     try:
         parsed = yaml.safe_load(text[4:end])
-    except yaml.YAMLError:
+    except (yaml.YAMLError, ValueError):
+        # A timestamp naming an impossible date, such as 2026-02-30, raises a ValueError.
         parsed = None
     body = text[end + 4 :].lstrip("\n") if text[end + 4 : end + 5] == "\n" else text[end + 4 :]
     return (parsed if isinstance(parsed, dict) else {}, body)
@@ -95,7 +96,8 @@ def frontmatter_problem(text: str) -> str | None:
         return "the frontmatter opens on --- and never closes"
     try:
         parsed = yaml.safe_load(text[4:end])
-    except yaml.YAMLError as error:
+    except (yaml.YAMLError, ValueError) as error:
+        # A timestamp naming an impossible date, such as 2026-02-30, raises a ValueError.
         return f"the frontmatter is not valid YAML: {_first_line(error)}"
     if parsed is not None and not isinstance(parsed, dict):
         return "the frontmatter is not a mapping"

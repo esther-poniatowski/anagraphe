@@ -84,7 +84,8 @@ def read_manifest(root: Path) -> ManifestReading:
         return ManifestReading(None)
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        # ValueError covers an undecodable file and a timestamp naming an impossible date.
         first = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
         return _invalid("", f"{MANIFEST_FILE} cannot be parsed: {first}")
     if not isinstance(data, dict):

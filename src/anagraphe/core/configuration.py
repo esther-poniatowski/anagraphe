@@ -75,7 +75,8 @@ def load_yaml(path: Path) -> dict[str, Any]:
         parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as error:
         raise ConfigurationError(f"cannot read {path}: {error}") from error
-    except yaml.YAMLError as error:
+    except (yaml.YAMLError, ValueError) as error:
+        # A timestamp naming an impossible date, such as 2026-02-30, raises a ValueError.
         raise ConfigurationError(f"cannot parse {path}: {error}") from error
     if not isinstance(parsed, dict):
         raise ConfigurationError(f"{path} must contain a YAML mapping")

@@ -256,7 +256,8 @@ class SchemaReader:
     def __post_init__(self) -> None:
         try:
             raw = yaml.safe_load(self.registry.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as error:
+        except (OSError, ValueError, yaml.YAMLError) as error:
+            # ValueError covers an undecodable file and a timestamp naming an impossible date.
             raise ConfigurationError(
                 f"cannot read the schema registry {self.registry}: {error}"
             ) from error

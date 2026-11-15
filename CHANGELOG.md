@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - An atomic write of the core creates a file that does not exist yet, and removes it if a later
   file of the same write cannot be replaced.
 
+### Fixed
+
+- A YAML timestamp naming an impossible date, such as `2026-02-30`, no longer stops Anagraphe with a
+  `ValueError`. A frontmatter or a manifest holding one is reported as unreadable, a configuration
+  or a schema registry holding one is a configuration error, and a scalar reading as one is quoted.
+
 ## [0.5.0] - 2026-11-14
 
 ### Added
