@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Iterable
 
-from anagraphe.targets.resource import CONTRACT_ENTRY, matches
+from anagraphe.targets.resource import matches
 
 #: The keys of a target, each with the identifier definition of its value.
 COMPONENTS = {"repository": "repository-id", "id": "record-id", "unit": "unit-id"}
@@ -151,7 +151,7 @@ def parse_contracts(value: Any) -> tuple[str, ...]:
     if not isinstance(value, list) or not value:
         raise ValueError("x-target-contract holds a non-empty list of contract identifiers")
     for entry in value:
-        if not isinstance(entry, str) or not CONTRACT_ENTRY.fullmatch(entry):
+        if not matches("contract-entry", entry):
             raise ValueError(
                 f"x-target-contract holds {entry!r}, which is no contract identifier "
                 "namespace:name or namespace:name@version"

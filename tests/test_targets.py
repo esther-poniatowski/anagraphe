@@ -203,6 +203,8 @@ def test_packaged_schemas_are_valid_and_identified() -> None:
         "repository-id",
         "record-id",
         "unit-id",
+        "contract-entry",
+        "property-path",
         "target",
     }
     assert schema(REPOSITORY_FILE)["properties"]["_schema"]["const"] == REPOSITORY_CONTRACT

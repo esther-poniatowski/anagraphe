@@ -141,9 +141,8 @@ declares the implemented versions, as the
 
 ## Development
 
-The package generates the module `src/generated/resources.ts` from the packaged schemas and from the
-grammars `CONTRACT_ENTRY` and `PROPERTY_PATH` of the Python read side, so that no pattern is copied
-by hand. The scripts `typecheck`, `lint`, `test` and `build` run the generator first. The commands
+The package generates the module `src/generated/resources.ts` from the packaged schemas of
+Anagraphe, so that no pattern is copied by hand. The scripts `typecheck`, `lint`, `test` and `build` run the generator first. The commands
 below run the checks of the continuous integration:
 
 ```sh

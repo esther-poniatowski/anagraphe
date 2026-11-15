@@ -10,8 +10,6 @@
  */
 import {
   ADDRESSING_SCHEMA,
-  CONTRACT_ENTRY_PATTERN,
-  PROPERTY_PATH_PATTERN,
   RECORD_REGISTRY_SCHEMA,
   REPOSITORY_SCHEMA,
 } from "./generated/resources.js";
@@ -70,7 +68,7 @@ export const UNIT_NAME = ADDRESSING_SCHEMA.$defs["unit-id"].pattern
   .replace(/\$$/, "");
 
 /** A contract identifier admitted in `x-target-contract`: `namespace:name`, or with `@<version>`. */
-export const CONTRACT_ENTRY = whole(CONTRACT_ENTRY_PATTERN);
+export const CONTRACT_ENTRY = whole(ADDRESSING_SCHEMA.$defs["contract-entry"].pattern);
 
 /** A dotted path of property names, as `x-identifier` writes it. */
-export const PROPERTY_PATH = whole(PROPERTY_PATH_PATTERN);
+export const PROPERTY_PATH = whole(ADDRESSING_SCHEMA.$defs["property-path"].pattern);

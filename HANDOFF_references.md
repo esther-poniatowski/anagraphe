@@ -20,8 +20,6 @@ This handoff directs the agent that continues the pointers of Anagraphe: their c
     - Ekphrasis supplies the adapters of its three ports and retires its own index;
     - the field-path syntax awaits its decision.
 
-    The package generates the grammars `CONTRACT_ENTRY` and `PROPERTY_PATH` from constants of the Python read side. Moving them into the resource `addressing.v1` would make the resource their single source.
-
 ## Active constraints
 
 - **Read-only runs on the vault.** A test on the vault runs read-only, such as a dry-run plan; its `git status` must count the same entries before and after.

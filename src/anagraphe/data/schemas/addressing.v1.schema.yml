@@ -25,6 +25,20 @@ $defs:
       caret, in a Markdown record.
     type: string
     pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+  contract-entry:
+    title: Contract entry
+    description: >-
+      An entry of x-target-contract, naming a contract as namespace:name, which admits every version
+      of that contract, or as namespace:name@n, which admits version n only.
+    type: string
+    pattern: '^[a-z][a-z0-9-]*:[a-z][a-z0-9.-]*(@[1-9][0-9]*)?$'
+  property-path:
+    title: Property path
+    description: >-
+      The value of x-identifier: a dotted path of property names, followed from the node that
+      carries the keyword to the field holding an identifier.
+    type: string
+    pattern: '^[A-Za-z_][A-Za-z0-9_-]*(\.[A-Za-z_][A-Za-z0-9_-]*)*$'
   target:
     title: Logical target
     description: >-

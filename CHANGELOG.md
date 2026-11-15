@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The constant `anagraphe.targets.IMPLEMENTED_SPECIFICATION`. The constant names the versions of
   the addressing, of the manifest and of the record registry implemented by the Python read side,
   and the TypeScript package exports the same mapping.
+- The definitions `contract-entry` and `property-path` of the resource `addressing.v1`, which state
+  the grammar of an entry of `x-target-contract` and of the path of `x-identifier`. Both read sides
+  read these patterns from the resource.
 - The specification of the record registry, `docs/specification/record-registry.md`: how a read
   side reads the registry and looks up an identifier in it.
 - The record registry of ADR 0007. Each repository commits a registry in the contract

@@ -10,18 +10,20 @@ configuration and the findings of the check.
 ## Resources
 
 The resource `https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml` is
-published as package data, and defines four definitions under `$defs`:
+published as package data, and defines six definitions under `$defs`:
 
 | Definition | Content |
 | --- | --- |
 | `repository-id` | the identifier of a repository |
 | `record-id` | the identifier of a record, unique within its repository |
 | `unit-id` | the identifier of a unit inside a record |
-| `target` | the mapping `{repository, id, unit}`, each key typed by one of the definitions above |
+| `contract-entry` | an entry of `x-target-contract`, which names a contract |
+| `property-path` | the dotted path of property names that `x-identifier` holds |
+| `target` | the mapping `{repository, id, unit}`, each key typed by one of the three identifier definitions |
 
-Each identifier definition states its pattern, and a pattern admits an identifier only when it
-matches the whole string. The resource is the single source of the patterns: the Python read side
-compiles them from the packaged file. The registry of
+Each definition other than `target` states a pattern, which admits a string only when it matches
+the whole string. The resource is the single source of the patterns: the Python read side compiles
+them from the packaged file, and the TypeScript read side generates them from it. The registry of
 Anagraphe, `specs/schema-registry.yml`, in the format `kleisis:schema-registry@2`, maps the `$id`
 of the resource under `resources`, and the contract `anagraphe:repository@1` under `schemas`.
 
@@ -68,7 +70,8 @@ mapping.
 ## Contracts of a target field
 
 The keyword `x-target-contract`, on a node of the key path of a target field, holds a non-empty list
-of contract identifiers, each `namespace:name` or `namespace:name@n`. An entry `namespace:name`
+of contract identifiers, each `namespace:name` or `namespace:name@n`, as the definition
+`contract-entry` admits. An entry `namespace:name`
 admits every version of that contract, and an entry `namespace:name@n` admits that version only.
 The contracts of a record are its `_schema`, followed by every contract that the root schema of
 that `_schema` declares under `x-implements`, as a string or a list of strings, read at the root
@@ -77,8 +80,8 @@ several nodes of the key path declare `x-target-contract`, the record satisfies 
 
 ## Identifiers and units
 
-The keyword `x-identifier` holds a dotted path of property names, each name matching
-`^[A-Za-z_][A-Za-z0-9_-]*$`. Followed from the key path of its node, the path names a property
+The keyword `x-identifier` holds a dotted path of property names, as the definition
+`property-path` admits. Followed from the key path of its node, the path names a property
 that the schema of the contract declares. The keyword is read on two kinds of node, outside `anyOf` and
 `oneOf`:
 

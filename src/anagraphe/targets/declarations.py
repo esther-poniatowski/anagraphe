@@ -21,7 +21,6 @@ when the value is a mapping.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -29,7 +28,7 @@ from anagraphe.core.issues import pointer
 from anagraphe.core.schemas import Items, Property, SchemaNode, SchemaProblem, SchemaReader, Step
 from anagraphe.targets.kinds import INVALID_IDENTIFIER_DECLARATION, INVALID_TARGET_CONTRACT
 from anagraphe.targets.model import parse_contracts
-from anagraphe.targets.resource import ADDRESSING_ID, TARGET_REFERENCE
+from anagraphe.targets.resource import ADDRESSING_ID, TARGET_REFERENCE, matches
 
 #: The keyword naming the field of an identifier.
 IDENTIFIER = "x-identifier"
@@ -37,8 +36,6 @@ IDENTIFIER = "x-identifier"
 TARGET_CONTRACT = "x-target-contract"
 #: The keyword naming the contracts that a root schema implements.
 IMPLEMENTS = "x-implements"
-#: A dotted path of property names, as ``x-identifier`` writes it.
-PROPERTY_PATH = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*(\.[A-Za-z_][A-Za-z0-9_-]*)*$")
 
 
 @dataclass(frozen=True)
@@ -145,7 +142,7 @@ class Declarations:
         declaration is invalid."""
         value: Any = node.value[IDENTIFIER]
         at = node.at + pointer(IDENTIFIER)
-        if not isinstance(value, str) or not PROPERTY_PATH.fullmatch(value):
+        if not matches("property-path", value):
             self._problem(
                 INVALID_IDENTIFIER_DECLARATION,
                 node,
