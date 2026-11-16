@@ -104,6 +104,20 @@ class Exemptions:
             or self._ignored(posix, folder=False)
         )
 
+    def locally_excluded(self) -> frozenset[str]:
+        """Return the paths that a rule of ``.git/info/exclude`` alone keeps out of the checks.
+
+        A path of :attr:`local` that a hidden name or a declared pattern already excludes stays out
+        of the checks without that rule, so it is left out.
+
+        Examples
+        --------
+        >>> exemptions = Exemptions(("vendor/",), local=frozenset({"a.md", "vendor/b.md", ".w/"}))
+        >>> sorted(exemptions.locally_excluded())
+        ['a.md']
+        """
+        return frozenset(path for path in self.local if not self.spec.match_file(path))
+
     def _ignored(self, path: PurePosixPath, folder: bool) -> bool:
         """Return whether Git ignores a path without tracking it, or one of its folders."""
         if not self.ignored:

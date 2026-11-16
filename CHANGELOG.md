@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The note `locally-excluded` leaves out a path that a hidden name or a declared pattern already
+  excludes, since a rule of `.git/info/exclude` does not alone keep that path out of the checks.
+
 ## [0.8.0] - 2026-11-16
 
 ### Changed

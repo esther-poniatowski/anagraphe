@@ -286,7 +286,7 @@ def _local_exclusions(repository: RepositoryConfig) -> frozenset[str]:
     """Return the paths that a rule of ``.git/info/exclude`` alone excludes, in any section."""
     sections = (repository.indexes, repository.references, repository.bindings, repository.targets)
     return frozenset().union(
-        *(section.exemptions.local for section in sections if section is not None)
+        *(section.exemptions.locally_excluded() for section in sections if section is not None)
     )
 
 

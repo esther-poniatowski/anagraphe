@@ -233,6 +233,25 @@ def test_a_locally_excluded_file_is_reported_as_a_note(tmp_path: Path) -> None:
     )
 
 
+def test_a_local_rule_over_an_excluded_path_raises_no_note(tmp_path: Path) -> None:
+    """A hidden folder or a path of a declared pattern stays out of the checks without the rule."""
+    _repository(tmp_path)
+    _write(tmp_path, {".workspace/a.md": _note("note-w"), "vendor/b.md": _note("note-v")})
+    _write(
+        tmp_path,
+        {
+            "anagraphe.yml": (tmp_path / "anagraphe.yml")
+            .read_text()
+            .replace("git_ignored: true", "git_ignored: true\n  paths: [vendor/]")
+        },
+    )
+    _ignore_locally(tmp_path, ".workspace/", "vendor/")
+    assert _registered(tmp_path) == ["note-a"]
+    result = CliRunner().invoke(app, ["records", "check", "--root", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "locally-excluded" not in result.output
+
+
 def test_the_key_outside_a_work_tree_is_refused(tmp_path: Path) -> None:
     _repository(tmp_path)
     subprocess.run(["rm", "-rf", str(tmp_path / ".git")], check=True)
