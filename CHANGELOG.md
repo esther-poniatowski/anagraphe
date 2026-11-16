@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-16
+
 ### Fixed
 
 - The note `locally-excluded` leaves out a path that a hidden name or a declared pattern already
