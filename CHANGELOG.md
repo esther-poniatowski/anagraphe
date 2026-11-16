@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-15
+
 ### Added
 
 - The field paths of ADR 0008, `docs/adr/0008-field-paths.md`, with their specification,
