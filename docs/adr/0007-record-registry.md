@@ -5,6 +5,12 @@ questions"; proposed on the same day. The record answers the task `record-regist
 [task list of Geonexus][geonexus-todo]. [ADR 0006](0006-logical-targets.md) leaves that task open:
 it fixes neither the format of the record registry nor the form of a declared rename.
 
+**Amended** on 2026-11-16 by the researcher: a repository with a manifest commits its registry
+once it declares a record identifier, or once another repository targets one of its records. Before
+its first identifier or target, the repository holds no registry. A resolver reports a target into
+such a repository as unverified. When the registry was released, seven of the eight research
+projects outside Anagraphe declared no record identifier.
+
 ---
 
 ## Problem Statement
@@ -232,8 +238,10 @@ These two findings replace `unknown-record` for a retired identifier.
 - **ADR 0006**: the sentence stating that the generated registry replaces the walk of the check
   changes. The walk stays within one repository, and the registry serves the other repositories. The
   deferred finding of a renamed record becomes `renamed-target`.
-- **Consumers**: every repository with a manifest declares the section `records`, commits its
-  registry and runs `anagraphe records check` in its gate.
+- **Consumers**: a repository with a manifest adopts the registry once it declares a record
+  identifier, or once another repository targets one of its records, as amended on 2026-11-16. To
+  adopt it, the repository declares the section `records`, commits its registry and runs
+  `anagraphe records check` in its gate.
 - **Resolver**: the task `record-resolver` of Geonexus loads the registry of the selected state, and
   the TypeScript read package reads the same file.
 
@@ -246,7 +254,9 @@ The researcher answered the open questions of the proposal on 2026-11-14:
 2. A vanished identifier is retired by the command `retire` only.
 3. The registry defaults to `record-registry.yml` at the root, under the section `records`.
 4. Every repository with a manifest commits a registry, so that any of its records can be cited
-   from another repository without a further step.
+   from another repository without a further step. Amended on 2026-11-16: the registry is
+   committed once the repository declares a record identifier or another repository targets one
+   of its records.
 
 ---
 
