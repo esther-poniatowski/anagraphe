@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The key `git_ignored` reads the rules of the `.gitignore` files and of `.git/info/exclude` only,
+  never the global excludes file of the machine. Therefore, two clones of one commit exclude the
+  same files.
+
+### Added
+
+- The note `locally-excluded` of the section `exclusions`. Each command reports every file or
+  folder excluded by a rule of `.git/info/exclude` alone, since no commit records that rule.
+
 ## [0.7.0] - 2026-11-16
 
 ### Added

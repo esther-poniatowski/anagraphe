@@ -5,7 +5,9 @@ The patterns follow the syntax of ``.gitignore``, read by the library ``pathspec
 filters take the form of the filter ``where`` of a group, applied to the metadata that the declared
 sources read. Under the key ``git_ignored``, the files that Git ignores without tracking them are
 excluded too, so that a file listed in ``.git/info/exclude`` stays out of every check of the clone
-until Git tracks it.
+until Git tracks it. The rules are those of the ``.gitignore`` files and of ``.git/info/exclude``,
+never the global excludes file of a machine, and each file that a rule of ``.git/info/exclude``
+alone excludes is reported as a note, of the kind :data:`LOCALLY_EXCLUDED`.
 """
 
 from __future__ import annotations
@@ -23,7 +25,20 @@ from anagraphe.core.configuration import (
     strings_in_order,
 )
 from anagraphe.core.filters import Filter, parse_filter
-from anagraphe.core.git_state import ignored_untracked
+from anagraphe.core.git_state import IgnoredPaths, ignored_untracked
+from anagraphe.core.issues import Issue, IssueKind
+
+#: A file that a rule of ``.git/info/exclude`` alone excludes from every check.
+LOCALLY_EXCLUDED = "locally-excluded"
+#: Every kind of issue that the exclusions report.
+KINDS: tuple[IssueKind, ...] = (
+    IssueKind(
+        LOCALLY_EXCLUDED,
+        "A rule of .git/info/exclude, which no commit records, excludes a file from every check.",
+        blocking=False,
+        note=True,
+    ),
+)
 
 #: The patterns excluded before any declared one: the hidden files and folders, which hold the state
 #: of a tool. A declared exception, such as ``!.github/``, admits one of them again.
@@ -59,6 +74,9 @@ class Exemptions:
     metadata: Callable[[str], Mapping[str, Any]] | None = field(default=None, compare=False)
     #: The paths that Git ignores without tracking them, each folder with a final ``/``.
     ignored: frozenset[str] = frozenset()
+    #: The paths of :attr:`ignored` that a rule of ``.git/info/exclude`` alone ignores, which the
+    #: commands report, since no commit records that rule.
+    local: frozenset[str] = frozenset()
     spec: pathspec.GitIgnoreSpec = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -119,6 +137,7 @@ class Exemptions:
             (*self.filters, *other.filters),
             self.metadata or other.metadata,
             self.ignored | other.ignored,
+            self.local | other.local,
         )
 
 
@@ -187,15 +206,17 @@ def exemptions(
             )
     known_keys(raw, EXCLUDE_KEYS, field_name)
     filters = _filters(raw, field_name)
+    ignored = _ignored(root, raw, field_name)
     return Exemptions(
         _patterns(root, raw, field_name),
         filters,
         metadata if filters else None,
-        _ignored(root, raw, field_name),
+        ignored.every,
+        ignored.local,
     )
 
 
-def _ignored(root: Path, raw: Mapping[str, Any], field_name: str) -> frozenset[str]:
+def _ignored(root: Path, raw: Mapping[str, Any], field_name: str) -> IgnoredPaths:
     """Return the paths that Git ignores without tracking them, when ``git_ignored`` is true.
 
     Raises
@@ -207,7 +228,7 @@ def _ignored(root: Path, raw: Mapping[str, Any], field_name: str) -> frozenset[s
     if not isinstance(declared, bool):
         raise ConfigurationError(f"{field_name}.git_ignored must be a boolean")
     if not declared:
-        return frozenset()
+        return IgnoredPaths(frozenset(), frozenset())
     ignored = ignored_untracked(root)
     if ignored is None:
         raise ConfigurationError(
@@ -215,3 +236,26 @@ def _ignored(root: Path, raw: Mapping[str, Any], field_name: str) -> frozenset[s
             f"in {root}"
         )
     return ignored
+
+
+def local_issues(local: frozenset[str]) -> list[Issue]:
+    """Return one note for each path that a rule of ``.git/info/exclude`` alone excludes.
+
+    Examples
+    --------
+    >>> [issue.format() for issue in local_issues(frozenset({"notes/draft.md"}))]
+    ['notes/draft.md:1: note: locally-excluded: a rule of .git/info/exclude leaves the file out of \
+every check, until Git tracks it']
+    """
+    return [
+        Issue(
+            path,
+            None,
+            LOCALLY_EXCLUDED,
+            f"a rule of .git/info/exclude leaves the {'folder' if path.endswith('/') else 'file'} "
+            "out of every check, until Git tracks it",
+            blocking=False,
+            note=True,
+        )
+        for path in sorted(local)
+    ]

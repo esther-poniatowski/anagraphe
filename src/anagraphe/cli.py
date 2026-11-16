@@ -55,6 +55,8 @@ from anagraphe.configuration import (
     locate_config,
 )
 from anagraphe.core.configuration import ConfigurationError
+from anagraphe.core.exclusions import KINDS as EXCLUSION_KINDS
+from anagraphe.core.exclusions import local_issues
 from anagraphe.core.files import TargetError
 from anagraphe.core.issues import IssueKind, Report
 from anagraphe.core.sarif import Section, sarif_log
@@ -157,6 +159,7 @@ class ShowFormat(str, Enum):
 
 #: Every section of the configuration, with every kind of issue that it can report.
 CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
+    "exclusions": EXCLUSION_KINDS,
     "indexes": INDEX_KINDS,
     "references": REFERENCE_KINDS,
     "bindings": BINDING_KINDS,
@@ -166,6 +169,7 @@ CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
 
 #: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
 UNANALYZED: dict[str, frozenset[str]] = {
+    "exclusions": frozenset(),
     "indexes": frozenset({UNREADABLE_METADATA}),
     "references": frozenset({UNREADABLE}),
     "bindings": BINDING_UNANALYZED,
@@ -258,12 +262,32 @@ def _here(paths: list[Path] | None) -> tuple[Path, ...]:
 def _load(
     root: Path | None, config_path: Path | None, findings: Findings | None = None
 ) -> tuple[Path, RepositoryConfig]:
-    """Resolve the root, and load the configuration that it holds, or the one given."""
+    """Resolve the root, and load the configuration that it holds, or the one given.
+
+    Each file that a rule of ``.git/info/exclude`` alone excludes is reported once, as a note: in
+    the report of the command, or on standard error for a command that keeps no report.
+    """
     resolved = _root(root)
     try:
-        return resolved, load_config(resolved, locate_config(resolved, config_path))
+        repository = load_config(resolved, locate_config(resolved, config_path))
     except (ConfigurationError, OSError) as error:
         _fail(error, findings)
+    issues = local_issues(_local_exclusions(repository))
+    if issues and findings is not None:
+        report = Report(0, tuple(issues))
+        _emit(report, "exclusions: left out by .git/info/exclude", findings)
+        findings.record("exclusions", report)
+    for issue in issues if findings is None else ():
+        typer.echo(issue.format(), err=True)
+    return resolved, repository
+
+
+def _local_exclusions(repository: RepositoryConfig) -> frozenset[str]:
+    """Return the paths that a rule of ``.git/info/exclude`` alone excludes, in any section."""
+    sections = (repository.indexes, repository.references, repository.bindings, repository.targets)
+    return frozenset().union(
+        *(section.exemptions.local for section in sections if section is not None)
+    )
 
 
 def _emit(report: Report, summary: str, findings: Findings | None = None) -> None:

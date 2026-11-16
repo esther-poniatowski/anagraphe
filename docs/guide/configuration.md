@@ -122,8 +122,9 @@ earlier releases stop the command with the pattern replacing each of them.
 ### Files that Git ignores
 
 The key `git_ignored` excludes every file ignored and not tracked by Git. Git reads the rules of
-every `.gitignore`, of `.git/info/exclude` and of the global excludes file. The two keys on
-`.gitignore` differ in two ways:
+every `.gitignore` and of `.git/info/exclude`. Anagraphe never passes the global excludes file of
+the machine to Git, so two clones of one commit exclude the same files. The two keys on `.gitignore` differ in
+two ways:
 
 - `gitignore` reads the root `.gitignore` alone, and excludes a tracked file matched by its
   patterns;
@@ -140,6 +141,17 @@ checks resume without an edit of the configuration:
 echo "notes/draft.md" >> .git/info/exclude   # excluded while unfinished
 git add -f notes/draft.md                    # tracked, so checked again
 ```
+
+No commit records a rule of `.git/info/exclude`, so such a rule could hide a file from every check
+without notice. Therefore, each command reports every file or folder excluded by such a rule
+alone, as a note of the kind `locally-excluded` under the section `exclusions`. A note gates no
+commit:
+
+```text
+notes/draft.md:1: note: locally-excluded: a rule of .git/info/exclude leaves the file out of every check, until Git tracks it
+```
+
+A rule of a committed `.gitignore` raises no note, since its commit records it.
 
 When the root lies in no Git work tree, a configuration declaring the key stops with a
 configuration error.

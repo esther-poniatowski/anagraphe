@@ -8,6 +8,7 @@ checked again once it is added to Git.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -15,7 +16,9 @@ from typing import Any
 
 import pytest
 import yaml
+from typer.testing import CliRunner
 
+from anagraphe.cli import app
 from anagraphe.configuration import load_config
 from anagraphe.core.configuration import ConfigurationError
 from anagraphe.indexes.service import run
@@ -180,6 +183,54 @@ def test_a_link_into_an_ignored_file_stays_valid(tmp_path: Path) -> None:
     # The broken link shows that the checker reads the note; the link into the draft resolves.
     reported = [issue for issue in report.issues if issue.rel == "m/b.md"]
     assert len(reported) == 1 and "lost.md" in reported[0].detail
+
+
+def test_the_global_excludes_file_is_not_read(tmp_path: Path) -> None:
+    """Two clones of one commit agree, whatever the global excludes file of each machine holds."""
+    _repository(tmp_path)
+    _write(tmp_path, {"m/draft.md": _note("note-draft"), "global-ignore": "m/draft.md\n"})
+    _git(tmp_path, "config", "core.excludesFile", str(tmp_path / "global-ignore"))
+    assert _registered(tmp_path) == ["note-a", "note-draft"]
+
+
+def test_a_file_ignored_by_a_committed_rule_is_excluded_without_a_note(tmp_path: Path) -> None:
+    _repository(tmp_path)
+    _write(tmp_path, {"m/draft.md": _note("note-draft"), ".gitignore": "m/draft.md\n"})
+    assert _registered(tmp_path) == ["note-a"]
+    result = CliRunner().invoke(app, ["records", "check", "--root", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "locally-excluded" not in result.output
+
+
+def test_a_locally_excluded_file_is_reported_as_a_note(tmp_path: Path) -> None:
+    _repository(tmp_path)
+    _write(tmp_path, {"m/draft.md": _note("note-draft"), "m/wip/b.md": _note("note-b")})
+    _ignore_locally(tmp_path, "m/draft.md", "m/wip/")
+    assert _registered(tmp_path) == ["note-a"]
+    result = CliRunner().invoke(app, ["records", "check", "--root", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    notes = [line for line in result.output.splitlines() if ": note: locally-excluded" in line]
+    assert notes == [
+        "m/draft.md:1: note: locally-excluded: a rule of .git/info/exclude leaves the file out of "
+        "every check, until Git tracks it",
+        "m/wip/:1: note: locally-excluded: a rule of .git/info/exclude leaves the folder out of "
+        "every check, until Git tracks it",
+    ]
+    log = tmp_path / "check.sarif"
+    sarif = CliRunner().invoke(
+        app,
+        ["records", "check", "--root", str(tmp_path), "--format", "sarif", "--output", str(log)],
+    )
+    assert sarif.exit_code == 0, sarif.output
+    results = json.loads(log.read_text(encoding="utf-8"))["runs"][0]["results"]
+    assert (
+        sorted(
+            (result["ruleId"], result["level"])
+            for result in results
+            if "locally-excluded" in result["ruleId"]
+        )
+        == [("exclusions/locally-excluded", "note")] * 2
+    )
 
 
 def test_the_key_outside_a_work_tree_is_refused(tmp_path: Path) -> None:
