@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-16
+
 ### Changed
 
 - The key `git_ignored` reads the rules of the `.gitignore` files and of `.git/info/exclude` only,
