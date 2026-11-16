@@ -51,7 +51,7 @@ reference naming no file or anchor.
 - [x] Read the logical targets and the record registry in TypeScript, for a host without Python, through the package [`@anagraphe/read`](packages/read/README.md).
 - [x] Parse, print and expand field paths, and convert them to and from JSON Pointers, in Python and in TypeScript.
 - [x] Compare the versions of the specification declared by another read side of the repository with those of Anagraphe.
-- [x] Exclude files by `.gitignore` patterns and by metadata, such as `status: archived`.
+- [x] Exclude files by `.gitignore` patterns, by metadata such as `status: archived`, and by the ignore rules of Git for untracked files.
 - [x] Declare the link formats and path styles of the pointers by location, file type or metadata.
 - [ ] Move and rename anchors, and rename the identifiers of a declared namespace.
 - [ ] Load repository-specific adapters as plugins.

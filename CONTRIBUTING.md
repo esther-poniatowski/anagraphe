@@ -120,3 +120,15 @@ Custom word lists for CSpell (VS Code spell checker):
 - **Discoverability**: Tool configs are grouped in a single directory, easy to locate.
 - **Flexibility**: Tools with complex configs (Pylint, MyPy) benefit from dedicated files
   with inline comments explaining each setting.
+
+## Releasing a Version
+
+The workflow `release.yml` computes the version from the prefixes of the commits since the last
+tag, and commits `release: <version>` with its tag. The workflow runs Python Semantic Release with
+`--no-changelog`, since `CHANGELOG.md` is written by hand. Therefore, the entries of a release are
+headed by hand:
+
+1. Record each change under `## [Unreleased]` of `CHANGELOG.md`, in the commit that makes it.
+2. Run the workflow `release.yml` once the workflow `ci.yml` passes on the last commit.
+3. Pull the release commit, and move the entries of `## [Unreleased]` under a heading
+   `## [<version>] - <date>`, the version and the date of that commit.
