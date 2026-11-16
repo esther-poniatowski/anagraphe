@@ -3,7 +3,9 @@ Exclusions: the files kept out of a capability, by path pattern and by metadata.
 
 The patterns follow the syntax of ``.gitignore``, read by the library ``pathspec``, and the metadata
 filters take the form of the filter ``where`` of a group, applied to the metadata that the declared
-sources read.
+sources read. Under the key ``git_ignored``, the files that Git ignores without tracking them are
+excluded too, so that a file listed in ``.git/info/exclude`` stays out of every check of the clone
+until Git tracks it.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from anagraphe.core.configuration import (
     strings_in_order,
 )
 from anagraphe.core.filters import Filter, parse_filter
+from anagraphe.core.git_state import ignored_untracked
 
 #: The patterns excluded before any declared one: the hidden files and folders, which hold the state
 #: of a tool. A declared exception, such as ``!.github/``, admits one of them again.
@@ -34,7 +37,8 @@ class Exemptions:
     The patterns follow the syntax of ``.gitignore``, read by the library ``pathspec``, after the
     pattern ``.*`` of the hidden paths. A later pattern prevails over an earlier one, so an
     exception opening on ``!`` admits a path again. The filters exclude each file whose metadata
-    one of them selects. The folder ``.git`` is never read.
+    one of them selects. The paths that Git ignores without tracking them, a folder written with a
+    final ``/``, are excluded with all they hold. The folder ``.git`` is never read.
 
     Examples
     --------
@@ -42,6 +46,10 @@ class Exemptions:
     >>> [exemptions.contains(PurePosixPath(path)) for path in ("a/vendor/x.md", "build/x.md",
     ...  "a/build/x.md", "utils/macros/x.md", "utils/macros/_index.md", ".venv/x.md", "a.md")]
     [True, True, False, True, False, True, False]
+    >>> ignored = Exemptions(ignored=frozenset({"notes/draft.md", "scratch/"}))
+    >>> [ignored.contains(PurePosixPath(path)) for path in ("notes/draft.md", "scratch/a/b.md",
+    ...  "notes/a.md")]
+    [True, True, False]
     """
 
     #: The declared patterns, in their order, after the hidden paths.
@@ -49,6 +57,8 @@ class Exemptions:
     filters: tuple[Filter, ...] = ()
     #: Return the metadata of a repository-relative file, read only when a filter is declared.
     metadata: Callable[[str], Mapping[str, Any]] | None = field(default=None, compare=False)
+    #: The paths that Git ignores without tracking them, each folder with a final ``/``.
+    ignored: frozenset[str] = frozenset()
     spec: pathspec.GitIgnoreSpec = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -61,12 +71,32 @@ class Exemptions:
         posix = folder.as_posix()
         if posix in ("", "."):
             return False
-        return ".git" in folder.parts or self.spec.match_file(f"{posix}/")
+        return (
+            ".git" in folder.parts
+            or self.spec.match_file(f"{posix}/")
+            or self._ignored(PurePosixPath(posix), folder=True)
+        )
 
     def excludes_path(self, path: PurePosixPath | Path) -> bool:
         """Return whether a repository-relative file is excluded by its path alone."""
         posix = PurePosixPath(path.as_posix())
-        return ".git" in posix.parts or self.spec.match_file(posix.as_posix())
+        return (
+            ".git" in posix.parts
+            or self.spec.match_file(posix.as_posix())
+            or self._ignored(posix, folder=False)
+        )
+
+    def _ignored(self, path: PurePosixPath, folder: bool) -> bool:
+        """Return whether Git ignores a path without tracking it, or one of its folders."""
+        if not self.ignored:
+            return False
+        if (f"{path.as_posix()}/" if folder else path.as_posix()) in self.ignored:
+            return True
+        return any(
+            f"{parent.as_posix()}/" in self.ignored
+            for parent in path.parents
+            if parent != PurePosixPath(".")
+        )
 
     def contains(self, path: PurePosixPath | Path) -> bool:
         """Return whether a repository-relative file is excluded, by its path or by its metadata."""
@@ -88,11 +118,12 @@ class Exemptions:
             (*self.patterns, *other.patterns),
             (*self.filters, *other.filters),
             self.metadata or other.metadata,
+            self.ignored | other.ignored,
         )
 
 
 #: The keys of an exclusion, and the retired keys with the pattern that replaces each of them.
-EXCLUDE_KEYS = frozenset({"paths", "where", "gitignore"})
+EXCLUDE_KEYS = frozenset({"paths", "where", "gitignore", "git_ignored"})
 RETIRED_EXCLUDE_KEYS = {
     "directories": "a folder name as `vendor/`, or one folder from the root as `/build/`",
     "files": "one file from the root as `/docs/private.md`",
@@ -141,7 +172,8 @@ def exemptions(
     root: Path,
     metadata: Callable[[str], Mapping[str, Any]] | None = None,
 ) -> Exemptions:
-    """Parse one ``exclude`` mapping of patterns, metadata filters, and the reading of ``.gitignore``.
+    """Parse one ``exclude`` mapping: its patterns, its metadata filters, the reading of
+    ``.gitignore``, and the exclusion of the files that Git ignores without tracking them.
 
     The metadata reader is the one declared for the repository, so that a filter tests the fields
     of a file where its source writes them.
@@ -155,4 +187,31 @@ def exemptions(
             )
     known_keys(raw, EXCLUDE_KEYS, field_name)
     filters = _filters(raw, field_name)
-    return Exemptions(_patterns(root, raw, field_name), filters, metadata if filters else None)
+    return Exemptions(
+        _patterns(root, raw, field_name),
+        filters,
+        metadata if filters else None,
+        _ignored(root, raw, field_name),
+    )
+
+
+def _ignored(root: Path, raw: Mapping[str, Any], field_name: str) -> frozenset[str]:
+    """Return the paths that Git ignores without tracking them, when ``git_ignored`` is true.
+
+    Raises
+    ------
+    ConfigurationError
+        If the key is not a Boolean, or if it is true and ``root`` lies in no Git work tree.
+    """
+    declared = raw.get("git_ignored", False)
+    if not isinstance(declared, bool):
+        raise ConfigurationError(f"{field_name}.git_ignored must be a boolean")
+    if not declared:
+        return frozenset()
+    ignored = ignored_untracked(root)
+    if ignored is None:
+        raise ConfigurationError(
+            f"{field_name}.git_ignored reads the files that Git ignores, but git ls-files fails "
+            f"in {root}"
+        )
+    return ignored

@@ -93,6 +93,7 @@ exclude:
     - {status: archived}
     - {role: [audit, decision]}
   gitignore: false
+  git_ignored: true
 ```
 
 | Key | Value | Default |
@@ -100,6 +101,7 @@ exclude:
 | `paths` | patterns in the syntax of `.gitignore`, a later pattern prevailing over an earlier one | none |
 | `where` | a list of metadata filters; a file is excluded when one filter selects it | none |
 | `gitignore` | whether the patterns of the root `.gitignore` apply before the declared ones | `false` |
+| `git_ignored` | whether every file ignored and not tracked by Git is excluded | `false` |
 
 In the syntax of `.gitignore`, `build/` excludes every folder named `build`, `/drafts/` excludes
 the folder `drafts` of the root, and `*.tmp` excludes every file of that suffix. A pattern opening
@@ -116,6 +118,31 @@ exception such as `!.github/` admits it again. The folder `.git` is never read. 
 section follow the shared patterns, so an exception of a section admits a file that the shared
 patterns exclude. The filters of both apply. The keys `directories`, `files` and `basenames` of
 earlier releases stop the command with the pattern replacing each of them.
+
+### Files that Git ignores
+
+The key `git_ignored` excludes every file ignored and not tracked by Git. Git reads the rules of
+every `.gitignore`, of `.git/info/exclude` and of the global excludes file. The two keys on
+`.gitignore` differ in two ways:
+
+- `gitignore` reads the root `.gitignore` alone, and excludes a tracked file matched by its
+  patterns;
+- `git_ignored` asks Git, and Git never ignores a tracked file.
+
+The key serves a working tree shared by several sessions. When a session holds an unfinished file,
+it lists the file in `.git/info/exclude`. Git keeps that list in the clone and never commits it.
+Listed there, the file stays out of the indexes, the record registry and every check, while links
+to it still resolve. Git adds an ignored file only under `git add -f`. That refusal reminds the
+session to complete the file first. Once Git tracks the file, the key stops excluding it, and its
+checks resume without an edit of the configuration:
+
+```sh
+echo "notes/draft.md" >> .git/info/exclude   # excluded while unfinished
+git add -f notes/draft.md                    # tracked, so checked again
+```
+
+When the root lies in no Git work tree, a configuration declaring the key stops with a
+configuration error.
 
 ## Required inputs
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The key `git_ignored` of an `exclude` mapping, `false` by default. When it is `true`, every file
+  ignored and not tracked by Git is excluded. Git reads the rules of every `.gitignore`, of
+  `.git/info/exclude` and of the global excludes file. A session sharing a working tree lists an
+  unfinished file in `.git/info/exclude`, and the file stays out of every check until Git tracks
+  it.
+
 ## [0.6.0] - 2026-11-15
 
 ### Added
