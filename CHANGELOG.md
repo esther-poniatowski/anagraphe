@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-17
+
 ### Added
 
 - The record resolver of ADR 0009, in the module `anagraphe.resolution`. Its operation `resolve`
