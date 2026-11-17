@@ -39,7 +39,8 @@ const LEFT_OUT: Readonly<Record<string, string>> = {
   "nested-repository": "the host walks the files, and feeds no file of a nested repository",
   "invalid-repository-manifest-identifier":
     "the resolver of ADR 0009 reaches this package in the task record-reader-views",
-  "unknown-repository": "the resolver of ADR 0009 reaches this package in the task record-reader-views",
+  "unknown-repository":
+    "the resolver of ADR 0009 reaches this package in the task record-reader-views",
   "unknown-repository-without-manifest":
     "the resolver of ADR 0009 reaches this package in the task record-reader-views",
   "renamed-repository-of-the-root":

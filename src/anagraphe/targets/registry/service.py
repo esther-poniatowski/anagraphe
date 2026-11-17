@@ -28,6 +28,7 @@ from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.kinds import (
     DUPLICATE_IDENTIFIER,
     INVALID_IDENTIFIER,
+    INVALID_RECORD_REGISTRY,
     INVALID_REPOSITORY_MANIFEST,
     MISSING_IDENTIFIER,
     UNREADABLE_RECORD,
@@ -44,7 +45,6 @@ from anagraphe.targets.registry.contract import (
     read_registry,
 )
 from anagraphe.targets.registry.kinds import (
-    INVALID_RECORD_REGISTRY,
     REUSED_IDENTIFIER,
     STALE_REGISTRY,
     UNKNOWN_SUCCESSOR,
