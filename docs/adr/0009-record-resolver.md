@@ -1,7 +1,8 @@
 # ADR 0009: Record resolver
 
 **Status**: Accepted by the researcher on 2026-11-17, with the answers recorded under "Resolved
-questions"; proposed on 2026-11-16. The record answers the task `record-resolver` of the
+questions"; proposed on 2026-11-16. Clarified on 2026-11-17 by four choices of the implementation,
+recorded under "Clarifications of the implementation". The record answers the task `record-resolver` of the
 [task list of Geonexus][geonexus-todo]. [ADR 0007](0007-record-registry.md) unblocked that task by
 adding the record registries.
 
@@ -210,7 +211,8 @@ repository resolves alike in every clone of it:
 - a machine file maps an identifier to the path of a local clone. The environment variable
   `ANAGRAPHE_REPOSITORIES` names a file outside the repository; otherwise, the key `local` of the
   section `resolution` names a file inside it. A file that Git tracks stops the command with a
-  configuration error, since its paths belong to one machine.
+  configuration error, since its paths belong to one machine. The machine file serves the declared
+  entries; a submodule is read from its own folder.
 
 **State provider**. A port reads a path of a selected commit, and returns its bytes and its mode. A
 provider reports a state as absent, denied or failing its verification. A provider also rejects a
@@ -253,9 +255,9 @@ The check of the targets maps each outcome to a finding:
 | the repository identifier is retired, and names a current repository | `renamed-repository` | warning |
 | the record identifier was renamed, and its chain ends at a record | `renamed-target` | warning |
 | the record identifier was retired without a live successor | `retired-target` | error |
-| the context knows no such repository | `unknown-repository` | error |
-| the manifest of the state is absent, invalid, or declares another identifier | `invalid-target-repository` | error |
-| the state holds no registry, as ADR 0007 admits | `unverified-target` | note |
+| the context selects no state of the repository, and every submodule names its repository | `unknown-repository` | error |
+| the manifest of the state is absent, invalid, or declares another identifier; or the state holds two configuration files, or a configuration that cannot be parsed or names no registry inside the repository | `invalid-target-repository` | error |
+| the state holds no configuration of Anagraphe, no section `records`, or no registry at the path that this section names, as ADR 0007 admits | `unverified-target` | note |
 | the registry of the state violates its contract | `invalid-record-registry` | error |
 | the registry holds no such identifier | `unknown-record` | error |
 | the registered path names a symbolic link | `linked-target-path` | error |
@@ -265,7 +267,7 @@ The check of the targets maps each outcome to a finding:
 | the record declares no such unit, or two of them | `unknown-unit`, `ambiguous-unit` | error |
 | the contract of the record matches no admitted contract, or the record declares none | `target-contract-mismatch`, `unbound-target` | error |
 | the consumer lacks the schemas declaring the identifier or matching the contract | `unverified-target` | note |
-| the state is absent or denied on the machine | `unreadable-target-state` | warning |
+| the state is absent or denied on the machine; or the context selects no state of the repository, and a submodule whose manifest cannot be read may hold it | `unreadable-target-state` | warning |
 | the provider fails to verify the bytes of the state | `invalid-target-state` | error |
 
 A duplicated identifier stays out of a registry written by Anagraphe, since the command
@@ -304,15 +306,42 @@ The researcher answered the four questions on 2026-11-17. Two answers refine the
 2. An unreadable state is a warning of its own kind, not a note, so that it ranks above the
    legitimate gaps noted by `unverified-target`.
 
+### Clarifications of the implementation
+
+The researcher ratified four choices of the implementation on 2026-11-17. Each choice settles a
+case that the decision above leaves open, and the table of outcomes states its finding:
+
+1. **A repository outside the context**. A target naming a repository that the context does not
+   select receives `unknown-repository`, an error, even while no provider reads real states. The
+   context follows from the index and the configuration of the root alone, without reading any
+   state. Therefore, the defect lies in the configuration of the root, not on the machine. The
+   warning `unreadable-target-state` of the period without a provider covers the repositories of
+   the context alone.
+2. **A submodule naming no repository**. The context names a submodule by its manifest, read
+   through the provider. When that manifest cannot be read, the submodule may hold the repository
+   that a target names. A target naming a repository outside the context then receives
+   `unreadable-target-state`, since its cause may be a state that the machine cannot read.
+3. **A state without registry, or with a defective configuration**. A state holding no
+   configuration of Anagraphe, no section `records`, or no registry at the declared path holds no
+   registry, and its targets receive the note `unverified-target`. The gate of the target
+   repository reports a declared registry that is absent, through `anagraphe records check`. A state
+   holding two configuration files, or a configuration that cannot be parsed or that names a
+   registry outside the repository, receives `invalid-target-repository`, since the configuration
+   belongs with the manifest to the identity of the repository.
+4. **The local clone of a submodule**. The machine file serves the declared repositories alone. A
+   submodule is read from its own folder, which the gitlink of the root locates. That folder holds
+   the commit that the gitlink selects, whereas another clone named by a machine file may lack it.
+
 ---
 
 ## Implications
 
 - **Module**: the module `anagraphe.resolution` holds the context, the port of the provider, an
   in-memory provider for the tests, and the two operations. The check of the targets calls them for
-  every target into another repository. Until a provider reads real states, each such target
-  receives the warning `unreadable-target-state`, whose detail states that no provider reads its
-  state.
+  every target into another repository. Until a provider reads real states, each target into a
+  repository of the context receives the warning `unreadable-target-state`, whose detail states
+  that no provider reads its state. A target into a repository outside the context receives
+  `unknown-repository`.
 - **Configuration**: the section `resolution` declares the cited repositories of a root and,
   under its key `local`, the path of an ignored machine file. The guide of the targets documents
   both, with the environment variable `ANAGRAPHE_REPOSITORIES`.
