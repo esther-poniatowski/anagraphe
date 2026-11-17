@@ -2,8 +2,9 @@
 
 **Status**: Accepted by the researcher on 2026-11-17, with the four proposed answers; proposed on
 the same day. The record answers the task `record-state-provider` of the
-[task list of Geonexus][geonexus-todo]. Two clarifications of the implementation await ratification,
-under "Clarifications of the implementation".
+[task list of Geonexus][geonexus-todo]. Clarified on 2026-11-17 by two choices of the
+implementation, ratified by the researcher and recorded under "Clarifications of the
+implementation".
 
 ---
 
@@ -250,8 +251,7 @@ address that the root does not declare.
 
 ### Clarifications of the implementation
 
-The implementation of 2026-11-17 proposes two clarifications, which await the ratification of the
-researcher:
+The researcher ratified two choices of the implementation on 2026-11-17:
 
 1. **One cache for every repository**. The cache is one bare Git repository shared by every
    repository identifier, instead of one per identifier. The state of a submodule enters the cache
