@@ -397,10 +397,41 @@ the checked repository. Each step adds its findings to those of the check:
 | `unreadable-record` | error | the record cannot be parsed in its registered format |
 | `unknown-unit`, `ambiguous-unit`, `target-contract-mismatch`, `unbound-target` | error | as for a target of the same repository |
 
-A provider reads the selected states: the objects of a Git clone, a verified cache or an
-authorized bundle. This release installs no provider. Therefore, each target into a repository of
-the context receives the warning `unreadable-target-state`, whose detail states that no provider
-reads the state, and a target into a repository outside the context receives `unknown-repository`.
+The Git provider reads each selected state from the objects of its commit, never from a working
+tree, in the first store of the machine holding the commit:
+
+1. the clone of the entry: the folder of a submodule, or the clone named by the machine file for a
+   declared repository;
+2. the cache of the machine: one bare Git repository, `anagraphe/states` below the cache folder of
+   the user, or the folder named by the environment variable `ANAGRAPHE_CACHE`.
+
+The provider hashes every object that it reads, the commit, each tree along the path and the
+file, and compares the hash with the identifier that named the object. An object whose bytes
+differ yields `invalid-target-state`, and a commit held by no store yields
+`unreadable-target-state`, whose detail names the command that fetches it. A target into a
+repository outside the context receives `unknown-repository`.
+
+The command `anagraphe states fetch` is the only one that uses the network. It fetches into the
+cache each state of the context that no store of the machine holds, with the commit and its tree
+alone, from the remote of the context: the address of a declared repository, or the address of a
+submodule in `.gitmodules`, a relative address being resolved against the remote of the root.
+Credentials come from the configuration of Git on the machine, and Git never prompts for one. The
+command prints each state as `held`, `fetched`, `no-remote`, `unavailable`, `denied` or `failed`,
+and exits with status `1` when a state stays absent from the machine.
+
+The gate of a repository whose targets name another repository runs the fetch before the check. A
+workflow of GitHub reading a private repository passes its token to Git as a header, here built
+from a secret `READ_TOKEN`:
+
+```yaml
+- name: Fetch the selected states
+  env:
+    READ_TOKEN: ${{ secrets.READ_TOKEN }}
+  run: |
+    header="Authorization: Basic $(printf 'x-access-token:%s' "$READ_TOKEN" | base64 | tr -d '\n')"
+    git config --global http.https://github.com/.extraheader "$header"
+    anagraphe states fetch
+```
 
 ## Read targets from a tool
 

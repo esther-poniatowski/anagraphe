@@ -317,6 +317,10 @@
    :members:
    :undoc-members:
 
+.. automodule:: anagraphe.resolution.git
+   :members:
+   :undoc-members:
+
 .. automodule:: anagraphe.resolution.configuration
    :members:
    :undoc-members:

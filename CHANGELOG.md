@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The Git provider of ADR 0010, `anagraphe.resolution.git.GitProvider`. It reads each selected
+  state from the objects of its commit, in the clone of its entry, then in the cache of the
+  machine, and hashes every object that it reads against its identifier.
+- The command `anagraphe states fetch`, which fetches into the cache each selected state that no
+  Git store of the machine holds, and the environment variable `ANAGRAPHE_CACHE`, which names the
+  cache.
+- The remote of each submodule in the resolution context, read from `.gitmodules`.
+
+### Changed
+
+- The check of the targets reads the states of other repositories through the Git provider. A
+  target into a submodule whose clone holds its commit is verified without the network.
+- A remote address beginning with `-` is rejected, since Git would read it as an option.
+
 ## [0.9.0] - 2026-11-17
 
 ### Added

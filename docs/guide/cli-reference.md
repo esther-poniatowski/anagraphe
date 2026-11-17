@@ -29,6 +29,7 @@ anagraphe targets check [PATHS]... [--root PATH] [--config PATH] [--format FORMA
 anagraphe records write [--root PATH] [--config PATH]
 anagraphe records check [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe records retire ID [--replaced-by NEW] [--root PATH] [--config PATH]
+anagraphe states fetch [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 ```
 
@@ -40,10 +41,11 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe refs check` | reports the references that name no file or anchor, or break a convention |
 | `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
 | `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
-| `anagraphe targets check` | reports the logical targets that do not resolve within the repository, and the defects of the identifiers, of their declarations and of `repository.yml` |
+| `anagraphe targets check` | reports the logical targets that do not resolve, within the repository or at the selected state of another repository, and the defects of the identifiers, of their declarations and of `repository.yml` |
 | `anagraphe records write` | generates the record registry from the records, carrying over its retired identifiers, and writes no file when the records, the registry or `repository.yml` hold a defect |
 | `anagraphe records check` | checks the record registry against the records, and changes no file |
 | `anagraphe records retire` | moves an identifier held by no record from the records of the registry into its retired identifiers, with the date and an optional successor |
+| `anagraphe states fetch` | fetches into the cache of the machine each selected state of the resolution context that no Git store of the machine holds; the only command that uses the network |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
 
 | Option | Purpose | Default |
@@ -75,7 +77,7 @@ status at `0`.
 | Status | Meaning |
 | --- | --- |
 | `0` | no issue blocks |
-| `1` | at least one violation is reported, or `records write` or `records retire` refuses its change |
+| `1` | at least one violation is reported, `records write` or `records retire` refuses its change, or `states fetch` leaves a state absent from the machine |
 | `2` | the configuration, a named target, or a required section is invalid or absent; the log cannot be written; or a move lacks its confirmation without a terminal |
 
 ## Findings log
