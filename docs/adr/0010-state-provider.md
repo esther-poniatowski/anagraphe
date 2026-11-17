@@ -2,7 +2,8 @@
 
 **Status**: Accepted by the researcher on 2026-11-17, with the four proposed answers; proposed on
 the same day. The record answers the task `record-state-provider` of the
-[task list of Geonexus][geonexus-todo].
+[task list of Geonexus][geonexus-todo]. Two clarifications of the implementation await ratification,
+under "Clarifications of the implementation".
 
 ---
 
@@ -27,9 +28,11 @@ provider:
 
 A selected state is a full commit. A Git commit identifier is the hash of the commit object, which
 names its tree by the hash of the tree, and each tree names its entries by their hashes. Therefore,
-every Git object store holding a commit yields the same bytes for each path of it, and Git verifies
-them while it reads them. That property holds for the clone of a submodule, a declared local clone
-and a fetched copy alike.
+every Git object store holding a commit yields the same bytes for each path of it. A reader that
+hashes each object it reads, and compares the hash with the identifier that named the object,
+verifies those bytes. That property holds for the clone of a submodule, a declared local clone and
+a fetched copy alike. Git computes the identifier of an object when it writes the object, as during
+a fetch, whereas `git cat-file` returns an object without hashing it again.
 
 Three measured facts of the workspace bear on the design:
 
@@ -107,8 +110,8 @@ Three measured facts of the workspace bear on the design:
 #### Form of the cache
 
 1. **Git object store**
-   - Pros: Git verifies each object by its hash while it reads it, so the cache needs no manifest
-     and no verification code of its own. A fetch of depth one holds the commit and its whole
+   - Pros: the identifier of each object is its hash, so the provider verifies an object by hashing
+     it, and the cache needs no manifest. A fetch of depth one holds the commit and its whole
      tree. The provider reads a clone and the cache through one code path.
    - Cons: the provider depends on the Git command. The cache binds the repository identifier,
      the commit and the digests through the object graph, not through the manifest that the
@@ -236,14 +239,30 @@ address that the root does not declare.
 ### Final Answers
 
 1. Which form does the verified cache take?
-   A bare Git repository per repository identifier, which Git verifies by the hashes of its
-   objects.
+   A bare Git repository per repository identifier, whose objects the provider verifies by their
+   hashes.
 2. When does the provider use the network?
    In the command `anagraphe states fetch` alone; every check reads offline.
 3. Does this task implement the authorized bundle?
    No. A later decision fixes the bundle with its first consumer.
 4. Where does the cache lie on a machine?
    In `anagraphe/states/` below the cache folder of the user, replaced by `ANAGRAPHE_CACHE`.
+
+### Clarifications of the implementation
+
+The implementation of 2026-11-17 proposes two clarifications, which await the ratification of the
+researcher:
+
+1. **One cache for every repository**. The cache is one bare Git repository shared by every
+   repository identifier, instead of one per identifier. The state of a submodule enters the cache
+   before its manifest names the repository, so its identifier is unknown at the fetch. Its objects
+   are addressed by their hashes, so the states of several repositories share one store safely. A
+   reference below `refs/anagraphe/states/` keeps each fetched commit, so that a garbage collection
+   of the cache keeps it.
+2. **Verification by the provider**. The provider hashes the commit, each tree along the path and
+   the file, and compares each hash with the identifier that named the object. Git hashes an
+   object when it writes it, not when `git cat-file` reads it, so a store whose files changed after
+   their writing still yields `invalid-target-state`.
 
 ---
 
