@@ -150,6 +150,8 @@ def remote_problem(remote: Any) -> str | None:
     """
     if not isinstance(remote, str) or not remote:
         return "must be a remote address"
+    if remote.startswith("-"):
+        return "begins with -, which Git would read as an option"
     if SCP_FORM.fullmatch(remote) and "://" not in remote:
         return None
     parts = urlsplit(remote)

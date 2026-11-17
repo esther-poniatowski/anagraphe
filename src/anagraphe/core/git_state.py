@@ -1,7 +1,8 @@
 """
 The Git adapter of Anagraphe: the files committed in ``HEAD``, for the indexes introduced after
 the last commit; the files that Git ignores without tracking them, for the exclusions; and the
-gitlinks of the index and the ignored state of one path, for the record resolver.
+gitlinks of the index, the addresses of the submodules, the default remote and the ignored state of
+one path, for the record resolver.
 """
 
 from __future__ import annotations
@@ -111,6 +112,75 @@ def is_ignored(root: Path, rel: str) -> bool | None:
     except OSError:
         return None
     return {0: True, 1: False}.get(result.returncode)
+
+
+def submodule_urls(root: Path) -> dict[str, str]:
+    """Return the address of each submodule that ``.gitmodules`` declares, keyed by its path.
+
+    An address may be relative to the remote of the root, such as ``../notes.git``. A root without
+    ``.gitmodules``, or outside a Git work tree, declares none.
+    """
+    if not (root / ".gitmodules").is_file():
+        return {}
+    listing = _git(
+        root,
+        _environment(),
+        "config",
+        "-z",
+        "--file",
+        ".gitmodules",
+        "--get-regexp",
+        r"^submodule\..*\.(path|url)$",
+    )
+    if listing is None:
+        return {}
+    paths: dict[str, str] = {}
+    urls: dict[str, str] = {}
+    for record in listing.decode("utf-8", errors="surrogateescape").split("\0"):
+        key, _, value = record.partition("\n")
+        name, _, field = key.removeprefix("submodule.").rpartition(".")
+        if field == "path":
+            paths[name] = value
+        elif field == "url":
+            urls[name] = value
+    return {paths[name]: urls[name] for name in sorted(paths) if name in urls}
+
+
+def default_remote_url(root: Path) -> str | None:
+    """Return the address of the default remote of the root, against which Git resolves a relative
+    submodule address: the remote of the current branch, else ``origin``."""
+    environment = _environment()
+    branch = _git(root, environment, "symbolic-ref", "--quiet", "--short", "HEAD")
+    remote = None
+    if branch is not None:
+        remote = _git(root, environment, "config", f"branch.{branch.decode().strip()}.remote")
+    name = remote.decode().strip() if remote is not None else "origin"
+    url = _git(root, environment, "config", f"remote.{name}.url")
+    return url.decode("utf-8").strip() if url is not None else None
+
+
+#: The variables through which Git locates a repository, set by Git for a hook, which a command run
+#: in another repository must not inherit.
+REPOSITORY_VARIABLES = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_NAMESPACE",
+    "GIT_PREFIX",
+)
+
+
+def isolated_environment() -> dict[str, str]:
+    """Return the environment of a Git command run in another repository than the one that runs
+    the hook: the variables locating a repository removed, and no prompt for credentials."""
+    environment = {
+        name: value for name, value in os.environ.items() if name not in REPOSITORY_VARIABLES
+    }
+    environment["GIT_TERMINAL_PROMPT"] = "0"
+    return environment
 
 
 def _environment() -> dict[str, str]:

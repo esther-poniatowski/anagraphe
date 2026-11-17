@@ -75,6 +75,9 @@ from anagraphe.targets.registry import RecordsConfig, RegistryService, RetireRef
 from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
 from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
 from anagraphe.resolution.configuration import ResolutionConfig
+from anagraphe.resolution.context import build_context
+from anagraphe.resolution.git import GitProvider, default_cache, fetch_states
+from anagraphe.targets.manifest import read_manifest
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -100,6 +103,11 @@ records_app = typer.Typer(
 app.add_typer(bindings_app, name="bindings")
 app.add_typer(targets_app, name="targets")
 app.add_typer(records_app, name="records")
+states_app = typer.Typer(
+    no_args_is_help=True,
+    help="Fetch the selected states of the repositories that the targets name.",
+)
+app.add_typer(states_app, name="states")
 
 Paths = Annotated[
     list[Path] | None,
@@ -371,7 +379,8 @@ def _targets(  # pylint: disable=too-many-arguments,too-many-positional-argument
 ) -> Report:
     """Check the logical targets, print their report, and record it for the log."""
     try:
-        report = TargetChecker(root, config, registry, resolution).check(paths, strict)
+        provider = GitProvider(default_cache())
+        report = TargetChecker(root, config, registry, resolution, provider).check(paths, strict)
     except (ConfigurationError, OSError, TargetError) as error:
         _fail(error, findings)
     _emit(report, f"targets: checked {report.processed} records", findings)
@@ -698,6 +707,33 @@ def _print_plan(plan: MovePlan) -> None:
         typer.echo(f"index {edit.holder}:{edit.line}: {edit.description}")
     for pointer in plan.pointer_edits:
         typer.echo(f"edit {pointer.holder}:{pointer.line}: {pointer.old} -> {pointer.new}")
+
+
+@states_app.command("fetch")
+def states_fetch(root: Root = None, config: Config = None) -> None:
+    """Fetch into the cache of the machine each selected state that no Git store of it holds.
+
+    The states are those of the resolution context of the root: its submodules and the repositories
+    of the section resolution. The command is the only one that uses the network. It exits with
+    status 1 when a state stays absent from the machine.
+    """
+    resolved, repository = _load(root, config)
+    cache = default_cache()
+    provider = GitProvider(cache)
+    try:
+        context = build_context(
+            resolved, read_manifest(resolved).manifest, repository.resolution, provider
+        )
+    except ConfigurationError as error:
+        _fail(error)
+    results = fetch_states(context.states(), cache)
+    for result in results:
+        detail = f": {result.detail}" if result.detail else ""
+        typer.echo(f"{result.status.value}: {result.label} at {result.commit}{detail}")
+    failed = sum(result.failed for result in results)
+    typer.echo(f"states: {len(results)} states, {failed} absent from the machine, cache {cache}")
+    if failed:
+        raise typer.Exit(1)
 
 
 @app.command("move")

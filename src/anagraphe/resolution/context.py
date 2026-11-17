@@ -5,8 +5,10 @@ The context belongs to the root checked by the command, so one commit of a repos
 alike in every clone of it. It holds two kinds of entry:
 
 - a derived entry for each submodule of the root. The gitlink in the index selects the commit, and
-  the manifest at that commit, read through the provider, names the repository. A gitlink whose
-  manifest cannot be read names no repository, and the context keeps it as unnamed;
+  the manifest at that commit, read through the provider, names the repository. The address of the
+  submodule in ``.gitmodules`` is its remote, a relative address being resolved against the
+  remote of the root. A gitlink whose manifest cannot be read names no repository, and the context
+  keeps it as unnamed, with its remote, so that a fetch can supply its state;
 - a declared entry for each repository of the section ``resolution``, with its full commit, its
   remote address and, when the machine file names one, its local clone.
 
@@ -21,8 +23,8 @@ from pathlib import Path
 from typing import Mapping
 
 from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.git_state import gitlinks
-from anagraphe.resolution.configuration import ResolutionConfig
+from anagraphe.core.git_state import default_remote_url, gitlinks, submodule_urls
+from anagraphe.resolution.configuration import ResolutionConfig, remote_problem
 from anagraphe.resolution.provider import Blob, Mode, State, StateProvider, Unavailable
 from anagraphe.targets.manifest import MANIFEST_FILE, Manifest, parse_manifest
 
@@ -44,6 +46,8 @@ class Unnamed:
     path: str
     commit: str
     detail: str
+    #: The remote of the submodule, None when ``.gitmodules`` names no usable address.
+    remote: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,19 @@ class ResolutionContext:
     entries: Mapping[str, Entry] = field(default_factory=dict)
     #: The submodules naming no repository, which leave the context incomplete.
     unnamed: tuple[Unnamed, ...] = ()
+
+    def states(self) -> list[tuple[str, State]]:
+        """Return every state of the context, each with the label that a report names it by: the
+        entries by their identifier, then the unnamed submodules by their path."""
+        labelled = [
+            (f"{identifier} ({entry.origin})", entry.state)
+            for identifier, entry in sorted(self.entries.items())
+        ]
+        labelled.extend(
+            (f"submodule {item.path}", State(item.commit, item.remote, None))
+            for item in self.unnamed
+        )
+        return labelled
 
 
 def build_context(
@@ -89,13 +106,17 @@ def build_context(
             )
         entries[entry.repository] = entry
 
-    for link in gitlinks(root) or ():
-        state = State(link.commit, clone=root / link.path)
+    links = gitlinks(root) or ()
+    urls = submodule_urls(root) if links else {}
+    base = default_remote_url(root) if links else None
+    for link in links:
+        remote = submodule_remote(urls.get(link.path), base)
+        state = State(link.commit, remote, root / link.path)
         named = _manifest_identifier(provider, state)
         if isinstance(named, str):
             add(Entry(named, state, f"submodule {link.path}"))
         else:
-            unnamed.append(Unnamed(link.path, link.commit, named.detail))
+            unnamed.append(Unnamed(link.path, link.commit, named.detail, remote))
     for identifier, declared in sorted(config.repositories.items()):
         add(
             Entry(
@@ -110,6 +131,49 @@ def build_context(
         entries,
         tuple(unnamed),
     )
+
+
+def submodule_remote(url: str | None, base: str | None) -> str | None:
+    """Return the remote of a submodule: its address, a relative one resolved against the remote of
+    the root, as Git resolves it; None when no usable address results.
+
+    Each ``../`` removes the last component of the remote of the root, and ``./`` removes none.
+
+    Examples
+    --------
+    >>> submodule_remote("../notes.git", "git@github.com:lab/vault.git")
+    'git@github.com:lab/notes.git'
+    >>> submodule_remote("../notes.git", "https://github.com/lab/vault.git")
+    'https://github.com/lab/notes.git'
+    >>> submodule_remote("./notes.git", "https://github.com/lab/vault")
+    'https://github.com/lab/vault/notes.git'
+    >>> submodule_remote("https://h.org/a.git", None)
+    'https://h.org/a.git'
+    >>> submodule_remote("../../../x.git", "https://github.com/lab/vault.git") is None
+    True
+    """
+    if url is None:
+        return None
+    if url.startswith(("./", "../")):
+        if base is None:
+            return None
+        resolved = base.rstrip("/")
+        separator = "/"
+        while url.startswith(("./", "../")):
+            if url.startswith("./"):
+                url = url[2:]
+                continue
+            url = url[3:]
+            scheme = resolved.find("://")
+            floor = scheme + 3 if scheme >= 0 else 0
+            # In the scp form host:path, the colon also separates a component.
+            cut = max(resolved.rfind("/"), -1 if scheme >= 0 else resolved.rfind(":"))
+            if cut < floor:
+                return None
+            separator = resolved[cut]
+            resolved = resolved[:cut]
+        url = f"{resolved}{separator}{url}"
+    return url if remote_problem(url) is None else None
 
 
 @dataclass(frozen=True)
