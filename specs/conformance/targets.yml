@@ -13,7 +13,9 @@
 # A check case writes its files below an empty repository root, over the shared files, declares the
 # section targets of anagraphe.yml, then states the issues of the check. The key remove lists
 # shared files that a case leaves out. An issue is
-# [file, kind, locus]; the issues of a case are listed in sorted order.
+# [file, kind, locus]; the issues of a case are listed in sorted order. The root of a case holds no
+# submodule and declares no section resolution, so its resolution context selects no state of
+# another repository; specs/conformance/resolution.yml holds the cases of the record resolver.
 resource: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml
 manifest: anagraphe:repository@1
 
@@ -402,7 +404,7 @@ cases:
       _schema: test:citing@1
       source: {repository: lab, id: ada}
   issues:
-  - [cite.yml, unverified-target, /source]
+  - [cite.yml, unknown-repository, /source]
   - [repository.yml, invalid-repository-manifest, /repository/id]
 - id: invalid-repository-manifest-reused-identifier
   files:
@@ -505,20 +507,20 @@ cases:
       source: {id: note-n}
   issues:
   - [cite.yml, unbound-target, /profile]
-- id: unverified-target
-  note: A target into another repository, and one into a repository named without a manifest.
+- id: unknown-repository
+  note: >-
+    A target into a record of another repository, and a target into that repository itself, while
+    the context selects no state of it.
   files:
     cite.yml: |
       _schema: test:citing@1
       cites:
         - {repository: other-lab, id: ghost, unit: x}
         - {repository: other-lab}
-        - {repository: old-lab, id: ada}
   issues:
-  - [cite.yml, unverified-target, /cites/0]
-  - [cite.yml, unverified-target, /cites/1]
-  - [cite.yml, unverified-target, /cites/2]
-- id: unverified-target-without-manifest
+  - [cite.yml, unknown-repository, /cites/0]
+  - [cite.yml, unknown-repository, /cites/1]
+- id: unknown-repository-without-manifest
   note: A repository without a manifest resolves only its targets without repository.
   remove: [repository.yml]
   files:
@@ -527,7 +529,24 @@ cases:
       source: {repository: lab, id: ada}
       profile: {id: ada}
   issues:
-  - [cite.yml, unverified-target, /source]
+  - [cite.yml, unknown-repository, /source]
+- id: renamed-repository-of-the-root
+  note: >-
+    A former identifier of the root names the root, with a warning; the check then resolves the
+    target in the root, its unit included.
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository: {id: lab, retired: [old-lab]}
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {repository: old-lab, id: ada}
+        - {repository: old-lab, id: ghost}
+  issues:
+  - [cite.yml, renamed-repository, /cites/0]
+  - [cite.yml, renamed-repository, /cites/1]
+  - [cite.yml, unknown-record, /cites/1]
 - id: unreadable-record
   files:
     data/broken.yml: "key: [unclosed\n"

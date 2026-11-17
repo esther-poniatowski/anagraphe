@@ -17,6 +17,10 @@ each subpackage that the repository uses:
   registry. Its records are those of the walk of the section ``targets``, so it requires that
   section.
 
+The section ``resolution``, parsed by :mod:`anagraphe.resolution.configuration`, declares the
+repositories that the targets name besides the submodules, and the machine file of their local
+clones. It serves the check of the targets, and enables no command of its own.
+
 A section left out disables its subpackage, so a repository adopts each one apart.
 """
 
@@ -27,6 +31,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from anagraphe.core.configuration import (
+    CONFIG_FILE,
+    CONFIG_LOCATIONS,
     ConfigurationError,
     known_keys,
     load_yaml,
@@ -37,13 +43,10 @@ from anagraphe.core.metadata import MetadataReader, parse_metadata
 from anagraphe.bindings import configuration as bindings
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
+from anagraphe.resolution import configuration as resolution
 from anagraphe.targets import configuration as targets
 from anagraphe.targets.registry import configuration as records
 
-#: The name of the configuration file.
-CONFIG_FILE = "anagraphe.yml"
-#: The places of the configuration below the root.
-CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
 #: The environment variable naming the root, read when the command line gives none.
 ROOT_VARIABLE = "ANAGRAPHE_ROOT"
 #: The key of ``anagraphe.yml`` naming its format.
@@ -54,7 +57,17 @@ CONFIGURATION_FORMAT = "anagraphe:configuration@2"
 RETIRED_FORMAT_KEY = "schema_version"
 #: The top-level keys of ``anagraphe.yml``.
 TOP_LEVEL_KEYS = frozenset(
-    {FORMAT_KEY, "metadata", "exclude", "indexes", "references", "bindings", "targets", "records"}
+    {
+        FORMAT_KEY,
+        "metadata",
+        "exclude",
+        "indexes",
+        "references",
+        "bindings",
+        "targets",
+        "records",
+        "resolution",
+    }
 )
 #: The sections of ``anagraphe.yml``, one per capability.
 SECTIONS = ("indexes", "references", "bindings", "targets", "records")
@@ -69,6 +82,8 @@ class RepositoryConfig:
     bindings: bindings.BindingConfig | None = None
     targets: targets.TargetConfig | None = None
     records: records.RecordsConfig | None = None
+    #: The repositories that the targets name besides the submodules, and their local clones.
+    resolution: resolution.ResolutionConfig = resolution.ResolutionConfig()
     #: The metadata of each file, read from the source that the repository declares for it.
     metadata: MetadataReader | None = None
 
@@ -167,6 +182,10 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
             records.parse_section(root, mapping(raw["records"], "records"))
             if "records" in raw
             else None
+        ),
+        resolution=resolution.parse_section(
+            root,
+            mapping(raw["resolution"], "resolution") if "resolution" in raw else None,
         ),
         metadata=reader,
     )

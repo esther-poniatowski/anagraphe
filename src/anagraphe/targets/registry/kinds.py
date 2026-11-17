@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from anagraphe.core.issues import IssueKind
 
-#: A registry that cannot be parsed, or that violates ``anagraphe:record-registry@1``.
-INVALID_RECORD_REGISTRY = "invalid-record-registry"
+# A registry that cannot be parsed, or that violates ``anagraphe:record-registry@1``: the kind is
+# defined beside the kinds of the targets, whose resolver reports it in another repository.
+from anagraphe.targets.kinds import INVALID_RECORD_REGISTRY
+
 #: A registry that is absent, or whose entries, repository or form differ from the generation.
 STALE_REGISTRY = "stale-registry"
 #: An identifier of ``records`` that names no record of the walk, and is not retired.

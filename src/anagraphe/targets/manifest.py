@@ -83,11 +83,28 @@ def read_manifest(root: Path) -> ManifestReading:
     if not path.is_file():
         return ManifestReading(None)
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, yaml.YAMLError) as error:
-        # ValueError covers an undecodable file and a timestamp naming an impossible date.
-        first = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
-        return _invalid("", f"{MANIFEST_FILE} cannot be parsed: {first}")
+        text = path.read_text(encoding="utf-8")
+    except (OSError, ValueError) as error:
+        # ValueError covers an undecodable file.
+        return _invalid("", f"{MANIFEST_FILE} cannot be parsed: {_first_line(error)}")
+    return parse_manifest(text)
+
+
+def parse_manifest(text: str) -> ManifestReading:
+    """Read the text of a manifest, as a file of the repository or a file of a selected state.
+
+    Examples
+    --------
+    >>> parse_manifest("_schema: anagraphe:repository@1\\nrepository: {id: lab}\\n").manifest
+    Manifest(id='lab', retired=(), legacy=False)
+    >>> parse_manifest("[").problems[0].kind
+    'invalid-repository-manifest'
+    """
+    try:
+        data = yaml.safe_load(text)
+    except (ValueError, yaml.YAMLError) as error:
+        # ValueError covers a timestamp naming an impossible date.
+        return _invalid("", f"{MANIFEST_FILE} cannot be parsed: {_first_line(error)}")
     if not isinstance(data, dict):
         return _invalid("", f"{MANIFEST_FILE} is not a mapping")
     return check_manifest(data)
@@ -155,6 +172,12 @@ def check_manifest(data: dict[str, Any]) -> ManifestReading:
         else:
             return ManifestReading(Manifest(repository["id"], retired, legacy), tuple(problems))
     return ManifestReading(None, (*problems, *(invalid[at] for at in sorted(invalid))))
+
+
+def _first_line(error: Exception) -> str:
+    """Return the first line of the message of an error, or the name of its type."""
+    message = str(error).strip()
+    return message.splitlines()[0] if message else type(error).__name__
 
 
 def _invalid(at: str, detail: str) -> ManifestReading:

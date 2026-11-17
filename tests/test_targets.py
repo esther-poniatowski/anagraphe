@@ -130,8 +130,10 @@ def test_case_conforms(tmp_path: Path, case_id: str) -> None:
 
 
 def test_every_first_version_finding_has_a_planted_case() -> None:
+    """The cases of the resolver plant unverified-target, since ADR 0009 resolves a target into
+    another repository."""
     planted = {issue[1] for case in CASES.values() for issue in case["issues"]}
-    assert set(FIRST_VERSION) <= planted
+    assert set(FIRST_VERSION) - {"unverified-target"} <= planted
     assert CASES["valid-repository"]["issues"] == []
 
 
@@ -235,8 +237,8 @@ def test_registry_maps_the_resource_and_the_contract_to_package_files() -> None:
 
 
 def _cli_repository(root: Path) -> None:
-    """Write a repository holding one verified target, one target into another repository and a
-    legacy manifest."""
+    """Write a repository holding one verified target, one target into a declared repository
+    whose state no provider reads, and a legacy manifest."""
     _write(root, SUITE["files"])
     _write(
         root,
@@ -247,22 +249,33 @@ def _cli_repository(root: Path) -> None:
                 "cites:\n  - {repository: other-lab, id: x}\n"
             ),
             "anagraphe.yml": yaml.safe_dump(
-                {"_schema": "anagraphe:configuration@2", "targets": SUITE["section"]}
+                {
+                    "_schema": "anagraphe:configuration@2",
+                    "targets": SUITE["section"],
+                    "resolution": {
+                        "repositories": {
+                            "other-lab": {
+                                "commit": "0" * 40,
+                                "remote": "https://example.org/other-lab.git",
+                            }
+                        }
+                    },
+                }
             ),
         },
     )
 
 
-def test_cli_prints_a_note_and_exits_cleanly_without_an_error(tmp_path: Path) -> None:
+def test_cli_warns_of_an_unread_state_and_exits_cleanly(tmp_path: Path) -> None:
     _cli_repository(tmp_path)
     result = CliRunner().invoke(app, ["targets", "check", "--root", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert (
-        "cite.yml:1: note: unverified-target: /cites/0: {repository: other-lab, id: x}"
-        in result.output
+        "cite.yml:1: warning: unreadable-target-state: /cites/0: {repository: other-lab, id: x}: "
+        f"the state {'0' * 40} of other-lab cannot be read (absent)" in result.output
     )
     assert "repository.yml:1: warning: legacy-repository-manifest:" in result.output
-    assert "0 violations, 1 warnings, 1 notes" in result.output
+    assert "0 violations, 2 warnings" in result.output
 
 
 def test_cli_check_writes_the_levels_of_the_targets(tmp_path: Path) -> None:
@@ -279,5 +292,5 @@ def test_cli_check_writes_the_levels_of_the_targets(tmp_path: Path) -> None:
         ("targets/duplicate-identifier", "error", "path:people/ada.yml#/identity/id"),
         ("targets/duplicate-identifier", "error", "path:people/dup.md#/id"),
         ("targets/legacy-repository-manifest", "warning", "path:repository.yml#/schema_version"),
-        ("targets/unverified-target", "note", "path:cite.yml#/cites/0"),
+        ("targets/unreadable-target-state", "warning", "path:cite.yml#/cites/0"),
     ]

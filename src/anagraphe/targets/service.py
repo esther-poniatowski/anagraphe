@@ -7,8 +7,12 @@ repository, such as a submodule, belongs to that repository, so the check reads 
 each selected record, the check reports its identifier, then each value of its target fields:
 
 1. a value that is not a logical target is reported as ``invalid-target``;
-2. a target into another repository is reported as ``unverified-target``, at the level ``note``,
-   since only its form is checked until the resolver exists;
+2. a target into another repository is resolved and read by the record resolver of
+   :mod:`anagraphe.resolution`, at the state that the resolution context of the root selects, and
+   each finding of the resolver is reported. Until a provider reads the states of other
+   repositories, each such target receives the warning ``unreadable-target-state``. A target naming
+   a former identifier of the root is reported as ``renamed-repository``, then checked as a target
+   of the same repository;
 3. a target of the same repository names a record of the repository, then a unit of that record,
    and its record satisfies each ``x-target-contract`` of the field.
 
@@ -29,16 +33,20 @@ the versions declared by the read sides of the key ``read_sides`` with those of 
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 from pathlib import Path
 from typing import Mapping
 
 from anagraphe.core.files import select
 from anagraphe.core.issues import Issue, Report, distinct, pointer
 from anagraphe.core.schemas import values_at
+from anagraphe.resolution.configuration import ResolutionConfig
+from anagraphe.resolution.context import build_context
+from anagraphe.resolution.provider import EmptyProvider, StateProvider
+from anagraphe.resolution.resolver import Outcome, RecordResolver
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.declarations import Declarations, TargetField
 from anagraphe.targets.kinds import (
-    AMBIGUOUS_UNIT,
     DUPLICATE_IDENTIFIER,
     INVALID_IDENTIFIER,
     INVALID_TARGET,
@@ -47,23 +55,23 @@ from anagraphe.targets.kinds import (
     MISSING_IDENTIFIER,
     RENAMED_TARGET,
     RETIRED_TARGET,
-    TARGET_CONTRACT_MISMATCH,
-    UNBOUND_TARGET,
     UNKNOWN_RECORD,
-    UNKNOWN_UNIT,
     UNREADABLE_RECORD,
-    UNVERIFIED_TARGET,
 )
 from anagraphe.targets.manifest import MANIFEST_FILE, ManifestReading, read_manifest
-from anagraphe.targets.model import InvalidTarget, Target, admits
+from anagraphe.targets.model import InvalidTarget, Target
 from anagraphe.targets.read_sides import check_read_sides
 from anagraphe.targets.records import Record
 from anagraphe.targets.registry.configuration import RecordsConfig
 from anagraphe.targets.registry.contract import Retirement, follow, read_registry
 from anagraphe.targets.resource import matches
+from anagraphe.targets.verification import Finding, held_findings
 from anagraphe.targets.walk import RecordWalk
 
 __all__ = ["KINDS", "TargetChecker"]
+
+#: The catalogue entry of each kind, which fixes the level of a finding of the resolver.
+_CATALOGUE = {kind.kind: kind for kind in KINDS}
 
 
 @dataclass
@@ -79,11 +87,18 @@ class TargetChecker:
     registry : RecordsConfig or None
         The section ``records``, whose registry supplies the retired identifiers; None when the
         repository declares no registry.
+    resolution : ResolutionConfig or None
+        The section ``resolution``, which declares the repositories named besides the submodules;
+        None when the repository declares none.
+    provider : StateProvider
+        The reader of the states of other repositories; by default, none is read.
     """
 
     root: Path
     config: TargetConfig
     registry: RecordsConfig | None = None
+    resolution: ResolutionConfig | None = None
+    provider: StateProvider = field(default_factory=EmptyProvider)
     manifest: ManifestReading = field(init=False)
     walk: RecordWalk = field(init=False)
     #: The retired identifiers of the registry, empty without a valid registry.
@@ -112,6 +127,20 @@ class TargetChecker:
     def repository(self) -> str | None:
         """Return the identifier of the checked repository, None when it declares none."""
         return self.manifest.manifest.id if self.manifest.manifest is not None else None
+
+    @cached_property
+    def resolver(self) -> RecordResolver:
+        """Return the record resolver of the root, its context built on the first target into
+        another repository.
+
+        Raises
+        ------
+        ConfigurationError
+            If two entries of the context select states of one repository.
+        """
+        context = build_context(self.root, self.manifest.manifest, self.resolution, self.provider)
+        binding = self.config.records.binding if self.config.records is not None else "_schema"
+        return RecordResolver(context, self.provider, self.declarations, binding)
 
     def covers(self, rel: str) -> bool:
         """Whether a file is a record of the checked repository; the manifest is none."""
@@ -192,20 +221,22 @@ class TargetChecker:
             target = Target.parse(value)
         except InvalidTarget as error:
             return [Issue(record.rel, None, INVALID_TARGET, str(error), locus=at)]
-        written = str(target)
+        issues: list[Issue] = []
         if target.repository is not None and target.repository != self.repository:
-            return [
-                Issue(
-                    record.rel,
-                    None,
-                    UNVERIFIED_TARGET,
-                    f"{written} names the repository {target.repository}, whose records this "
-                    "check does not read; only the form of the target is checked",
-                    blocking=False,
-                    locus=at,
-                    note=True,
-                )
-            ]
+            resolution = self.resolver.resolve(target)
+            issues.extend(self._finding_issue(record, at, item) for item in resolution.findings)
+            if resolution.outcome is Outcome.RECORD:
+                read = self.resolver.read(resolution, target_field.contracts)
+                issues.extend(self._finding_issue(record, at, item) for item in read.findings)
+            if resolution.outcome is not Outcome.LOCAL:
+                return issues
+            target = resolution.target
+        return issues + self._local_issues(record, target_field, at, target)
+
+    def _local_issues(
+        self, record: Record, target_field: TargetField, at: str, target: Target
+    ) -> list[Issue]:
+        """Return the issues of a target of the same repository."""
         if target.id is None:
             return []
         holders = self.walk.table.get(target.id, [])
@@ -220,10 +251,24 @@ class TargetChecker:
                 record.rel,
                 None,
                 UNKNOWN_RECORD,
-                f"{written}: no record of the repository holds the identifier {target.id}",
+                f"{target}: no record of the repository holds the identifier {target.id}",
                 locus=at,
             )
         ]
+
+    @staticmethod
+    def _finding_issue(record: Record, at: str, finding: Finding) -> Issue:
+        """Return the issue of a finding on a target of a record, at the level of its kind."""
+        kind = _CATALOGUE[finding.kind]
+        return Issue(
+            record.rel,
+            None,
+            finding.kind,
+            finding.detail,
+            blocking=kind.blocking,
+            locus=at,
+            note=kind.note,
+        )
 
     def _retired_issues(
         self, record: Record, target_field: TargetField, at: str, target: Target
@@ -271,55 +316,10 @@ class TargetChecker:
         self, record: Record, target_field: TargetField, at: str, target: Target, held: Record
     ) -> list[Issue]:
         """Return the issues of a target whose record is found: its unit and its contract."""
-        issues: list[Issue] = []
-        written = str(target)
-        count = held.units.count(target.unit) if target.unit is not None else 1
-        if count != 1:
-            kind, detail = (
-                (UNKNOWN_UNIT, "declares no unit")
-                if not count
-                else (AMBIGUOUS_UNIT, "holds two units")
-            )
-            issues.append(
-                Issue(
-                    record.rel,
-                    None,
-                    kind,
-                    f"{written}: the record {held.rel} {detail} of the identifier {target.unit}",
-                    locus=at,
-                )
-            )
-        if target_field.contracts:
-            if held.contract is None:
-                issues.append(
-                    Issue(
-                        record.rel,
-                        None,
-                        UNBOUND_TARGET,
-                        f"{written}: the field admits the contracts "
-                        f"{_listed(target_field.contracts)}, and the record {held.rel} declares "
-                        "no contract",
-                        locus=at,
-                    )
-                )
-            else:
-                implemented = held.schema.implements if held.schema is not None else ()
-                contracts = (held.contract, *implemented)
-                failed = [
-                    entries for entries in target_field.contracts if not admits(entries, contracts)
-                ]
-                if failed:
-                    issues.append(
-                        Issue(
-                            record.rel,
-                            None,
-                            TARGET_CONTRACT_MISMATCH,
-                            f"{written}: the record {held.rel} follows {', '.join(contracts)}, "
-                            f"which no entry of {_listed(tuple(failed))} admits",
-                            locus=at,
-                        )
-                    )
-        return issues
+        return [
+            self._finding_issue(record, at, finding)
+            for finding in held_findings(target, target_field.contracts, held)
+        ]
 
     def _manifest_issues(self) -> list[Issue]:
         """Return the defects of the manifest of the repository."""
@@ -338,8 +338,3 @@ class TargetChecker:
     def _schema_issues(self) -> list[Issue]:
         """Return the defects of the schemas of the registry, every contract read once."""
         return self.walk.schema_issues()
-
-
-def _listed(declarations: tuple[tuple[str, ...], ...]) -> str:
-    """Return the entries of declarations of ``x-target-contract``, each declaration bracketed."""
-    return " and ".join(f"[{', '.join(entries)}]" for entries in declarations)

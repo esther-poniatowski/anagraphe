@@ -1,6 +1,7 @@
 """
 The Git adapter of Anagraphe: the files committed in ``HEAD``, for the indexes introduced after
-the last commit, and the files that Git ignores without tracking them, for the exclusions.
+the last commit; the files that Git ignores without tracking them, for the exclusions; and the
+gitlinks of the index and the ignored state of one path, for the record resolver.
 """
 
 from __future__ import annotations
@@ -36,10 +37,7 @@ def ignored_untracked(root: Path) -> IgnoredPaths | None:
     IgnoredPaths | None
         The ignored paths, or None when ``root`` lies in no Git work tree, or Git cannot run.
     """
-    environment = dict(os.environ)
-    index = environment.get("GIT_INDEX_FILE")
-    if index and not os.path.isabs(index):
-        environment["GIT_INDEX_FILE"] = os.path.abspath(index)
+    environment = _environment()
     committed = _ignored(root, environment, ())
     local_file = _git_path(root, environment, "info/exclude")
     if committed is None or local_file is None:
@@ -50,6 +48,82 @@ def ignored_untracked(root: Path) -> IgnoredPaths | None:
     if every is None:
         return None
     return IgnoredPaths(every, frozenset(path for path in every if not _covered(path, committed)))
+
+
+@dataclass(frozen=True)
+class Gitlink:
+    """A submodule recorded in the index: its path relative to the root, and its commit."""
+
+    path: str
+    commit: str
+
+
+#: The mode of a gitlink in the index.
+GITLINK_MODE = "160000"
+
+
+def gitlinks(root: Path) -> tuple[Gitlink, ...] | None:
+    """Return the gitlinks of the index of the repository at ``root``, sorted by path.
+
+    The index holds the state that the next commit records, so a submodule moved by
+    ``git add`` and not yet committed selects its new commit. Git reads the index named by
+    ``GIT_INDEX_FILE`` when it sets it for a hook.
+
+    Returns
+    -------
+    tuple of Gitlink | None
+        The gitlinks, or None when ``root`` lies in no Git work tree, or Git cannot run.
+    """
+    listing = _git(root, _environment(), "ls-files", "-z", "--stage")
+    if listing is None:
+        return None
+    links: list[Gitlink] = []
+    for line in listing.split(b"\0"):
+        if not line:
+            continue
+        head, _, name = line.partition(b"\t")
+        mode, commit, _stage = head.decode("ascii").split(" ")
+        if mode == GITLINK_MODE:
+            links.append(Gitlink(name.decode("utf-8", errors="surrogateescape"), commit))
+    return tuple(sorted(links, key=lambda link: link.path))
+
+
+def is_ignored(root: Path, rel: str) -> bool | None:
+    """Whether Git ignores the path ``rel`` below ``root``, whether or not the file exists.
+
+    A tracked path is never ignored. The rules are those of the ``.gitignore`` files and of
+    ``.git/info/exclude``; the global excludes file of the machine is left out.
+
+    Returns
+    -------
+    bool | None
+        Whether the path is ignored, or None when ``root`` lies in no Git work tree, or Git
+        cannot run.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-c", f"core.excludesFile={os.devnull}", "check-ignore", "-q", "--", rel],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            env=_environment(),
+        )
+    except OSError:
+        return None
+    return {0: True, 1: False}.get(result.returncode)
+
+
+def _environment() -> dict[str, str]:
+    """Return the environment of a Git command, its relative ``GIT_INDEX_FILE`` made absolute.
+
+    Git sets ``GIT_INDEX_FILE`` for a hook relative to the folder where it runs the hook, which
+    the commands of Anagraphe may leave.
+    """
+    environment = dict(os.environ)
+    index = environment.get("GIT_INDEX_FILE")
+    if index and not os.path.isabs(index):
+        environment["GIT_INDEX_FILE"] = os.path.abspath(index)
+    return environment
 
 
 def _ignored(

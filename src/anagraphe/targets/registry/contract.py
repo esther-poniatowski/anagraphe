@@ -211,6 +211,12 @@ def read_registry(path: Path, rel: str) -> RegistryReading:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         return RegistryReading(None, (RegistryProblem("", f"{rel} cannot be read: {error}"),), "")
+    return parse_registry(text, rel)
+
+
+def parse_registry(text: str, rel: str) -> RegistryReading:
+    """Read the text of a registry, which the findings name ``rel``, as a file of the repository or
+    a file of a selected state."""
     try:
         # The loader derives from SafeLoader, so it constructs no Python object.
         data = yaml.load(text, Loader=_Loader)

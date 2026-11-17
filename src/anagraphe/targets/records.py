@@ -71,6 +71,12 @@ def read_record(root: Path, rel: str, binding: str, declarations: Declarations |
         text = (root / rel).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         return Record(rel, {}, problem=f"the record cannot be read: {error}")
+    return parse_record(rel, text, binding, declarations)
+
+
+def parse_record(rel: str, text: str, binding: str, declarations: Declarations | None) -> Record:
+    """Read the text of a record, as a file of the repository or a file of a selected state, its
+    format given by the suffix of ``rel``."""
     body = ""
     if rel.endswith(NOTE_SUFFIX):
         problem = frontmatter_problem(text)

@@ -12,6 +12,11 @@ from typing import Any, Mapping
 
 import yaml
 
+#: The name of the configuration file.
+CONFIG_FILE = "anagraphe.yml"
+#: The places of the configuration below the root of a repository, in the order of the search.
+CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
+
 
 class ConfigurationError(ValueError):
     """Report an invalid Anagraphe configuration with an actionable message."""

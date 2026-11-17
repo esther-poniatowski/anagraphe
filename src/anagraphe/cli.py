@@ -74,6 +74,7 @@ from anagraphe.targets.kinds import UNANALYZED as TARGET_UNANALYZED
 from anagraphe.targets.registry import RecordsConfig, RegistryService, RetireRefused
 from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
 from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
+from anagraphe.resolution.configuration import ResolutionConfig
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -366,10 +367,11 @@ def _targets(  # pylint: disable=too-many-arguments,too-many-positional-argument
     paths: tuple[Path, ...],
     strict: bool = True,
     findings: Findings | None = None,
+    resolution: ResolutionConfig | None = None,
 ) -> Report:
     """Check the logical targets, print their report, and record it for the log."""
     try:
-        report = TargetChecker(root, config, registry).check(paths, strict)
+        report = TargetChecker(root, config, registry, resolution).check(paths, strict)
     except (ConfigurationError, OSError, TargetError) as error:
         _fail(error, findings)
     _emit(report, f"targets: checked {report.processed} records", findings)
@@ -418,7 +420,15 @@ def check(
         reports.append(_bindings(resolved, repository.bindings, targets, False, findings))
     if repository.targets is not None:
         reports.append(
-            _targets(resolved, repository.targets, repository.records, targets, False, findings)
+            _targets(
+                resolved,
+                repository.targets,
+                repository.records,
+                targets,
+                False,
+                findings,
+                repository.resolution,
+            )
         )
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
@@ -497,7 +507,14 @@ def targets_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     section = _section(repository.targets, "targets", findings)
-    report = _targets(resolved, section, repository.records, _here(paths), findings=findings)
+    report = _targets(
+        resolved,
+        section,
+        repository.records,
+        _here(paths),
+        findings=findings,
+        resolution=repository.resolution,
+    )
     _exit(report, findings=findings)
 
 

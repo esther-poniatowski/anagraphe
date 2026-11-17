@@ -5,7 +5,10 @@ The kinds of the first version are those of ADR 0006, and ADR 0007 adds the two 
 naming a retired identifier. The versioning rules of the logical-targets specification add
 the two kinds of the comparison with the versions declared by another read side of the repository. Three further kinds report a file or a schema that the check cannot
 read, so that no record is skipped without a finding: an unreadable record, and the two kinds of
-the reader of schemas of the core, which the bindings report as well.
+the reader of schemas of the core, which the bindings report as well. ADR 0009 adds the kinds of
+the record resolver, which reads a target into another repository at a selected state, and extends
+five kinds to such a target: an unknown record, an unreadable record, an invalid registry, and the
+two kinds of a retired identifier.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ DUPLICATE_IDENTIFIER = "duplicate-identifier"
 INVALID_REPOSITORY_MANIFEST = "invalid-repository-manifest"
 #: A ``repository.yml`` written in the form ``schema_version: 1``.
 LEGACY_REPOSITORY_MANIFEST = "legacy-repository-manifest"
-#: A target of the same repository naming an identifier that no record holds.
+#: A target naming an identifier that no record of its repository holds.
 UNKNOWN_RECORD = "unknown-record"
 #: A target naming an identifier retired with a successor, which the check follows to its record.
 RENAMED_TARGET = "renamed-target"
@@ -43,7 +46,8 @@ AMBIGUOUS_UNIT = "ambiguous-unit"
 TARGET_CONTRACT_MISMATCH = "target-contract-mismatch"
 #: A target of a field declaring ``x-target-contract``, whose record declares no contract.
 UNBOUND_TARGET = "unbound-target"
-#: A target into another repository, whose form alone is checked until the resolver exists.
+#: A target into another repository whose record a legitimate gap leaves unverified: its state
+#: holds no registry, or the consumer lacks the schemas of the contract of its record.
 UNVERIFIED_TARGET = "unverified-target"
 #: A record whose frontmatter or document cannot be parsed, which leaves it unread.
 UNREADABLE_RECORD = "unreadable-record"
@@ -51,6 +55,26 @@ UNREADABLE_RECORD = "unreadable-record"
 READ_SIDE_MISMATCH = "read-side-mismatch"
 #: A declared read side whose file or pointer yields no mapping of strings to compare.
 UNREADABLE_READ_SIDE = "unreadable-read-side"
+#: A record registry violating ``anagraphe:record-registry@1``, here in a state of another
+#: repository; the check of the registry reports it in its own repository.
+INVALID_RECORD_REGISTRY = "invalid-record-registry"
+#: A target naming a retired repository identifier, which the resolver follows to its successor.
+RENAMED_REPOSITORY = "renamed-repository"
+#: A target naming a repository of which the resolution context selects no state.
+UNKNOWN_REPOSITORY = "unknown-repository"
+#: A selected state whose manifest or configuration is absent, invalid, or declares another
+#: identifier.
+INVALID_TARGET_REPOSITORY = "invalid-target-repository"
+#: A registered path of another repository naming a symbolic link, which the resolver never follows.
+LINKED_TARGET_PATH = "linked-target-path"
+#: A registered path of another repository leaving its state.
+ESCAPING_TARGET_PATH = "escaping-target-path"
+#: A registered path of another repository naming no file, or a record of another identifier.
+STALE_TARGET_REGISTRY = "stale-target-registry"
+#: A selected state whose bytes fail the verification of the provider.
+INVALID_TARGET_STATE = "invalid-target-state"
+#: A selected state absent from the machine, or whose access is denied.
+UNREADABLE_TARGET_STATE = "unreadable-target-state"
 
 #: Every kind of issue that the check can report.
 KINDS: tuple[IssueKind, ...] = (
@@ -72,7 +96,7 @@ KINDS: tuple[IssueKind, ...] = (
     IssueKind(
         LEGACY_REPOSITORY_MANIFEST, "repository.yml writes schema_version: 1.", blocking=False
     ),
-    IssueKind(UNKNOWN_RECORD, "No record of the repository holds the identifier of a target."),
+    IssueKind(UNKNOWN_RECORD, "No record of its repository holds the identifier of a target."),
     IssueKind(
         RENAMED_TARGET,
         "A target names an identifier retired by a rename; the check follows it to the successor.",
@@ -94,7 +118,8 @@ KINDS: tuple[IssueKind, ...] = (
     ),
     IssueKind(
         UNVERIFIED_TARGET,
-        "A target names another repository, whose form alone is checked.",
+        "A target into another repository stays unverified: its state holds no registry, or "
+        "the schemas of the contract of its record are not held here.",
         blocking=False,
         note=True,
     ),
@@ -114,6 +139,42 @@ KINDS: tuple[IssueKind, ...] = (
         UNRESOLVED_REFERENCE, "A $ref of a schema names no readable schema node in the repository."
     ),
     IssueKind(UNREADABLE_SCHEMA, "A schema named by the registry cannot be read."),
+    IssueKind(
+        INVALID_RECORD_REGISTRY,
+        "The record registry of a selected state of another repository violates its contract.",
+    ),
+    IssueKind(
+        RENAMED_REPOSITORY,
+        "A target names a retired repository identifier; the resolver follows it to the successor.",
+        blocking=False,
+    ),
+    IssueKind(UNKNOWN_REPOSITORY, "The resolution context selects no state of a named repository."),
+    IssueKind(
+        INVALID_TARGET_REPOSITORY,
+        "The manifest or the configuration of a selected state is absent, invalid, or declares "
+        "another identifier.",
+    ),
+    IssueKind(
+        LINKED_TARGET_PATH,
+        "The registered path of a record of another repository names a symbolic link.",
+    ),
+    IssueKind(
+        ESCAPING_TARGET_PATH,
+        "The registered path of a record of another repository leaves its state.",
+    ),
+    IssueKind(
+        STALE_TARGET_REGISTRY,
+        "The registered path of a record of another repository names no file, or a record of "
+        "another identifier.",
+    ),
+    IssueKind(
+        INVALID_TARGET_STATE, "The bytes of a selected state fail the verification of the provider."
+    ),
+    IssueKind(
+        UNREADABLE_TARGET_STATE,
+        "A selected state is absent from the machine, or its access is denied.",
+        blocking=False,
+    ),
 )
 
 #: The kinds reporting a file left unanalyzed, which makes a run incomplete.
