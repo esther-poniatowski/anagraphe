@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-17
+
 ### Added
 
 - The Git provider of ADR 0010, `anagraphe.resolution.git.GitProvider`. It reads each selected
