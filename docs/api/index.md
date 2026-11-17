@@ -69,6 +69,30 @@
 .. automodule:: anagraphe.core.links
    :members:
    :undoc-members:
+
+.. automodule:: anagraphe.core.anchors
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.core.regions
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.core.paths
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.core.json_text
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.core.schemas
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.core.git_state
+   :members:
+   :undoc-members:
 ```
 
 ## Indexes
@@ -90,6 +114,42 @@
    :show-inheritance:
 
 .. automodule:: anagraphe.indexes.relocation
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.types
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.slots
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.membership
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.order
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.fields
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.notes
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.render
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.blocks
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.retired
    :members:
    :undoc-members:
 
