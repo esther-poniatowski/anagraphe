@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The record resolver of ADR 0009, in the module `anagraphe.resolution`. Its operation `resolve`
+  locates the record of a target into another repository at a selected state, and its operation
+  `read` returns the verified bytes of that record with their provenance. A provider of the states
+  implements the protocol `StateProvider`; the class `MemoryProvider` serves the states of tests.
+- The section `resolution` of `anagraphe.yml`, which declares each cited repository with a full
+  commit and a remote address, and names the machine file of the local clones under `local`. The
+  environment variable `ANAGRAPHE_REPOSITORIES` names a machine file outside the repository.
+- The kinds `renamed-repository`, `unknown-repository`, `invalid-target-repository`,
+  `linked-target-path`, `escaping-target-path`, `stale-target-registry`, `invalid-target-state` and
+  `unreadable-target-state` of the section `targets`.
+- The conformance cases of the resolver, `specs/conformance/resolution.yml`.
+
+### Changed
+
+- The check of the targets resolves each target into another repository through the context of the
+  root, instead of noting it as `unverified-target`. This release installs no provider of the
+  states, so each target into a repository of the context receives the warning
+  `unreadable-target-state`. A target into a repository that the context does not select receives
+  the error `unknown-repository`.
+- The note `unverified-target` keeps two legitimate gaps: a state holding no record registry, and a
+  record whose contract has no schema in the checked repository.
+- A target naming a former identifier of the checked repository receives the warning
+  `renamed-repository`, and is checked in that repository.
+
 ## [0.8.1] - 2026-11-16
 
 ### Fixed

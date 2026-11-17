@@ -144,20 +144,22 @@ reports the identifiers and the targets of the selected files:
 | `invalid-repository-manifest` | error | `repository.yml` violates `anagraphe:repository@1` |
 | `legacy-repository-manifest` | warning | `repository.yml` writes `schema_version: 1` |
 | `unknown-record` | error | no record of the repository holds the identifier of a target of the same repository, and the identifier is not retired |
+| `renamed-repository` | warning | the target names a former identifier of the repository, which the manifest lists under `retired`; the check resolves the target in the repository |
 | `renamed-target` | warning | the target names an identifier retired with a successor |
 | `retired-target` | error | the target names an identifier retired without a successor, or whose successors reach no record |
 | `unknown-unit` | error | the record of a target holds no unit of its identifier |
 | `ambiguous-unit` | error | two units of the record of a target hold its identifier |
 | `target-contract-mismatch` | error | the contract of the record of a target matches no entry of `x-target-contract` |
 | `unbound-target` | error | the field declares `x-target-contract`, and the record of its target declares no contract |
-| `unverified-target` | note | the target names another repository, whose records the check does not read |
 | `unreadable-record` | error | the frontmatter or the document of a record cannot be parsed |
 | `unresolved-schema-reference` | error | a `$ref` of a schema names no readable node of the repository |
 | `unreadable-schema` | error | the schema of a contract of the registry cannot be read |
 
 A target of the same repository is one without `repository`, or one whose repository equals the
-identifier of the manifest at the root. A repository without a manifest therefore resolves only
-its targets without `repository`. A target naming a duplicated identifier receives no finding of
+identifier of the manifest at the root or one of its former identifiers. A repository without a
+manifest therefore resolves only its targets without `repository`. The record resolver reads every
+other target, with the findings that the section "Resolve targets into other repositories" below
+lists. A target naming a duplicated identifier receives no finding of
 its own, since `duplicate-identifier` reports its cause. A duplicated unit is reported only through
 a target that names it.
 
@@ -335,6 +337,71 @@ Each defect is reported under one kind. Therefore, an entry naming no record is
 check compares no identifier held by two records, since `duplicate-identifier` of the check of the
 targets reports that defect. Nor does the check compare the entry of a record that cannot be read.
 
+## Resolve targets into other repositories
+
+The record resolver reads a target into another repository at a selected state of that
+repository: a full commit, never a branch, a tag or a working tree. The resolution context of the
+checked root selects that state for each repository identifier:
+
+- each submodule of the root yields an entry. The gitlink in the index selects the commit, and the
+  manifest at that commit names the repository;
+- the section `resolution` declares the other repositories, each with a full commit and a remote
+  address.
+
+```yaml
+resolution:
+  repositories:
+    mixture-input-encoding:
+      commit: 0123456789abcdef0123456789abcdef01234567
+      remote: https://github.com/lab/mixture-input-encoding.git
+  local: .anagraphe-repositories.yml
+```
+
+| Key | Content | Default |
+| --- | --- | --- |
+| `repositories` | each cited repository identifier with its `commit`, 40 or 64 hexadecimal digits, and its `remote`, an address in the form `https://`, `http://`, `ssh://`, `git://` or `user@host:path`, without credentials | no declared repository |
+| `local` | the machine file of the local clones, relative to the root, which Git must ignore | no machine file |
+
+A repository declared under `repositories` and also held as a submodule stops the command, and so
+does an entry naming the repository of the root. The commit of a declared repository moves when
+the researcher edits it, so two clones of one commit select the same states.
+
+The machine file maps a repository identifier to the path of a local clone, relative to the folder
+of the file or absolute, as in `mixture-input-encoding: ../mixture-input-encoding`. Its paths
+belong to one machine, so no commit records the file. The environment variable
+`ANAGRAPHE_REPOSITORIES` names a machine file outside the repository, and replaces the key `local`.
+A machine file inside the repository that Git does not ignore stops the command. A file named by
+`local` may be absent, as on the host of a gate, whereas a file named by the variable must exist.
+The clones serve the declared repositories; a submodule is read from its own folder.
+
+The resolver selects the state of the named repository, reads its manifest and its configuration,
+then the record registry that its section `records` names, and finally the registered record. A
+target without `id` names the repository itself, and resolves once the manifest of the state
+declares its identifier. A record of another repository follows a contract whose schemas the
+selected state does not carry, so the resolver reads those schemas through the schema registry of
+the checked repository. Each step adds its findings to those of the check:
+
+| Kind | Level | Issue |
+| --- | --- | --- |
+| `renamed-repository` | warning | the target names an identifier that the manifest of a state of the context retires; the check follows it to the current identifier |
+| `unknown-repository` | error | the context selects no state of the named repository |
+| `unreadable-target-state` | warning | the selected state is absent from the machine, or its access is denied; or a submodule whose manifest cannot be read may hold the named repository |
+| `invalid-target-state` | error | the bytes of the selected state fail the verification of the provider |
+| `invalid-target-repository` | error | the manifest of the state is absent, invalid, or declares another identifier; or the state holds two configuration files, or a configuration naming no registry inside the repository |
+| `unverified-target` | note | the state holds no configuration, no section `records`, or no registry at the declared path; or the schemas of the contract of the record, which may declare its identifier field, its units or further contracts, are not held by the checked repository |
+| `invalid-record-registry` | error | the registry of the state violates `anagraphe:record-registry@1`, or names another repository |
+| `unknown-record`, `renamed-target`, `retired-target` | as above | the identifier of the target, looked up in the registry of the state |
+| `escaping-target-path` | error | the registered path leaves the state |
+| `linked-target-path` | error | the registered path names a symbolic link, which the resolver never follows |
+| `stale-target-registry` | error | the registered path names no file, or a record holding another identifier |
+| `unreadable-record` | error | the record cannot be parsed in its registered format |
+| `unknown-unit`, `ambiguous-unit`, `target-contract-mismatch`, `unbound-target` | error | as for a target of the same repository |
+
+A provider reads the selected states: the objects of a Git clone, a verified cache or an
+authorized bundle. This release installs no provider. Therefore, each target into a repository of
+the context receives the warning `unreadable-target-state`, whose detail states that no provider
+reads the state, and a target into a repository outside the context receives `unknown-repository`.
+
 ## Read targets from a tool
 
 A tool written in Python reads and compares targets through the package:
@@ -349,3 +416,23 @@ same = Target.parse(a).normalized(repository) == Target.parse(b).normalized(repo
 
 `Target.parse` raises `InvalidTarget`, whose `reason` names the first failed check, and
 `admits(entries, contracts)` states whether a list `x-target-contract` admits a record.
+
+A tool reads the record of a target into another repository through the module
+`anagraphe.resolution`, with a provider of the states:
+
+```python
+from anagraphe.resolution import Outcome, RecordResolver, build_context, parse_section
+
+context = build_context(root, manifest, parse_section(root, section), provider)
+resolver = RecordResolver(context, provider, declarations)
+resolution = resolver.resolve(target)
+if resolution.outcome is Outcome.RECORD:
+    read = resolver.read(resolution, contracts)
+```
+
+`resolve` returns the outcome, the target followed to its current identifiers, its provenance and
+its findings; `read` returns the bytes of the record, their provenance and the findings of its
+verification. A provider implements the protocol `StateProvider`, whose method `read(state, path)`
+returns a `Blob` with its mode, or the reason why the path cannot be read. The class
+`MemoryProvider` serves states declared in memory, for tests. The file
+`specs/conformance/resolution.yml` holds the cases that every resolver passes.

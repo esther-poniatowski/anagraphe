@@ -36,7 +36,8 @@ references: {}
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
 the keys of the section `references`, the [bindings guide](bindings.md) those of the section
-`bindings`, and the [targets guide](targets.md) those of the sections `targets` and `records`. The rest of this page states the keys of the section
+`bindings`, and the [targets guide](targets.md) those of the sections `targets`, `records` and
+`resolution`. The rest of this page states the keys of the section
 `indexes`.
 
 ## Metadata sources
