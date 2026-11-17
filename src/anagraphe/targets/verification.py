@@ -41,7 +41,7 @@ def held_findings(
 
     Parameters
     ----------
-    target : Target
+    target : anagraphe.targets.model.Target
         The target, written as the findings name it.
     contracts : tuple of tuple of str
         The entries of each ``x-target-contract`` declared on the citing field.

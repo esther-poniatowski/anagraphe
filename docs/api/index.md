@@ -133,3 +133,131 @@
    :members:
    :undoc-members:
 ```
+
+## Bindings
+
+```{eval-rst}
+.. automodule:: anagraphe.bindings.service
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.configuration
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.model
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.contract
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.resolution
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.schemas
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.bindings.kinds
+   :members:
+   :undoc-members:
+```
+
+## Targets
+
+```{eval-rst}
+.. automodule:: anagraphe.targets.service
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.configuration
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.model
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.manifest
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.records
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.declarations
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.verification
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.walk
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.field_paths
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.read_sides
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.resource
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.specification
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.kinds
+   :members:
+   :undoc-members:
+```
+
+## Records
+
+```{eval-rst}
+.. automodule:: anagraphe.targets.registry.service
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.registry.configuration
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.registry.contract
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.targets.registry.kinds
+   :members:
+   :undoc-members:
+```
+
+## Resolution
+
+```{eval-rst}
+.. automodule:: anagraphe.resolution.resolver
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.resolution.context
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.resolution.provider
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.resolution.configuration
+   :members:
+   :undoc-members:
+```
