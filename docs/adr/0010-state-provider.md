@@ -1,8 +1,8 @@
 # ADR 0010: Repository-state provider
 
-**Status**: Proposed on 2026-11-17. The record answers the task `record-state-provider` of the
-[task list of Geonexus][geonexus-todo], and awaits the answers of the researcher to its four
-questions.
+**Status**: Accepted by the researcher on 2026-11-17, with the four proposed answers; proposed on
+the same day. The record answers the task `record-state-provider` of the
+[task list of Geonexus][geonexus-todo].
 
 ---
 
@@ -184,7 +184,7 @@ Each table compares the options of one question.
 
 ### Decision
 
-**Proposed option**: a Git provider of the selected states, with four answers:
+**Chosen option**: a Git provider of the selected states, with four answers:
 
 - the cache as a Git object store;
 - the network used by the explicit command `anagraphe states fetch` alone;
@@ -258,8 +258,8 @@ address that the root does not declare.
 - **Findings**: `unreadable-target-state` keeps its meaning; its detail names the command that
   fetches the state. `invalid-target-state` reports an object that fails the verification of Git.
 - **Decision of Geonexus**: its paragraph on the provider describes a cache bound by a manifest.
-  An amendment states that a Git object store binds the same items through its object graph, and
-  that the manifest applies to a bundle.
+  Its amendment of 2026-11-17 states that a Git object store binds the same items through its
+  object graph, and that the manifest applies to a bundle.
 - **Conformance**: the cases of `specs/conformance/resolution.yml` stay valid. Tests of the Git
   provider build small repositories with Git, holding a symbolic link, a gitlink and a nested
   tree.
