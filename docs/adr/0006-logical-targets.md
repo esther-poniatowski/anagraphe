@@ -8,6 +8,11 @@ section "References across fields", and the canonical target of the decision of 
 key `cites` from that decision, since its decision on collection order had retired the key. This
 record was amended on the same day to match.
 
+**Amended** on 2026-11-17 by [ADR 0009](0009-record-resolver.md): the findings of a target into
+another repository follow the table of outcomes of ADR 0009, which replaces the two rows of
+cross-repository failures and of `unverified-target` below. An unreadable state is the warning
+`unreadable-target-state`, not an error.
+
 ---
 
 ## Problem Statement
@@ -326,8 +331,8 @@ Pointer of the target, or of the declaring field, as its locus, under
 | `ambiguous-unit` | error | two units of the record hold the identifier | yes |
 | `target-contract-mismatch` | error | the contract of the record matches no entry of `x-target-contract` | yes |
 | `unbound-target` | error | the field declares `x-target-contract`, and the record declares no `_schema` | yes |
-| `unverified-target` | note | the target names another repository, whose form alone is checked | yes, until the resolver exists |
-| the failures of the [decision on cross-repository resolution][resolution-failures] | error | an unknown repository, an unavailable or denied state, a stale registry, an escaping path, a digest mismatch, an unverified bundle | no: the task `record-resolver` names them |
+| `unverified-target` | note | the target names another repository, whose form alone is checked | yes; [ADR 0009](0009-record-resolver.md) keeps it for a state without registry and for a contract that the consumer lacks |
+| the failures of the [decision on cross-repository resolution][resolution-failures] | error or warning | an unknown repository, an unreadable state, a stale registry, an escaping path, an unverified state | no: [ADR 0009](0009-record-resolver.md) names each of them, with its level |
 | a renamed record | warning | the target names an identifier retired by a declared rename, and the resolver follows the rename | no: ADR 0007 names it `renamed-target` |
 
 A target of the same repository is one without `repository`, or one whose repository equals the

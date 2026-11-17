@@ -1,8 +1,9 @@
 # ADR 0009: Record resolver
 
-**Status**: Proposed on 2026-11-16. The record answers the task `record-resolver` of the
+**Status**: Accepted by the researcher on 2026-11-17, with the answers recorded under "Resolved
+questions"; proposed on 2026-11-16. The record answers the task `record-resolver` of the
 [task list of Geonexus][geonexus-todo]. [ADR 0007](0007-record-registry.md) unblocked that task by
-adding the record registries. Four questions await the researcher, each with a proposed answer.
+adding the record registries.
 
 ---
 
@@ -65,10 +66,11 @@ a body link into another repository waits on the task `record-reader-views`.
 
 ### Context of a standalone clone
 
-1. **Declared context**: the key `resolution` of `anagraphe.yml` maps each cited repository
+1. **Declared context**: the section `resolution` of `anagraphe.yml` maps each cited repository
    identifier to a full commit and to a remote address without credentials.
-   - The path of a local clone comes from a file outside the repository, named by an environment
-     variable.
+   - The path of a local clone comes from a machine file kept out of Git: a file outside the
+     repository, named by an environment variable, or a file ignored by Git inside it, named by a
+     path in the configuration.
 2. **Sibling discovery**: the resolver looks for a clone beside the root of the repository, whose
    manifest declares the cited identifier, and reads the commit checked out in that clone.
 3. **Workspace only**: a standalone clone resolves no target into another repository, and keeps
@@ -94,6 +96,8 @@ a body link into another repository waits on the task `record-reader-views`.
    findings.
 2. **Note**: the check keeps the note `unverified-target`, whose detail names the repository, the
    commit and the reason: the state is absent, or its access is denied.
+3. **Warning**: the check reports the kind `unreadable-target-state` at the level `warning`, with
+   the same detail. A warning gates no commit under the default policy of a gate.
 
 ---
 
@@ -145,6 +149,11 @@ a body link into another repository waits on the task `record-reader-views`.
      machine rather than of the record.
 2. **Note**
    - Pros: the gate stays usable on its host, and the note keeps each unread target visible.
+   - Cons: a machine without the cited states verifies the form of the target alone, and the note
+     ranks that gap with the legitimate absence of a registry.
+3. **Warning**
+   - Pros: the gate stays usable on its host, and the warning ranks an unread state above the
+     notes of a legitimate gap. The kind of its own lets a gate set its level apart.
    - Cons: a machine without the cited states verifies the form of the target alone.
 
 ### Summary: Comparison by Criteria
@@ -166,10 +175,10 @@ Each table compares the options of one question.
 | --- | --- | --- |
 | Task boundaries | high (arrives with its consumer) | low (no consumer) |
 
-| Level of an unreadable state | Error | Note |
-| --- | --- | --- |
-| Explicit availability | high | high (reason in the detail) |
-| Usable gates | low (fails on the host) | high |
+| Level of an unreadable state | Error | Note | Warning |
+| --- | --- | --- | --- |
+| Explicit availability | high | medium (ranked with a legitimate gap) | high (kind of its own) |
+| Usable gates | low (fails on the host) | high | high (non-blocking) |
 
 ---
 
@@ -177,12 +186,12 @@ Each table compares the options of one question.
 
 ### Decision
 
-**Proposed design**: the record-access library of Anagraphe, with four proposed answers:
+**Chosen option**: the record-access library of Anagraphe, with four answers:
 
 - the declared context of a standalone clone;
 - the port only, the states being read by the task `record-state-provider`;
 - the TypeScript resolver in the task `record-reader-views`;
-- a note for an unreadable state.
+- a warning of its own kind for an unreadable state.
 
 **Justification**: the design delivers a library testable on its own, keeps the scopes of the task
 list, and keeps the gate of a project usable on its host.
@@ -195,11 +204,13 @@ repository resolves alike in every clone of it:
 - a root holding submodules derives an entry for each submodule. The gitlink in the index of the
   root selects the commit, since the index holds the state that the next commit records. The
   manifest at that commit, read through the provider, names the repository;
-- the key `resolution` of the root declares the other entries, each with a full commit and a remote
-  address without credentials. A derived and a declared entry of one identifier stop the command
-  with a configuration error;
-- a file outside the repository, named by an environment variable, maps an identifier to the path
-  of a local clone.
+- the section `resolution` of the root declares the other entries, each with a full commit and a
+  remote address without credentials. A derived and a declared entry of one identifier stop the
+  command with a configuration error;
+- a machine file maps an identifier to the path of a local clone. The environment variable
+  `ANAGRAPHE_REPOSITORIES` names a file outside the repository; otherwise, the key `local` of the
+  section `resolution` names a file inside it. A file that Git tracks stops the command with a
+  configuration error, since its paths belong to one machine.
 
 **State provider**. A port reads a path of a selected commit, and returns its bytes and its mode. A
 provider reports a state as absent, denied or failing its verification. A provider also rejects a
@@ -254,7 +265,7 @@ The check of the targets maps each outcome to a finding:
 | the record declares no such unit, or two of them | `unknown-unit`, `ambiguous-unit` | error |
 | the contract of the record matches no admitted contract, or the record declares none | `target-contract-mismatch`, `unbound-target` | error |
 | the consumer lacks the schemas declaring the identifier or matching the contract | `unverified-target` | note |
-| the state is absent or denied on the machine | `unverified-target` | note |
+| the state is absent or denied on the machine | `unreadable-target-state` | warning |
 | the provider fails to verify the bytes of the state | `invalid-target-state` | error |
 
 A duplicated identifier stays out of a registry written by Anagraphe, since the command
@@ -271,17 +282,27 @@ detects both in the task `glossary-import-closure`.
 
 1. Where does a standalone clone find the location and the selected state of each repository that
    its targets name?
-   Proposed: the key `resolution` of its configuration names a full commit and a remote address for
-   each cited repository. A file outside the repository, named by an environment variable, maps an
-   identifier to a local clone.
+   The section `resolution` of its configuration names a full commit and a remote address for each
+   cited repository. A machine file kept out of Git maps an identifier to a local clone: a file
+   outside the repository named by an environment variable, or a file ignored by Git inside it,
+   named by a path in the configuration.
 2. Does this task read real states?
-   Proposed: no. The task delivers the library and the port, tested with an in-memory provider, and
-   the task `record-state-provider` reads Git trees, caches and bundles.
+   No. The task delivers the library and the port, tested with an in-memory provider, and the task
+   `record-state-provider` reads Git trees, caches and bundles.
 3. Which task implements the resolver in the TypeScript read package?
-   Proposed: the task `record-reader-views`, on the conformance cases written now.
+   The task `record-reader-views`, on the conformance cases written now.
 4. At which level does the check report a target whose selected state the machine cannot read?
-   Proposed: the note `unverified-target`, whose detail names the repository, the commit and the
+   The warning `unreadable-target-state`, whose detail names the repository, the commit and the
    reason. The answer amends ADR 0006, where an unavailable or denied state is an error.
+
+### Resolved questions
+
+The researcher answered the four questions on 2026-11-17. Two answers refine the proposal:
+
+1. The machine file may also lie inside the repository, ignored by Git and named by a path in the
+   configuration, beside the file outside it named by an environment variable.
+2. An unreadable state is a warning of its own kind, not a note, so that it ranks above the
+   legitimate gaps noted by `unverified-target`.
 
 ---
 
@@ -289,19 +310,23 @@ detects both in the task `glossary-import-closure`.
 
 - **Module**: the module `anagraphe.resolution` holds the context, the port of the provider, an
   in-memory provider for the tests, and the two operations. The check of the targets calls them for
-  every target into another repository. Until a provider reads real states, each such target keeps
-  its note, whose detail states that no provider reads its state.
-- **Configuration**: the key `resolution` declares the cited repositories of a root. The guide of
-  the targets documents it with the machine file and its environment variable.
+  every target into another repository. Until a provider reads real states, each such target
+  receives the warning `unreadable-target-state`, whose detail states that no provider reads its
+  state.
+- **Configuration**: the section `resolution` declares the cited repositories of a root and,
+  under its key `local`, the path of an ignored machine file. The guide of the targets documents
+  both, with the environment variable `ANAGRAPHE_REPOSITORIES`.
 - **Findings**: the catalogue of the targets changes in three ways:
-  - seven kinds join it: `renamed-repository`, `unknown-repository`, `invalid-target-repository`,
-    `linked-target-path`, `escaping-target-path`, `stale-target-registry` and
-    `invalid-target-state`;
+  - eight kinds join it: `renamed-repository`, `unknown-repository`, `invalid-target-repository`,
+    `linked-target-path`, `escaping-target-path`, `stale-target-registry`, `invalid-target-state`
+    and `unreadable-target-state`;
   - five kinds extend to a target into another repository: `unknown-record`, `unreadable-record`,
     `invalid-record-registry`, `renamed-target` and `retired-target`;
-  - the note `unverified-target` keeps the targets verified by no machine state, and drops its
-    mention of a missing resolver.
-- **ADR 0006**: the record lists the findings above in its table, at their levels.
+  - the note `unverified-target` keeps two legitimate gaps: a state holding no registry, and a
+    consumer lacking the schemas of a contract. Its description drops the mention of a missing
+    resolver.
+- **ADR 0006**: an amendment of the record points its row of cross-repository failures to the
+  table of outcomes above, at their levels.
 - **Conformance**: the file `specs/conformance/resolution.yml` holds the shared cases, each with a
   context, the files of each state and an expected outcome.
 - **Later tasks**: the task `record-state-provider` implements the port for Git trees, caches and
