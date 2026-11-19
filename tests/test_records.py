@@ -453,7 +453,7 @@ def test_registry_of_the_package_exports_the_contract() -> None:
     path = PROJECT / registry["schemas"][REGISTRY_CONTRACT]
     assert yaml.safe_load(path.read_text("utf-8"))["$id"] == REGISTRY_ID
     assert REGISTRY_CONTRACT in registry["exports"]
-    resources = yaml.safe_load((PROJECT / "specs" / "schema-resources.yml").read_text("utf-8"))
+    resources = yaml.safe_load((PROJECT / "config/tools/kleisis.yml").read_text("utf-8"))
     assert REGISTRY_CONTRACT in resources["exports"]
 
 

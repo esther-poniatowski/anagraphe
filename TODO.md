@@ -15,7 +15,7 @@
 - [x] Retire the parsing of typed citations from the generic core, keeping the index key `external` and an optional `superseded_by`; release the change as a breaking version after migrating the two project repositories
 - [ ] Report the retired constructions inside `groups` (a `strategy`, a mode `construction`, a retired key in `show`) under an index without a region of groups, as the other retired keys are
 - [ ] Give a member hanging below a nesting cycle, but not on it, a message that does not say it closes the cycle
-- [ ] Index YAML records that keep their entry fields at the top level, without a block `metadata`, as the records of Gnomon do. Let the policy name the keys holding the title, the status and the purpose of each type of file. Read the order of categorical values from the member schema; the Geonexus record on collection-owned order leaves this point open
+- [ ] Index YAML records that keep their entry fields at the top level, without a block `metadata`, as the records of Gnomon do. Let the policy name the keys holding the title, the status and the purpose of each type of file.
 - [x] Split the package into a shared core and the subpackages `indexes` and `references`, each configured by its own section of `anagraphe.yml`, as ADR 0003 proposes ✅ 2026-10-30
 - [x] Port the link checker of the Geonexus vault into the subpackage `references`, as the command `anagraphe refs check` ✅ 2026-10-30
 - [x] Move a file or a folder with `anagraphe move`, rewriting every Markdown link and bare path to it, and updating the key `index`, the explicit lists, the build manifests and the regions of the affected indexes ✅ 2026-10-30

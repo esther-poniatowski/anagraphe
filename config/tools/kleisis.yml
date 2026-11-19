@@ -1,0 +1,11 @@
+# Configuration of Kleisis for the schemas of Anagraphe; generated files remain outside it.
+_schema: kleisis:configuration@1
+
+paths:
+  owned_schemas: src/anagraphe/data/schemas
+  registry: specs/schema-registry.yml
+
+exports:
+  - anagraphe:migration-plan@1
+  - anagraphe:record-registry@1
+  - anagraphe:repository@1

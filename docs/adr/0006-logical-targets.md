@@ -504,7 +504,7 @@ the files bound to it migrate.
 8. Each superseded contract leaves its registry once no record uses it.
 
 Each consumer schema that references the resource also selects Anagraphe as a source of resources
-in its `specs/schema-resources.yml`. The current schemas of Ekthesis, Onomasia and Geonexus carry a
+in its configuration of Kleisis. The current schemas of Ekthesis, Onomasia and Geonexus carry a
 relative `$id`, such as `$id: audience.schema.yaml`; their move to base schemas under rule 4 is
 independent of this record.
 
