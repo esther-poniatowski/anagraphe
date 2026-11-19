@@ -54,4 +54,5 @@ adr/0007-record-registry
 adr/0008-field-paths
 adr/0009-record-resolver
 adr/0010-state-provider
+adr/0011-read-distribution
 ```

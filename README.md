@@ -13,6 +13,7 @@ Generates repository indexes from record metadata, and checks their drift and th
 - [Overview](#overview)
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Public Interface](#public-interface)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -49,6 +50,7 @@ reference naming no file or anchor.
 - [x] Check the logical targets between records within one repository, with the identifiers and the derived repository identity that they name.
 - [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
 - [x] Rewrite the contract named by each record when a domain tool migrates its records, under a migration plan.
+- [x] Read the logical targets, the records of other repositories and the bindings in Python, without the command line, through the distribution [`anagraphe-read`](packages/read-python/README.md).
 - [x] Read the logical targets and the record registry in TypeScript, for a host without Python, through the package [`@anagraphe/read`](packages/read/README.md).
 - [x] Parse, print and expand field paths, and convert them to and from JSON Pointers, in Python and in TypeScript.
 - [x] Compare the versions of the specification declared by another read side of the repository with those of Anagraphe.
@@ -73,6 +75,20 @@ the logical targets and the record registry, without changing a file:
 ```sh
 anagraphe check
 ```
+
+## Public Interface
+
+Anagraphe ships two Python distributions from this repository, each with its own version:
+
+| Distribution | Import package | Role |
+| --- | --- | --- |
+| [`anagraphe-read`](packages/read-python/README.md) | `anagraphe_read` | reads the identity, the logical targets, the records of other repositories and the bindings of a repository |
+| `anagraphe` | `anagraphe` | provides the command line: the writers of the indexes, the registry and the moves, and every check |
+
+When a tool only reads records, the tool imports `anagraphe_read` alone. The `__all__` of
+`anagraphe_read` is the whole public interface of Anagraphe in Python. The package `anagraphe` holds
+the command line, and its modules are internal. The [installation guide](docs/guide/installation.md)
+states how to pin each distribution.
 
 ## Documentation
 

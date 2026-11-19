@@ -1,6 +1,68 @@
 # API Reference
 
-## Package Overview
+## Read Interface
+
+The module `anagraphe_read` is the public interface of the read distribution `anagraphe-read`; its
+`__all__` lists every public name.
+
+```{eval-rst}
+.. automodule:: anagraphe_read
+   :members:
+   :undoc-members:
+
+.. autodata:: anagraphe_read.AMBIGUOUS_UNIT
+
+.. autodata:: anagraphe_read.ESCAPING_TARGET_PATH
+
+.. autodata:: anagraphe_read.IDENTITY_DISAGREEMENT
+
+.. autodata:: anagraphe_read.INVALID_RECORD_REGISTRY
+
+.. autodata:: anagraphe_read.INVALID_TARGET_REPOSITORY
+
+.. autodata:: anagraphe_read.INVALID_TARGET_STATE
+
+.. autodata:: anagraphe_read.LINKED_TARGET_PATH
+
+.. autodata:: anagraphe_read.RENAMED_REPOSITORY
+
+.. autodata:: anagraphe_read.RENAMED_TARGET
+
+.. autodata:: anagraphe_read.RETIRED_REPOSITORY_MANIFEST
+
+.. autodata:: anagraphe_read.RETIRED_TARGET
+
+.. autodata:: anagraphe_read.STALE_TARGET_REGISTRY
+
+.. autodata:: anagraphe_read.TARGET_CONTRACT_MISMATCH
+
+.. autodata:: anagraphe_read.UNBOUND_TARGET
+
+.. autodata:: anagraphe_read.UNKNOWN_RECORD
+
+.. autodata:: anagraphe_read.UNKNOWN_REPOSITORY
+
+.. autodata:: anagraphe_read.UNKNOWN_UNIT
+
+.. autodata:: anagraphe_read.UNREADABLE_RECORD
+
+.. autodata:: anagraphe_read.UNREADABLE_TARGET_STATE
+
+.. autodata:: anagraphe_read.UNVERIFIED_TARGET
+
+.. autodata:: anagraphe_read.ADDRESSING_ID
+
+.. autodata:: anagraphe_read.IMPLEMENTED_SPECIFICATION
+
+.. autodata:: anagraphe_read.__version__
+```
+
+## Command Line
+
+The package `anagraphe` holds the command line. Its modules are internal to the distribution
+`anagraphe`.
+
+### Package Overview
 
 ```{eval-rst}
 .. automodule:: anagraphe
@@ -8,7 +70,7 @@
    :undoc-members:
 ```
 
-## Composition
+### Composition
 
 ```{eval-rst}
 .. automodule:: anagraphe.configuration
@@ -23,54 +85,28 @@
 .. automodule:: anagraphe.refactor
    :members:
    :undoc-members:
+
+.. automodule:: anagraphe.states
+   :members:
+   :undoc-members:
 ```
 
-## Core
+### Core
 
 ```{eval-rst}
 .. automodule:: anagraphe.core.structured
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe_read._core.filters
+.. automodule:: anagraphe.core.writes
    :members:
    :undoc-members:
-
-.. automodule:: anagraphe_read._core.conditions
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.exclusions
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.metadata
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.issues
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 .. automodule:: anagraphe.core.sarif
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe_read._core.configuration
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: anagraphe_read._core.files
-   :members:
-   :undoc-members:
-
 .. automodule:: anagraphe.core.links
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.anchors
    :members:
    :undoc-members:
 
@@ -81,21 +117,9 @@
 .. automodule:: anagraphe.core.paths
    :members:
    :undoc-members:
-
-.. automodule:: anagraphe_read._core.json_text
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.schemas
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._core.git_state
-   :members:
-   :undoc-members:
 ```
 
-## Indexes
+### Indexes
 
 ```{eval-rst}
 .. automodule:: anagraphe.indexes.service
@@ -118,6 +142,10 @@
    :undoc-members:
 
 .. automodule:: anagraphe.indexes.types
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe.indexes.value_sets
    :members:
    :undoc-members:
 
@@ -158,7 +186,7 @@
    :undoc-members:
 ```
 
-## References
+### References
 
 ```{eval-rst}
 .. automodule:: anagraphe.references.service
@@ -194,106 +222,30 @@
    :undoc-members:
 ```
 
-## Bindings
+### Checks of the Bindings and the Targets
 
 ```{eval-rst}
 .. automodule:: anagraphe.bindings.service
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe_read._bindings.configuration
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._bindings.model
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._bindings.contract
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._bindings.resolution
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._bindings.schemas
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._bindings.kinds
-   :members:
-   :undoc-members:
-```
-
-## Targets
-
-```{eval-rst}
 .. automodule:: anagraphe.targets.service
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe_read._targets.configuration
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.model
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.identity
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.records
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.declarations
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.verification
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.walk
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.field_paths
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.read_sides
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.resource
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.specification
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.kinds
+.. automodule:: anagraphe.targets.migration
    :members:
    :undoc-members:
 ```
 
-## Records
+### Record Registry
 
 ```{eval-rst}
 .. automodule:: anagraphe.targets.registry.service
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe_read._targets.registry.configuration
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe_read._targets.registry.contract
+.. automodule:: anagraphe.targets.registry.rendering
    :members:
    :undoc-members:
 
@@ -302,26 +254,231 @@
    :undoc-members:
 ```
 
-## Resolution
+## Internals of the Read Distribution
+
+The modules below are private to the distribution `anagraphe-read`. Their names and contents can
+change without a change of its version; a consumer imports `anagraphe_read` alone. Their entries are
+left out of the index, so that a reference to a public name resolves to the interface.
+
+### Composition of the Read Side
+
+```{eval-rst}
+.. automodule:: anagraphe_read._repository
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._configuration
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+```
+
+### Core of the Read Side
+
+```{eval-rst}
+.. automodule:: anagraphe_read._core.configuration
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: anagraphe_read._core.filters
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.conditions
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.exclusions
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.metadata
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.issues
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: anagraphe_read._core.files
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.anchors
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.json_text
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.schemas
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.published
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.git_state
+   :no-index:
+   :members:
+   :undoc-members:
+```
+
+### Bindings
+
+```{eval-rst}
+.. automodule:: anagraphe_read._bindings.configuration
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: anagraphe_read._bindings.model
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._bindings.contract
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._bindings.resolution
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._bindings.schemas
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._bindings.kinds
+   :no-index:
+   :members:
+   :undoc-members:
+```
+
+### Targets
+
+```{eval-rst}
+.. automodule:: anagraphe_read._targets.configuration
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.model
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.identity
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.records
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.declarations
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.verification
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.walk
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.field_paths
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.read_sides
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.resource
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.specification
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.kinds
+   :no-index:
+   :members:
+   :undoc-members:
+```
+
+### Records
+
+```{eval-rst}
+.. automodule:: anagraphe_read._targets.registry.configuration
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._targets.registry.contract
+   :no-index:
+   :members:
+   :undoc-members:
+```
+
+### Resolution
 
 ```{eval-rst}
 .. automodule:: anagraphe_read._resolution.resolver
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: anagraphe_read._resolution.context
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: anagraphe_read._resolution.provider
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: anagraphe_read._resolution.git
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: anagraphe_read._resolution.configuration
+   :no-index:
    :members:
    :undoc-members:
 ```

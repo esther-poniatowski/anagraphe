@@ -177,7 +177,7 @@ held the key `repository`, the contract `anagraphe:repository@1` of the retired 
 read side reads that contract since the identity of a repository is derived, so the key is
 removed.
 
-The Python read side exports the mapping as `anagraphe.targets.IMPLEMENTED_SPECIFICATION`, and the
+The Python read side exports the mapping as `anagraphe_read.IMPLEMENTED_SPECIFICATION`, and the
 TypeScript package `@anagraphe/read` exports it as `IMPLEMENTED_SPECIFICATION`. A host bundling the
 package writes that mapping into a file of its repository, and `anagraphe targets check` compares
 it with the mapping of Anagraphe, as the [targets guide](../guide/targets.md) states.

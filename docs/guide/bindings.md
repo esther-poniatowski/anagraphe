@@ -129,14 +129,13 @@ declaration on standard error:
 onomasia.audiences: general, ml (_index.md#/audiences, projects/p/_index.md#/audiences)
 ```
 
-A tool written in Python resolves its role through the package instead:
+A tool written in Python resolves its role through the interface of the read distribution,
+`anagraphe_read`, instead:
 
 ```python
-from anagraphe.bindings import BindingResolver, Merge, Role
-from anagraphe.configuration import load_config
+from anagraphe_read import Merge, Role, open_repository
 
-config = load_config(root, root / "anagraphe.yml").bindings
-binding = BindingResolver(root, config).resolve(
+binding = open_repository(root).bindings(
     "projects/p/notes/b.md", Role("onomasia.audiences", Merge.UNION)
 )
 ```

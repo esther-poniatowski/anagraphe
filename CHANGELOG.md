@@ -25,6 +25,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` takes the metadata source of each file from the host, through the options
   `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
   the type `MetadataSource`.
+- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.1.0`. The
+  distribution holds the Python read side of Anagraphe and depends on no part of the command line.
+  Its module `anagraphe_read` is its whole interface:
+  - `open_repository` locates and loads the configuration of a repository, derives its identity
+    and builds its resolution context; a root without `anagraphe.yml` opens with an empty
+    configuration;
+  - `Repository` exposes `root`, `identity`, `configuration`, `roles`, `resolve`, `read` and
+    `bindings`;
+  - the value types of the targets, the resolutions, the bindings and the state providers, with
+    `git_provider` and `ConfigurationError`;
+  - the kinds of the findings carried by the results;
+  - `ADDRESSING_ID`, `addressing_schema` and `IMPLEMENTED_SPECIFICATION`.
+
+  Each release attaches the wheel and the sdist of the distribution. A consumer pins it by
+  `anagraphe-read @ git+https://github.com/esther-poniatowski/anagraphe.git@<commit>#subdirectory=packages/read-python`.
 
 ### Changed
 
@@ -80,6 +95,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` exports `deriveIdentity` and `readDeclaredIdentity`, and `RepositoryIndex`
   takes the identifier of the repository from the host, through its option `repository` and its
   method `setRepository`.
+- The read side moves from `anagraphe` to the private subpackages of `anagraphe_read`, and the
+  distribution `anagraphe` requires `anagraphe-read==0.1.0`. A consumer imports the names of
+  `anagraphe_read` instead of the moved modules:
+  - the modules `configuration`, `conditions`, `filters`, `exclusions`, `git_state`, `issues`,
+    `json_text`, `metadata`, `published`, `schemas`, `anchors` and `files` of `anagraphe.core` move
+    to `anagraphe_read._core`;
+  - the modules of `anagraphe.targets` except `service` and `migration` move to
+    `anagraphe_read._targets`, and `anagraphe.targets.registry.configuration` and `.contract` move
+    to `anagraphe_read._targets.registry`;
+  - `anagraphe.resolution` becomes `anagraphe_read._resolution`;
+  - the modules of `anagraphe.bindings` except `service` move to `anagraphe_read._bindings`;
+  - the packaged schemas move to `anagraphe_read/data/schemas`.
+- Three modules are split, since each both read and wrote files: `write_atomically` moves to
+  `anagraphe.core.writes`, `fetch_states` with `FetchStatus`, `Fetched` and `STATE_REFERENCES` to
+  `anagraphe.states`, and `RecordRegistry.render()` becomes the function
+  `anagraphe.targets.registry.rendering.render`.
+- The packages `anagraphe.targets`, `anagraphe.targets.registry` and `anagraphe.bindings` export
+  only their checks and writers: `TargetChecker`, `RegistryService` with `RetireRefused` and
+  `WriteResult`, and `BindingChecker`.
+- `TargetChecker` and `RegistryService` take the composition of the read side,
+  `anagraphe_read._repository.Composition`. The function `load_config` takes an optional state
+  provider and returns a `RepositoryConfig`, whose attribute `reading` holds the `Composition`.
+- The distribution `anagraphe` no longer declares `pathspec`; the read distribution requires it.
 
 ### Removed
 

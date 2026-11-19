@@ -208,7 +208,7 @@ class RecordResolver:
 
         Parameters
         ----------
-        resolution : Resolution
+        resolution : anagraphe_read.Resolution
             The resolution of the target, whose outcome is ``record``.
         contracts : tuple of tuple of str
             The entries of each ``x-target-contract`` declared on the citing field.

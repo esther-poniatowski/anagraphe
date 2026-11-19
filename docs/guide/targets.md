@@ -520,34 +520,31 @@ from a secret `READ_TOKEN`:
 
 ## Read targets from a tool
 
-A tool written in Python reads and compares targets through the package:
+A tool written in Python reads targets through the interface of the read distribution
+`anagraphe-read`, the module `anagraphe_read`. The script below compares two targets written in one
+repository:
 
 ```python
-from anagraphe.targets import Target, repository_identity
+from anagraphe_read import Target, open_repository
 
-repository = repository_identity(root, config.repository).id
-same = Target.parse(a).normalized(repository) == Target.parse(b).normalized(repository)
+repository = open_repository(root)
+own = repository.identity.id
+same = Target.parse(a).normalized(own) == Target.parse(b).normalized(own)
 ```
 
-`repository_identity` derives the identity of the root from the section `repository` of the
-configuration, the remote of the root and its folder. `derive_identity` holds the same derivation
-without Git.
+The identity of the root derives from the section `repository` of the configuration, the remote of
+the root and its folder. `Target.parse` raises `InvalidTarget`, whose `reason` names the first
+failed check.
 
-`Target.parse` raises
-`InvalidTarget`, whose `reason` names the first failed check, and
-`admits(entries, contracts)` states whether a list `x-target-contract` admits a record.
-
-A tool reads the record of a target into another repository through the module
-`anagraphe.resolution`, with a provider of the states:
+The same repository reads the record of a target into another repository, through a provider of
+the states, the Git provider of the machine by default:
 
 ```python
-from anagraphe.resolution import Outcome, RecordResolver, build_context, parse_section
+from anagraphe_read import Outcome
 
-context = build_context(root, identity, parse_section(root, section), provider)
-resolver = RecordResolver(context, provider, declarations)
-resolution = resolver.resolve(target)
+resolution = repository.resolve(target)
 if resolution.outcome is Outcome.RECORD:
-    read = resolver.read(resolution, contracts)
+    read = repository.read(resolution, contracts)
 ```
 
 `resolve` returns the outcome, the target followed to its current identifiers, its provenance and
