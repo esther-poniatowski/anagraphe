@@ -25,14 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` takes the metadata source of each file from the host, through the options
   `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
   the type `MetadataSource`.
-- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.1.0`. The
+- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.2.0`. The
   distribution holds the Python read side of Anagraphe and depends on no part of the command line.
   Its module `anagraphe_read` is its whole interface:
   - `open_repository` locates and loads the configuration of a repository, derives its identity
     and builds its resolution context; a root without `anagraphe.yml` opens with an empty
     configuration;
-  - `Repository` exposes `root`, `identity`, `configuration`, `roles`, `resolve`, `read` and
-    `bindings`;
+  - `Repository` exposes `root`, `identity`, `configuration`, `roles`, `binding`,
+    `schema_registry`, `records`, `resolve`, `read` and `bindings`;
+  - `RecordFile`, returned by `records`, holds the path of a record, the contract that it names,
+    its data and its declared identifier, and gives the line and the column of each node of its
+    data;
   - the value types of the targets, the resolutions, the bindings and the state providers, with
     `git_provider` and `ConfigurationError`;
   - the kinds of the findings carried by the results;
@@ -96,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   takes the identifier of the repository from the host, through its option `repository` and its
   method `setRepository`.
 - The read side moves from `anagraphe` to the private subpackages of `anagraphe_read`, and the
-  distribution `anagraphe` requires `anagraphe-read==0.1.0`. A consumer imports the names of
+  distribution `anagraphe` requires `anagraphe-read==0.2.0`. A consumer imports the names of
   `anagraphe_read` instead of the moved modules:
   - the modules `configuration`, `conditions`, `filters`, `exclusions`, `git_state`, `issues`,
     `json_text`, `metadata`, `published`, `schemas`, `anchors` and `files` of `anagraphe.core` move

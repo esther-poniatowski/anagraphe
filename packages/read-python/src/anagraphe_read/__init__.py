@@ -3,8 +3,8 @@ Read the addressing of Anagraphe: logical targets, repository identities, record
 
 The distribution ``anagraphe-read`` is the Python read side of Anagraphe. A consumer opens a
 repository with :func:`open_repository`, which locates and loads its ``anagraphe.yml``, derives its
-identity and builds its resolution context, then resolves the logical targets of its records and
-reads the bindings of its texts through the returned :class:`Repository`.
+identity and builds its resolution context, then resolves the logical targets of its records,
+walks its records and reads the bindings of its texts through the returned :class:`Repository`.
 
 This module is the interface of the distribution, and every name of ``__all__`` is part of it. The
 subpackages and modules whose names open on an underscore are private: their names and their
@@ -27,7 +27,13 @@ from importlib.metadata import PackageNotFoundError, version
 from anagraphe_read._bindings.model import Binding, Merge, Role
 from anagraphe_read._configuration import Configuration
 from anagraphe_read._core.configuration import ConfigurationError
-from anagraphe_read._repository import Repository, addressing_schema, git_provider, open_repository
+from anagraphe_read._repository import (
+    RecordFile,
+    Repository,
+    addressing_schema,
+    git_provider,
+    open_repository,
+)
 from anagraphe_read._resolution.provider import (
     Availability,
     Blob,
@@ -79,6 +85,7 @@ __all__ = [
     "Configuration",
     "ConfigurationError",
     "Repository",
+    "RecordFile",
     "open_repository",
     # The logical targets and their resolution.
     "Finding",

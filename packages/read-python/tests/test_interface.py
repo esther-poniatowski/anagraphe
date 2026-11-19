@@ -46,6 +46,7 @@ INTERFACE = frozenset(
     {
         "open_repository",
         "Repository",
+        "RecordFile",
         "Configuration",
         "ConfigurationError",
         "Target",
@@ -291,3 +292,26 @@ def test_the_addressing_schema_is_a_copy_of_the_resource() -> None:
     assert first["$id"] == ADDRESSING_ID
     first["$id"] = "changed"
     assert addressing_schema()["$id"] == ADDRESSING_ID
+
+
+def test_the_records_name_their_contract_and_place_their_nodes(tmp_path: Path) -> None:
+    consumer_repository(tmp_path, "{repository: other-lab, id: bo}")
+    (tmp_path / "note.md").write_text("---\n_schema: test:note@1\ntitle: t\n---\nbody\n")
+    repository = open_repository(tmp_path, provider=MemoryProvider({}))
+    records = {record.path: record for record in repository.records()}
+    assert repository.binding == "_schema"
+    assert repository.schema_registry is not None and repository.schema_registry.is_file()
+    cite = records["cite.yml"]
+    assert cite.contract == "test:citing@1" and cite.problem is None
+    assert cite.data["profile"] == {"repository": "other-lab", "id": "bo"}
+    assert cite.position(["profile", "id"]) == (2, 38)
+    assert cite.position(["profile", "absent"]) == cite.position(["profile"]) == (2, 10)
+    assert cite.position([]) is None
+    assert records["note.md"].position(["title"]) == (3, 8)
+
+
+def test_records_require_the_section_targets(tmp_path: Path) -> None:
+    root = tmp_path / "plain-lab"
+    root.mkdir()
+    with pytest.raises(ConfigurationError, match="declares no section targets"):
+        open_repository(root, provider=MemoryProvider({})).records()

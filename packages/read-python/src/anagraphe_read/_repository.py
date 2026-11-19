@@ -12,7 +12,8 @@ once. The command line of Anagraphe and :func:`open_repository` both build their
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ from anagraphe_read._resolution.resolver import RecordRead, RecordResolver, Reso
 from anagraphe_read._targets.declarations import Declarations
 from anagraphe_read._targets.identity import Identity, repository_identity
 from anagraphe_read._targets.model import Target
+from anagraphe_read._targets.positions import position
 from anagraphe_read._targets.walk import RecordWalk
 
 
@@ -60,6 +62,42 @@ def addressing_schema() -> dict[str, Any]:
     True
     """
     return copy.deepcopy(schema(ADDRESSING_FILE))
+
+
+@dataclass(frozen=True)
+class RecordFile:
+    """A record of the repository read as a file: its path, the contract that it names, its data.
+
+    Attributes
+    ----------
+    path : str
+        The path of the file, relative to the root, written with ``/``.
+    contract : str | None
+        The value of the binding key of the record, None when the record names no contract.
+    data : Mapping[str, Any]
+        The frontmatter of a note, or the top-level mapping of a document; empty when it holds none.
+    identifier : str | None
+        The identifier of the record when its schema declares the field by ``x-identifier`` and
+        the record holds a string there, None otherwise.
+    problem : str | None
+        Why the record cannot be read, None when it can.
+    """
+
+    path: str
+    contract: str | None
+    data: Mapping[str, Any]
+    identifier: str | None = None
+    problem: str | None = None
+    root: Path = field(default=Path("."), repr=False, compare=False)
+
+    def position(self, path: Sequence[str | int]) -> tuple[int, int] | None:
+        """Return the line and the column, from 1, where the node at a positional path opens.
+
+        A step that leaves the data, such as the name of a missing field, stops at the closest
+        existing ancestor. The data as a whole, and a file that cannot be composed, have no
+        position.
+        """
+        return position(self.root, self.path, path)
 
 
 @dataclass
@@ -252,6 +290,50 @@ class Repository:
             If the path is absolute, or leaves the repository.
         """
         return self._composition.binding_resolver.resolve(path, role)
+
+    @property
+    def binding(self) -> str:
+        """Return the key of a record naming its contract, ``_schema`` by default."""
+        return self._composition.binding
+
+    @property
+    def schema_registry(self) -> Path | None:
+        """Return the schema registry through which a record reaches the schema of its contract,
+        None when the section ``targets`` declares none."""
+        targets = self._composition.configuration.targets
+        if targets is None or targets.records is None:
+            return None
+        return targets.records.registry
+
+    def records(self) -> tuple[RecordFile, ...]:
+        """Return every record of the repository, in the sorted order of the walk.
+
+        The walk excludes the files that the configuration exempts, the record registry, and the
+        files of nested repositories.
+
+        Raises
+        ------
+        ConfigurationError
+            If the configuration declares no section ``targets``.
+        """
+        walk = self._composition.walk
+        if walk is None:
+            raise ConfigurationError("anagraphe.yml declares no section targets")
+        return tuple(
+            RecordFile(
+                record.rel,
+                record.contract if isinstance(record.contract, str) else None,
+                record.data,
+                (
+                    record.identifier
+                    if record.declared and isinstance(record.identifier, str) and record.identifier
+                    else None
+                ),
+                record.problem,
+                self.root,
+            )
+            for record in walk.records()
+        )
 
 
 def open_repository(

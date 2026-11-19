@@ -43,5 +43,5 @@ consumer names the command line alone, pip stops with an error naming the versio
 line pins:
 
 ```text
-ERROR: No matching distribution found for anagraphe-read==0.1.0
+ERROR: No matching distribution found for anagraphe-read==0.2.0
 ```

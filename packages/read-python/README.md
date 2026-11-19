@@ -1,9 +1,10 @@
 # anagraphe-read
 
 The distribution `anagraphe-read` reads the addressing of Anagraphe in Python. The distribution
-covers four objects of a repository:
+covers five objects of a repository:
 
 - its identity;
+- its records, each with the contract that it names and the position of each of its nodes;
 - the logical targets of its records;
 - the records named by those targets in other repositories;
 - the bindings of its texts.
@@ -62,7 +63,7 @@ if resolution.outcome is Outcome.RECORD:
 binding = repository.bindings("notes/a.md", Role("onomasia.glossary"))
 ```
 
-The returned `Repository` exposes seven members:
+The returned `Repository` exposes ten members:
 
 | Member | Returns |
 | --- | --- |
@@ -70,6 +71,9 @@ The returned `Repository` exposes seven members:
 | `identity` | the `Identity` of the repository: its identifier, its former identifiers and its problems |
 | `configuration` | the `Configuration`, whose fields hold, among others, the sections `targets`, `records`, `bindings`, `resolution` and `repository` of `anagraphe.yml` |
 | `roles` | the names of the roles declared by the section `bindings` |
+| `binding` | the key of a record naming its contract, `_schema` by default |
+| `schema_registry` | the path of the schema registry declared by the section `targets`, or `None` |
+| `records()` | the `RecordFile` of each record of the walk: its path, the contract that it names, its data, its declared identifier and its problem; its method `position(path)` returns the line and the column where a node of the data opens |
 | `resolve(target)` | the `Resolution` of a `Target`: its outcome, its findings and its provenance |
 | `read(resolution, contracts=())` | the `RecordRead` of a resolved target: the bytes of the record, their provenance and the findings of their verification; its property `verified` states that none failed |
 | `bindings(path, role)` | the `Binding` of a text for a `Role`, resolved along the directory chain |
