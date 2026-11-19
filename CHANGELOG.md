@@ -38,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     its data and its declared identifier, and gives the line and the column of each node of its
     data;
   - `references(path)` returns the `Pointer` of each target written in a file, found by the
-    syntaxes of the section `references` and resolved as `anagraphe refs check` resolves it;
+    syntaxes of the section `references` and resolved as `anagraphe refs check` resolves it. A
+    pointer holds the file that it names, and the path that it names under the conventions of the
+    repository, which a broken link keeps;
     `metadata(path)` reads the metadata of a file from its declared source, and `exempt(path)`
     tells whether the shared exclusions leave it out. The syntaxes, the conventions and the
     resolution of the references move into the distribution, which therefore requires Merismos;

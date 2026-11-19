@@ -375,3 +375,22 @@ def test_a_path_leaving_the_repository_is_refused(tmp_path: Path) -> None:
     for call in (repository.references, repository.metadata, repository.exempt):
         with pytest.raises(ValueError, match="inside the repository"):
             call("../outside.md")
+
+
+def test_a_pointer_states_the_path_that_it_names(tmp_path: Path) -> None:
+    """A broken link still names a path of the repository, unlike a URL."""
+    repository = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n")
+    (tmp_path / "notes/c.md").write_text(
+        "[gone](../../projects/x/gone.md) [lost](../lost/a.md) [b](../b.md) "
+        "[site](https://example.org) [rooted](/root/missing.md)\n",
+        encoding="utf-8",
+    )
+    named = {
+        pointer.raw: (pointer.target, pointer.named)
+        for pointer in repository.references("notes/c.md")
+    }
+    assert named["../lost/a.md"] == (None, "lost/a.md")
+    assert named["../../projects/x/gone.md"] == (None, None)
+    assert named["../b.md"] == ("b.md", "b.md")
+    assert named["https://example.org"] == (None, None)
+    assert named["/root/missing.md"] == (None, "root/missing.md")
