@@ -3,8 +3,8 @@
  * repository, and the findings that the read side yields for a check case.
  *
  * A check case states the findings of the Python checker. The function {@link findings} derives
- * the same findings from the outcomes of the read side alone: the manifest reading, the
- * declarations of each schema of the registry, and the reading and the resolution of each record
+ * the same findings from the outcomes of the read side alone: the declarations of each schema of
+ * the registry, and the reading and the resolution of each record
  * through the live index. It names each outcome by the kind of its finding, and decides nothing.
  */
 import { readFileSync } from "node:fs";
@@ -13,7 +13,6 @@ import { isMapping } from "../../src/documents/text.js";
 import { readYaml } from "../../src/documents/yaml.js";
 import { pointer, valuesAt } from "../../src/key-path.js";
 import type { RepositoryIndex, Resolved, Duplicate } from "../../src/live-index.js";
-import { MANIFEST_FILE } from "../../src/manifest.js";
 import type { RecordReading } from "../../src/records.js";
 import type { TargetField } from "../../src/schema/declarations.js";
 import { readDeclarations } from "../../src/schema/declarations.js";
@@ -65,20 +64,18 @@ export function sorted(issues: readonly Finding[]): Finding[] {
  *
  * @param registry The schema registry of Kleisis.
  * @param records The record registry, `null` when the repository declares none.
+ * @param repository The identifier of the repository, `null` when it has no identity.
  */
 export async function findings(
   files: Record<string, string>,
   registry: string,
   records: string | null,
+  repository: string | null,
 ): Promise<{ readonly index: RepositoryIndex; readonly issues: Finding[] }> {
   const memory = new MemoryFiles(files);
-  const index = memoryIndex(memory, registry, records);
+  const index = memoryIndex(memory, registry, records, repository);
   await index.rebuild(Object.keys(files));
-  const issues: Finding[] = index.manifest.problems.map((problem) => [
-    MANIFEST_FILE,
-    problem.kind,
-    problem.pointer,
-  ]);
+  const issues: Finding[] = [];
   for (const path of Object.keys(files).sort()) {
     const record = index.record(path);
     if (record !== undefined) issues.push(...recordFindings(index, record));

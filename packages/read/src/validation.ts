@@ -1,6 +1,6 @@
 /**
- * The validation of a manifest and of a record registry against their packaged schemas, through
- * Ajv, as the Python read side validates them through `jsonschema`.
+ * The validation of a record registry against its packaged schema, through Ajv, as the Python read
+ * side validates it through `jsonschema`.
  *
  * Each validator reports every violation, located at the JSON Pointer of the violating value, so
  * that a violation of `required`, `additionalProperties` or `propertyNames` is located at its
@@ -9,11 +9,7 @@
  */
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { isDay } from "./documents/yaml.js";
-import {
-  ADDRESSING_SCHEMA,
-  RECORD_REGISTRY_SCHEMA,
-  REPOSITORY_SCHEMA,
-} from "./generated/resources.js";
+import { ADDRESSING_SCHEMA, RECORD_REGISTRY_SCHEMA } from "./generated/resources.js";
 
 /** One violation of a schema: the JSON Pointer of the violating value, and why. */
 export interface Violation {
@@ -27,31 +23,25 @@ function isDate(text: string): boolean {
   return parts !== null && isDay(Number(parts[1]), Number(parts[2]), Number(parts[3]));
 }
 
-let validators: {
-  readonly repository: ValidateFunction;
-  readonly registry: ValidateFunction;
-} | null = null;
+let validators: { readonly registry: ValidateFunction } | null = null;
 
-/** Returns the two validators, compiled once, the resource of the addressing registered by `$id`. */
+/** Returns the validators, compiled once, the resource of the addressing registered by `$id`. */
 function compiled(): NonNullable<typeof validators> {
   if (validators === null) {
     // The packaged schemas state `pattern` under `not` without `type`, which JSON Schema admits.
     const ajv = new Ajv2020({ allErrors: true, strictTypes: false });
     ajv.addFormat("date", { type: "string", validate: isDate });
     ajv.addSchema(ADDRESSING_SCHEMA);
-    validators = {
-      repository: ajv.compile(REPOSITORY_SCHEMA),
-      registry: ajv.compile(RECORD_REGISTRY_SCHEMA),
-    };
+    validators = { registry: ajv.compile(RECORD_REGISTRY_SCHEMA) };
   }
   return validators;
 }
 
 /**
- * Returns the violations of a value against the schema of the manifest or of the registry, the
- * first violation of each JSON Pointer, sorted by pointer.
+ * Returns the violations of a value against the schema of the registry, the first violation of
+ * each JSON Pointer, sorted by pointer.
  */
-export function violations(schema: "repository" | "registry", value: unknown): Violation[] {
+export function violations(schema: "registry", value: unknown): Violation[] {
   const validate = compiled()[schema];
   if (validate(value)) return [];
   const first = new Map<string, string>();

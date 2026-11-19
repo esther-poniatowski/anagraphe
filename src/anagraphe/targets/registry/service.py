@@ -29,11 +29,16 @@ from anagraphe.targets.kinds import (
     DUPLICATE_IDENTIFIER,
     INVALID_IDENTIFIER,
     INVALID_RECORD_REGISTRY,
-    INVALID_REPOSITORY_MANIFEST,
     MISSING_IDENTIFIER,
+    UNIDENTIFIED_REPOSITORY,
     UNREADABLE_RECORD,
 )
-from anagraphe.targets.manifest import MANIFEST_FILE, read_manifest
+from anagraphe.targets.identity import (
+    DeclaredIdentity,
+    Identity,
+    configuration_rel,
+    repository_identity,
+)
 from anagraphe.targets.records import Record
 from anagraphe.targets.registry.configuration import RecordsConfig
 from anagraphe.targets.registry.contract import (
@@ -89,16 +94,27 @@ class RegistryService:
         The section ``records``, which names the file of the registry.
     clock : Callable[[], datetime.date]
         The source of the day of a retirement, today by default.
+    declared : DeclaredIdentity or None
+        The section ``repository``, from which the identity that the registry names derives; None
+        when the repository declares none.
+
+    Raises
+    ------
+    ConfigurationError
+        If the former identifiers list the derived identifier.
     """
 
     root: Path
     targets: TargetConfig
     records: RecordsConfig
     clock: Callable[[], datetime.date] = datetime.date.today
+    declared: DeclaredIdentity | None = None
     walk: RecordWalk = field(init=False)
+    identity: Identity = field(init=False)
 
     def __post_init__(self) -> None:
         self.root = self.root.resolve()
+        self.identity = repository_identity(self.root, self.declared)
         self.walk = RecordWalk(self.root, self.targets, frozenset({self.records.rel}))
 
     @property
@@ -127,7 +143,7 @@ class RegistryService:
         The issues blocking a write are the unreadable records, the missing, invalid, duplicate and
         retired identifiers of the walk, the identifiers of the current file naming no record and
         not retired, the successors naming neither a record nor a retired identifier, an invalid
-        current file, a manifest declaring no valid identifier, and the defects of the schemas, which
+        current file, a repository without identity, and the defects of the schemas, which
         hide the identifiers of their records from the walk.
         """
         reading = self.read()
@@ -137,15 +153,17 @@ class RegistryService:
             *self.walk.schema_issues(),
             *self._invalid_issues(reading),
         ]
-        repository = read_manifest(self.root).manifest
+        repository = self.identity.id
         if repository is None:
+            config = configuration_rel(self.root)
             issues.append(
                 Issue(
-                    MANIFEST_FILE,
+                    config,
                     None,
-                    INVALID_REPOSITORY_MANIFEST,
-                    f"{MANIFEST_FILE} declares no valid identifier, which the registry names "
-                    "under repository; run anagraphe targets check for its defects",
+                    UNIDENTIFIED_REPOSITORY,
+                    "the repository has no identity, which the registry names under repository: "
+                    "neither its remote origin nor its folder is named by a repository "
+                    f"identifier; declare repository: {{id: <identifier>}} in {config}",
                 )
             )
         retired = reading.registry.retired if reading.registry is not None else {}
@@ -173,7 +191,7 @@ class RegistryService:
             issues.extend(self._successor_issues(reading.registry))
         if issues or repository is None:
             return WriteResult(_located(issues))
-        registry = RecordRegistry(repository.id, self.generation(), dict(retired))
+        registry = RecordRegistry(repository, self.generation(), dict(retired))
         text = registry.render()
         changed = reading.text != text
         if changed:
@@ -269,21 +287,24 @@ class RegistryService:
         return issues
 
     def _repository_issues(self, registry: RecordRegistry) -> list[Issue]:
-        """Return the issue of a registry naming another repository than the manifest."""
-        manifest = read_manifest(self.root).manifest
-        if manifest is not None and manifest.id == registry.repository:
+        """Return the issue of a registry naming another repository than the identity, which
+        reports a change of the derived identifier."""
+        identity = self.identity
+        if identity.id == registry.repository:
             return []
-        declared = (
-            f"the identifier {manifest.id}"
-            if manifest is not None
-            else "no valid identifier; declare it"
+        derived = (
+            f"the identity of the repository is {identity.id}, from the {identity.source.value}"
+            if identity.id is not None
+            else "the repository has no identity; declare repository.id in "
+            + configuration_rel(self.root)
         )
         return [
             self._issue(
                 STALE_REGISTRY,
                 pointer("repository"),
-                f"the registry names the repository {registry.repository}, and {MANIFEST_FILE} "
-                f"declares {declared}; then run {WRITE}",
+                f"the registry names the repository {registry.repository}, and {derived}; "
+                f"declare repository: {{id: {registry.repository}}} to keep that identifier, or "
+                f"list it under repository.retired after a rename, then run {WRITE}",
             )
         ]
 

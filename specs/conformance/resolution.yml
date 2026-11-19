@@ -5,8 +5,10 @@
 # which the resolver reads the schemas of a contract, under the section records of its targets.
 #
 # A case declares the resolution context of the consumer: its repository identifier, its former
-# identifiers, the commit selected for each repository identifier, and the submodules whose
-# manifest names no repository. A commit is an opaque name here. The provider serves the states of
+# identifiers, the commit selected for each repository identifier, the remote of a selected state
+# when the case declares one under remotes, and the submodules whose state names no repository. The
+# identity of a state is the override repository.id of its configuration, else the name of its
+# remote. A commit is an opaque name here. The provider serves the states of
 # the case: each state starts from the files of a named shared state, or from no file, then adds the
 # files of the case and drops those listed under remove. A file is its text, or {link: path} for a
 # symbolic link. A path through a symbolic link to a folder escapes the state. The keys denied and
@@ -56,11 +58,9 @@ consumer:
 
 states:
   other-lab:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository: {id: other-lab, retired: [old-lab]}
     config/tools/anagraphe.yml: |
       _schema: anagraphe:configuration@2
+      repository: {id: other-lab, retired: [old-lab]}
       targets:
         records: {registry: specs/schema-registry.yml}
       records: {}
@@ -120,7 +120,7 @@ cases:
   provenance: {repository: other-lab, commit: c1, path: people/bo.yml}
   findings: []
 - id: repository-itself
-  note: A target without id resolves once the manifest of the state declares the identifier.
+  note: A target without id resolves once the identity of the state is verified.
   context: {repository: lab, commits: {other-lab: c1}}
   states: {c1: {from: other-lab, remove: [record-registry.yml]}}
   target: {repository: other-lab}
@@ -156,7 +156,7 @@ cases:
   findings: [renamed-repository]
 # --- Renames.
 - id: renamed-repository
-  note: The manifest of the state of other-lab retires old-lab.
+  note: The configuration of the state of other-lab retires old-lab.
   context: {repository: lab, commits: {other-lab: c1}}
   states: {c1: {from: other-lab}}
   target: {repository: old-lab, id: ada}
@@ -185,7 +185,7 @@ cases:
   outcome: unresolved
   findings: [unknown-repository]
 - id: unknown-repository-beside-an-unnamed-submodule
-  note: A submodule whose manifest cannot be read may hold the repository, so its state is unread.
+  note: A submodule whose state cannot be read may hold the repository, so its state is unread.
   context:
     repository: lab
     commits: {}
@@ -214,19 +214,58 @@ cases:
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-state]
-- id: state-without-manifest
-  context: {repository: lab, commits: {other-lab: c1}}
-  states: {c1: {from: other-lab, remove: [repository.yml]}}
-  target: {repository: other-lab, id: ada}
-  outcome: unresolved
-  findings: [invalid-target-repository]
-- id: manifest-declaring-another-identifier
+- id: state-without-identity
+  note: The configuration declares no override, and the context names no remote of the state.
   context: {repository: lab, commits: {other-lab: c1}}
   states:
     c1:
       from: other-lab
       files:
-        repository.yml: "_schema: anagraphe:repository@1\nrepository: {id: third-lab}\n"
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: identity-from-the-remote-of-the-state
+  note: Without an override, the name of the remote of the state names it.
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: override-declaring-another-identifier
+  note: The override prevails over a remote naming the entry.
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: third-lab}\nrecords: {}\n"
+  target: {repository: other-lab}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: remote-naming-another-identifier
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/third-lab.git'}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+  target: {repository: other-lab}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: invalid-section-repository-of-the-state
+  context: {repository: lab, commits: {other-lab: c1}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: Other_Lab}\nrecords: {}\n"
   target: {repository: other-lab}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -242,8 +281,10 @@ cases:
   findings: [invalid-target-repository]
 # --- The registry of the state.
 - id: state-without-configuration
-  note: ADR 0007 admits a repository without registry, so its targets stay unverified.
-  context: {repository: lab, commits: {other-lab: c1}}
+  note: >-
+    ADR 0007 admits a repository without registry, so its targets stay unverified; the remote of
+    the state names it.
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
   states: {c1: {from: other-lab, remove: [config/tools/anagraphe.yml]}}
   target: {repository: other-lab, id: ada}
   outcome: unresolved
@@ -254,7 +295,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\ntargets: {}\n"
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\ntargets: {}\n"
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [unverified-target]
@@ -271,7 +312,7 @@ cases:
       from: other-lab
       remove: [record-registry.yml]
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {path: meta/records.yml}\n"
+        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {path: meta/records.yml}\n"
         meta/records.yml: |
           _schema: anagraphe:record-registry@1
           repository: other-lab

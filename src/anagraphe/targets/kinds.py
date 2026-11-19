@@ -8,7 +8,10 @@ read, so that no record is skipped without a finding: an unreadable record, and 
 the reader of schemas of the core, which the bindings report as well. ADR 0009 adds the kinds of
 the record resolver, which reads a target into another repository at a selected state, and extends
 five kinds to such a target: an unknown record, an unreadable record, an invalid registry, and the
-two kinds of a retired identifier.
+two kinds of a retired identifier. The derivation of the identity of a repository replaces the two
+kinds of its former manifest by two warnings, a disagreement of the derived names and a manifest
+left at the root, and the generation of the record registry refuses a repository without
+identity.
 """
 
 from __future__ import annotations
@@ -28,10 +31,12 @@ MISSING_IDENTIFIER = "missing-identifier"
 INVALID_IDENTIFIER = "invalid-identifier"
 #: An identifier held by two records of the repository.
 DUPLICATE_IDENTIFIER = "duplicate-identifier"
-#: A ``repository.yml`` that violates ``anagraphe:repository@1``.
-INVALID_REPOSITORY_MANIFEST = "invalid-repository-manifest"
-#: A ``repository.yml`` written in the form ``schema_version: 1``.
-LEGACY_REPOSITORY_MANIFEST = "legacy-repository-manifest"
+#: A remote name and a folder name deriving two different identifiers, without an override.
+IDENTITY_DISAGREEMENT = "identity-disagreement"
+#: A ``repository.yml`` left at the root, whose identity the section ``repository`` now declares.
+RETIRED_REPOSITORY_MANIFEST = "retired-repository-manifest"
+#: A repository without identity, whose record registry would name no repository.
+UNIDENTIFIED_REPOSITORY = "unidentified-repository"
 #: A target naming an identifier that no record of its repository holds.
 UNKNOWN_RECORD = "unknown-record"
 #: A target naming an identifier retired with a successor, which the check follows to its record.
@@ -62,8 +67,8 @@ INVALID_RECORD_REGISTRY = "invalid-record-registry"
 RENAMED_REPOSITORY = "renamed-repository"
 #: A target naming a repository of which the resolution context selects no state.
 UNKNOWN_REPOSITORY = "unknown-repository"
-#: A selected state whose manifest or configuration is absent, invalid, or declares another
-#: identifier.
+#: A selected state without identity, or whose identity differs from the identifier naming it, or
+#: whose configuration is invalid.
 INVALID_TARGET_REPOSITORY = "invalid-target-repository"
 #: A registered path of another repository naming a symbolic link, which the resolver never follows.
 LINKED_TARGET_PATH = "linked-target-path"
@@ -92,9 +97,19 @@ KINDS: tuple[IssueKind, ...] = (
     ),
     IssueKind(INVALID_IDENTIFIER, "An identifier lies outside the pattern of record-id."),
     IssueKind(DUPLICATE_IDENTIFIER, "Two records of the repository hold one identifier."),
-    IssueKind(INVALID_REPOSITORY_MANIFEST, "repository.yml violates anagraphe:repository@1."),
     IssueKind(
-        LEGACY_REPOSITORY_MANIFEST, "repository.yml writes schema_version: 1.", blocking=False
+        IDENTITY_DISAGREEMENT,
+        "Without an override, the remote name and the folder name derive two identifiers.",
+        blocking=False,
+    ),
+    IssueKind(
+        RETIRED_REPOSITORY_MANIFEST,
+        "repository.yml is left at the root; the section repository of anagraphe.yml replaces it.",
+        blocking=False,
+    ),
+    IssueKind(
+        UNIDENTIFIED_REPOSITORY,
+        "The repository has no identity, which the record registry names under repository.",
     ),
     IssueKind(UNKNOWN_RECORD, "No record of its repository holds the identifier of a target."),
     IssueKind(
@@ -151,8 +166,7 @@ KINDS: tuple[IssueKind, ...] = (
     IssueKind(UNKNOWN_REPOSITORY, "The resolution context selects no state of a named repository."),
     IssueKind(
         INVALID_TARGET_REPOSITORY,
-        "The manifest or the configuration of a selected state is absent, invalid, or declares "
-        "another identifier.",
+        "A selected state has no identity or another identity, or its configuration is invalid.",
     ),
     IssueKind(
         LINKED_TARGET_PATH,

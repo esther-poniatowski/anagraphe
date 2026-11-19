@@ -1,7 +1,9 @@
 /**
  * The live index of the open repository: the identifier, the contracts and the units of each of
- * its records, its manifest and its record registry, kept current by the events of the host, and
- * the resolution of a logical target against them.
+ * its records and its record registry, kept current by the events of the host, and the resolution
+ * of a logical target against them. The host derives the identity of the repository, with
+ * {@link deriveIdentity}, and supplies its identifier; the retired manifest `repository.yml` is no
+ * record.
  *
  * The host reports each creation, change, rename and deletion of a file, and each change of a file
  * on which a binding or a schema depends, such as a schema or a schema registry. Each indexing of a
@@ -12,7 +14,7 @@
  * retired identifiers of the registry. A target into another repository is unverified: its
  * resolution belongs to a resolver of that repository, which reads its registry.
  */
-import { MANIFEST_FILE, readManifest, type ManifestReading } from "./manifest.js";
+import { RETIRED_MANIFEST_FILE } from "./identity.js";
 import type { BindingResolver, FileSource, SchemaLoader } from "./ports.js";
 import { parseRecord, readRecord, type RecordReading } from "./records.js";
 import { follow, readRegistry, type RegistryReading } from "./registry.js";
@@ -30,10 +32,15 @@ export interface IndexPorts {
   readonly schemas: SchemaLoader;
 }
 
-/** Where the index finds the record registry of the repository. */
+/** The identity of the repository, and where the index finds its record registry. */
 export interface IndexOptions {
   /** The path of the record registry; `null` when the repository declares none. */
   readonly registry: string | null;
+  /**
+   * The identifier of the repository, derived by the host with {@link deriveIdentity}; `null`
+   * when the repository has no identity.
+   */
+  readonly repository: string | null;
 }
 
 /** How the record of a target holds the unit that the target names. */
@@ -83,7 +90,7 @@ interface SchemaEntry {
 
 /** The live index of the records of the open repository. */
 export class RepositoryIndex {
-  private manifestReading: ManifestReading = { manifest: null, problems: [] };
+  private identifier: string | null;
   private registryReading: RegistryReading = { registry: null, problems: [], exists: false };
   private readonly records = new Map<string, RecordReading>();
   private readonly holders = new Map<string, Set<string>>();
@@ -97,15 +104,21 @@ export class RepositoryIndex {
   constructor(
     private readonly ports: IndexPorts,
     private readonly options: IndexOptions,
-  ) {}
-
-  /** The identifier of the repository, `null` without a valid manifest. */
-  get repository(): string | null {
-    return this.manifestReading.manifest?.id ?? null;
+  ) {
+    this.identifier = options.repository;
   }
 
-  get manifest(): ManifestReading {
-    return this.manifestReading;
+  /** The identifier of the repository, `null` when it has no identity. */
+  get repository(): string | null {
+    return this.identifier;
+  }
+
+  /**
+   * Records the identifier that the host derives again, such as after a change of the section
+   * `repository` of its configuration; the records stay indexed.
+   */
+  setRepository(repository: string | null): void {
+    this.identifier = repository;
   }
 
   get registry(): RegistryReading {
@@ -134,29 +147,24 @@ export class RepositoryIndex {
     return entries.flatMap((entry) => entry.problems);
   }
 
-  /** Forgets every file and every schema, then reads the manifest, the registry and `paths`. */
+  /** Forgets every file and every schema, then reads the registry and `paths`. */
   async rebuild(paths: readonly string[]): Promise<void> {
     for (const path of [...this.records.keys()]) this.forget(path);
     this.schemas.clear();
     this.generations.clear();
-    this.manifestReading = { manifest: null, problems: [] };
     this.registryReading = { registry: null, problems: [], exists: false };
-    const reserved = [
-      MANIFEST_FILE,
-      ...(this.options.registry === null ? [] : [this.options.registry]),
-    ];
+    const reserved = this.options.registry === null ? [] : [this.options.registry];
     await Promise.all([...new Set([...reserved, ...paths])].map((path) => this.indexFile(path)));
   }
 
-  /** Indexes the file at `path`, created or changed: a record, the manifest or the registry. */
+  /** Indexes the file at `path`, created or changed: a record or the registry. */
   async indexFile(path: string): Promise<void> {
+    if (path === RETIRED_MANIFEST_FILE) return;
     const generation = this.next(path);
     this.running.add(path);
     try {
       const text = await this.ports.files.read(path);
-      if (path === MANIFEST_FILE) {
-        if (this.generations.get(path) === generation) this.manifestReading = readManifest(text);
-      } else if (path === this.options.registry) {
+      if (path === this.options.registry) {
         if (this.generations.get(path) === generation) this.registryReading = readRegistry(text);
       } else {
         await this.indexRecord(path, text, generation);
@@ -170,8 +178,7 @@ export class RepositoryIndex {
   removeFile(path: string): void {
     this.next(path);
     this.running.delete(path);
-    if (path === MANIFEST_FILE) this.manifestReading = { manifest: null, problems: [] };
-    else if (path === this.options.registry) {
+    if (path === this.options.registry) {
       this.registryReading = { registry: null, problems: [], exists: false };
     } else this.forget(path);
   }

@@ -1,7 +1,7 @@
 /**
  * The TypeScript read side of the addressing of Anagraphe: logical targets, identifier
- * declarations, units, repository manifests, record registries and field paths, read as the Python
- * read side reads them, and the live index of the records of an open repository.
+ * declarations, units, the identity of a repository, record registries and field paths, read as
+ * the Python read side reads them, and the live index of the records of an open repository.
  *
  * A host supplies three ports: {@link BindingResolver}, {@link SchemaLoader} and
  * {@link FileSource}. {@link IMPLEMENTED_SPECIFICATION} declares the versions of the specification
@@ -81,14 +81,17 @@ export {
   type RecordSource,
 } from "./records.js";
 export {
-  INVALID_REPOSITORY_MANIFEST,
-  LEGACY_REPOSITORY_MANIFEST,
-  MANIFEST_FILE,
-  readManifest,
-  type Manifest,
-  type ManifestProblem,
-  type ManifestReading,
-} from "./manifest.js";
+  IDENTITY_DISAGREEMENT,
+  IdentityError,
+  RETIRED_MANIFEST_FILE,
+  deriveIdentity,
+  readDeclaredIdentity,
+  remoteName,
+  type DeclaredIdentity,
+  type Identity,
+  type IdentityProblem,
+  type IdentitySource,
+} from "./identity.js";
 export {
   REGISTRY_FILE,
   checkRegistry,

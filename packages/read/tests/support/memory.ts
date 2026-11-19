@@ -132,6 +132,7 @@ export function memoryIndex(
   files: FileSource,
   registry: string,
   records: string | null,
+  repository: string | null = null,
 ): RepositoryIndex {
   return new RepositoryIndex(
     {
@@ -139,6 +140,6 @@ export function memoryIndex(
       bindings: new RegistryBinding(files, registry),
       schemas: new RegistrySchemas(files, registry),
     },
-    { registry: records },
+    { registry: records, repository },
   );
 }

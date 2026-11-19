@@ -1,6 +1,8 @@
 """
 The schema resources of the addressing, published as package data: the resource ``addressing.v1``
-and the contract ``anagraphe:repository@1`` of ``repository.yml``.
+and the contract ``anagraphe:repository@1`` of ``repository.yml``. That manifest is retired, since
+the identity of a repository is derived; the contract stays published until the files bound to it
+migrate.
 
 The patterns of the identifiers, of the entries of ``x-target-contract`` and of the paths of
 ``x-identifier`` are read from the resource itself, so the read side states no pattern of its own. A consumer schema references the definition ``target`` by its absolute URI,
@@ -21,7 +23,7 @@ import yaml
 ADDRESSING_ID = "https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml"
 #: The reference to the definition of a logical target.
 TARGET_REFERENCE = f"{ADDRESSING_ID}#/$defs/target"
-#: The contract of ``repository.yml``.
+#: The contract of the retired manifest ``repository.yml``.
 REPOSITORY_CONTRACT = "anagraphe:repository@1"
 #: The package files of the two schemas.
 ADDRESSING_FILE = "addressing.v1.schema.yml"

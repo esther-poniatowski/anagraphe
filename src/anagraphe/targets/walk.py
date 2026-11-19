@@ -5,8 +5,8 @@ registry.
 The walk lists every file of the repository below its exclusions, keeps the Markdown notes and the
 YAML or JSON documents, and reads each of them once for its identifier and its units. A file of a
 nested repository, such as a submodule, belongs to that repository, so the walk reads none of them.
-The manifest ``repository.yml``, and every other reserved file such as the record registry, is no
-record.
+The retired manifest ``repository.yml``, and every other reserved file such as the record registry,
+is no record.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from anagraphe.core.issues import Issue
 from anagraphe.core.schemas import SchemaReader
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.declarations import Declarations
-from anagraphe.targets.manifest import MANIFEST_FILE
+from anagraphe.targets.identity import MANIFEST_FILE
 from anagraphe.targets.records import Record, is_record, read_record
 from anagraphe.targets.resource import matches
 
@@ -38,7 +38,7 @@ class RecordWalk:
     config : TargetConfig
         The section ``targets``, which supplies the exclusions and the schema registry.
     reserved : frozenset[str]
-        Repository-relative paths that are never records, besides the manifest.
+        Repository-relative paths that are never records, besides the retired manifest.
     """
 
     root: Path

@@ -49,8 +49,6 @@ FIRST_VERSION = (
     "missing-identifier",
     "invalid-identifier",
     "duplicate-identifier",
-    "invalid-repository-manifest",
-    "legacy-repository-manifest",
     "unknown-record",
     "unknown-unit",
     "ambiguous-unit",
@@ -60,8 +58,8 @@ FIRST_VERSION = (
 )
 
 
-def test_cases_name_the_resource_and_the_contract_of_the_package() -> None:
-    assert (SUITE["resource"], SUITE["manifest"]) == (ADDRESSING_ID, REPOSITORY_CONTRACT)
+def test_cases_name_the_resource_of_the_package() -> None:
+    assert SUITE["resource"] == ADDRESSING_ID
 
 
 # --- Readings and contracts.
@@ -105,35 +103,42 @@ def _write(root: Path, files: dict[str, str]) -> None:
         path.write_text(text, encoding="utf-8")
 
 
-def _check(root: Path, section: dict[str, Any] | None = None) -> list[list[str]]:
-    """Check a repository under the section targets, and return its sorted issues."""
+def _check(
+    root: Path,
+    section: dict[str, Any] | None = None,
+    repository: dict[str, Any] | None = None,
+) -> list[list[str]]:
+    """Check a repository under the section targets, and the section repository when one is given,
+    and return its sorted issues."""
     declared = {
         "_schema": "anagraphe:configuration@2",
         "targets": SUITE["section"] if section is None else section,
+        **({"repository": repository} if repository is not None else {}),
     }
     (root / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
-    config = load_config(root, root / "anagraphe.yml").targets
-    assert config is not None
-    return sorted(
-        [issue.rel, issue.kind, issue.locus] for issue in TargetChecker(root, config).check().issues
-    )
+    config = load_config(root, root / "anagraphe.yml")
+    assert config.targets is not None
+    checker = TargetChecker(root, config.targets, declared=config.repository)
+    return sorted([issue.rel, issue.kind, issue.locus] for issue in checker.check().issues)
 
 
 @pytest.mark.parametrize("case_id", sorted(CASES))
 def test_case_conforms(tmp_path: Path, case_id: str) -> None:
     case = CASES[case_id]
+    root = tmp_path / SUITE["folder"]
     shared = {
         rel: text for rel, text in SUITE["files"].items() if rel not in case.get("remove", [])
     }
-    _write(tmp_path, {**shared, **case["files"]})
-    assert _check(tmp_path) == case["issues"]
+    _write(root, {**shared, **case["files"]})
+    assert _check(root, repository=case.get("repository", SUITE["repository"])) == case["issues"]
 
 
 def test_every_first_version_finding_has_a_planted_case() -> None:
     """The cases of the resolver plant unverified-target, since ADR 0009 resolves a target into
-    another repository."""
+    another repository, and the cases of the identity plant identity-disagreement."""
     planted = {issue[1] for case in CASES.values() for issue in case["issues"]}
     assert set(FIRST_VERSION) - {"unverified-target"} <= planted
+    assert "retired-repository-manifest" in planted
     assert CASES["valid-repository"]["issues"] == []
 
 
@@ -146,10 +151,11 @@ def test_every_kind_constant_is_in_the_catalogue() -> None:
     assert constants == {kind.kind for kind in KINDS}
     assert set(FIRST_VERSION) <= constants
     levels = {kind.kind: kind.level for kind in KINDS}
-    assert (levels["legacy-repository-manifest"], levels["unverified-target"]) == (
-        "warning",
-        "note",
-    )
+    assert (
+        levels["identity-disagreement"],
+        levels["retired-repository-manifest"],
+        levels["unverified-target"],
+    ) == ("warning", "warning", "note")
 
 
 def test_schema_defects_are_reported(tmp_path: Path) -> None:
@@ -170,7 +176,7 @@ def test_schema_defects_are_reported(tmp_path: Path) -> None:
     ]
 
 
-def test_a_check_without_registry_reads_identifiers_and_the_manifest(tmp_path: Path) -> None:
+def test_a_check_without_registry_reads_identifiers_and_the_identity(tmp_path: Path) -> None:
     _write(
         tmp_path,
         {
@@ -179,10 +185,10 @@ def test_a_check_without_registry_reads_identifiers_and_the_manifest(tmp_path: P
             "b.md": "---\nid: same\n---\n",
         },
     )
-    assert _check(tmp_path, {}) == [
+    assert _check(tmp_path, {}, {"id": "lab"}) == [
         ["a.md", "duplicate-identifier", "/id"],
         ["b.md", "duplicate-identifier", "/id"],
-        ["repository.yml", "legacy-repository-manifest", "/schema_version"],
+        ["repository.yml", "retired-repository-manifest", ""],
     ]
 
 
@@ -238,7 +244,7 @@ def test_registry_maps_the_resource_and_the_contract_to_package_files() -> None:
 
 def _cli_repository(root: Path) -> None:
     """Write a repository holding one verified target, one target into a declared repository
-    whose state no provider reads, and a legacy manifest."""
+    whose state no provider reads, and a retired manifest."""
     _write(root, SUITE["files"])
     _write(
         root,
@@ -252,6 +258,7 @@ def _cli_repository(root: Path) -> None:
                 {
                     "_schema": "anagraphe:configuration@2",
                     "targets": SUITE["section"],
+                    "repository": {"id": "lab"},
                     "resolution": {
                         "repositories": {
                             "other-lab": {
@@ -274,7 +281,7 @@ def test_cli_warns_of_an_unread_state_and_exits_cleanly(tmp_path: Path) -> None:
         "cite.yml:1: warning: unreadable-target-state: /cites/0: {repository: other-lab, id: x}: "
         f"the state {'0' * 40} of other-lab cannot be read (absent)" in result.output
     )
-    assert "repository.yml:1: warning: legacy-repository-manifest:" in result.output
+    assert "repository.yml:1: warning: retired-repository-manifest:" in result.output
     assert "0 violations, 2 warnings" in result.output
 
 
@@ -291,6 +298,6 @@ def test_cli_check_writes_the_levels_of_the_targets(tmp_path: Path) -> None:
     assert levels == [
         ("targets/duplicate-identifier", "error", "path:people/ada.yml#/identity/id"),
         ("targets/duplicate-identifier", "error", "path:people/dup.md#/id"),
-        ("targets/legacy-repository-manifest", "warning", "path:repository.yml#/schema_version"),
+        ("targets/retired-repository-manifest", "warning", "path:repository.yml"),
         ("targets/unreadable-target-state", "warning", "path:cite.yml#/cites/0"),
     ]

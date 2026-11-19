@@ -71,6 +71,7 @@ def _repository(root: Path, git_ignored: Any = True) -> None:
                 {
                     "_schema": "anagraphe:configuration@2",
                     "exclude": {"git_ignored": git_ignored},
+                    "repository": {"id": "lab"},
                     "targets": {},
                     "records": {},
                     "references": {},
@@ -81,7 +82,6 @@ def _repository(root: Path, git_ignored: Any = True) -> None:
                     },
                 }
             ),
-            "repository.yml": "_schema: anagraphe:repository@1\nrepository: {id: lab}\n",
             "config/vocabulary.yml": "schema: {entry_point: _index.md}\n",
             "config/index-types/module.schema.yaml": yaml.safe_dump(
                 {
@@ -103,7 +103,9 @@ def _registered(root: Path) -> list[str]:
     """Write the registry, and return the identifiers that it registers."""
     config = load_config(root, root / "anagraphe.yml")
     assert config.targets is not None and config.records is not None
-    result = RegistryService(root, config.targets, config.records).write()
+    result = RegistryService(
+        root, config.targets, config.records, declared=config.repository
+    ).write()
     assert result.registry is not None, result.issues
     return sorted(result.registry.records)
 
@@ -126,7 +128,8 @@ def test_a_file_ignored_by_the_clone_stays_out_of_every_generated_file(tmp_path:
     assert _listed(tmp_path) == ["a.md"]
     config = load_config(tmp_path, tmp_path / "anagraphe.yml")
     assert config.targets is not None and config.records is not None
-    assert not RegistryService(tmp_path, config.targets, config.records).check().issues
+    registry = RegistryService(tmp_path, config.targets, config.records, declared=config.repository)
+    assert not registry.check().issues
 
 
 def test_without_the_key_the_ignored_file_is_read(tmp_path: Path) -> None:
@@ -164,7 +167,8 @@ def test_an_ignored_duplicate_is_not_reported(tmp_path: Path) -> None:
     _ignore_locally(tmp_path, "m/copy.md")
     config = load_config(tmp_path, tmp_path / "anagraphe.yml")
     assert config.targets is not None
-    assert not TargetChecker(tmp_path, config.targets, config.records).check().issues
+    checker = TargetChecker(tmp_path, config.targets, config.records, declared=config.repository)
+    assert not checker.check().issues
 
 
 def test_a_link_into_an_ignored_file_stays_valid(tmp_path: Path) -> None:

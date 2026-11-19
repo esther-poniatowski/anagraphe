@@ -1,8 +1,9 @@
-# Conformance cases of the logical targets of ADR 0006, for the resource addressing.v1 and the
-# contract anagraphe:repository@1. Each read side, in Python and in TypeScript, passes them.
+# Conformance cases of the logical targets of ADR 0006, for the resource addressing.v1. Each read
+# side, in Python and in TypeScript, passes them; specs/conformance/identity.yml holds the cases of
+# the identity of a repository.
 #
 # A reading reads a value as a target in a citing repository, whose identifier is null when the
-# repository declares none. It states the normalized target, or the reason why the value is no
+# repository has no identity. It states the normalized target, or the reason why the value is no
 # target, among: not-a-mapping, unknown-key, no-record-or-repository, unit-without-record and
 # invalid-component, the first failed check in that order. A value is a target exactly when the
 # definition target of the resource validates it.
@@ -11,13 +12,15 @@
 # _schema followed by the x-implements of the root schema of that _schema.
 #
 # A check case writes its files below an empty repository root, over the shared files, declares the
-# section targets of anagraphe.yml, then states the issues of the check. The key remove lists
-# shared files that a case leaves out. An issue is
+# section targets and the section repository of anagraphe.yml, then states the issues of the check.
+# The root is the folder case_root, whose name lies outside the pattern repository-id, and it has no
+# remote, so its identity comes from the section repository alone. The key repository of a case
+# replaces the shared section, and null leaves the section out. The key remove lists shared files
+# that a case leaves out. An issue is
 # [file, kind, locus]; the issues of a case are listed in sorted order. The root of a case holds no
 # submodule and declares no section resolution, so its resolution context selects no state of
 # another repository; specs/conformance/resolution.yml holds the cases of the record resolver.
 resource: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml
-manifest: anagraphe:repository@1
 
 readings:
 - id: record-of-the-same-repository
@@ -47,8 +50,8 @@ readings:
   value: {repository: mixture-input-encoding}
   repository: geonexus
   normalized: {repository: mixture-input-encoding}
-- id: repository-without-manifest
-  note: A repository declaring no identifier leaves the repository of its targets absent.
+- id: repository-without-identity
+  note: A repository without identity leaves the repository of its targets absent.
   value: {id: computational-modelers}
   repository: null
   normalized: {id: computational-modelers}
@@ -157,6 +160,8 @@ contracts:
 
 section:
   records: {registry: specs/schema-registry.yml}
+folder: case_root
+repository: {id: lab}
 files:
   specs/schema-registry.yml: |
     _schema: kleisis:schema-registry@2
@@ -221,10 +226,6 @@ files:
         oneOf:
           - type: string
           - $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
-  repository.yml: |
-    _schema: anagraphe:repository@1
-    repository:
-      id: lab
   people/ada.yml: |
     _schema: test:person@1
     identity: {id: ada}
@@ -248,17 +249,11 @@ files:
 cases:
 - id: valid-repository
   note: >-
-    Every check runs on valid records: the manifest with retired identifiers and an open block,
-    the identifiers read through x-identifier, through allOf and $ref, and by default, the units of
+    Every check runs on valid records: the identity with retired identifiers, the identifiers read through x-identifier, through allOf and $ref, and by default, the units of
     a YAML record and of a note, the target fields reached through properties, items,
     additionalProperties and oneOf, an implemented contract, and a target naming the repository.
+  repository: {id: lab, retired: [old-lab]}
   files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository:
-        id: lab
-        retired: [old-lab]
-      project: {short: Lab, kind: research}
     notes/plain.md: "Text without an identifier.\n"
     cite.yml: |
       _schema: test:citing@1
@@ -387,54 +382,10 @@ cases:
     sub/ada.md: "---\nid: ada\n---\n"
     sub/ghost.md: "---\nid: Not Read\n---\n"
   issues: []
-- id: invalid-repository-manifest-without-id
-  files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository: {name: lab}
-  issues:
-  - [repository.yml, invalid-repository-manifest, /repository]
-- id: invalid-repository-manifest-identifier
-  note: An identifier outside the pattern of repository-id; the targets of a repository then name no manifest.
-  files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository: {id: Lab_1}
-    cite.yml: |
-      _schema: test:citing@1
-      source: {repository: lab, id: ada}
-  issues:
-  - [cite.yml, unknown-repository, /source]
-  - [repository.yml, invalid-repository-manifest, /repository/id]
-- id: invalid-repository-manifest-reused-identifier
-  files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository: {id: lab, retired: [lab]}
-  issues:
-  - [repository.yml, invalid-repository-manifest, /repository/retired]
-- id: invalid-repository-manifest-format
-  files:
-    repository.yml: |
-      _schema: anagraphe:repository@2
-      repository: {id: lab}
-  issues:
-  - [repository.yml, invalid-repository-manifest, /_schema]
-- id: invalid-repository-manifest-both-formats
-  files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      schema_version: 1
-      repository: {id: lab}
-  issues:
-  - [repository.yml, invalid-repository-manifest, /schema_version]
-- id: invalid-repository-manifest-unparsed
-  files:
-    repository.yml: "repository: {id: lab\n"
-  issues:
-  - [repository.yml, invalid-repository-manifest, '']
-- id: legacy-repository-manifest
-  note: The legacy form still declares the identifier, so a target naming it lies in the same repository.
+- id: retired-repository-manifest
+  note: >-
+    A manifest left at the root is reported, and stays out of the records; the section repository
+    declares the identifier, so a target naming it lies in the same repository.
   files:
     repository.yml: |
       schema_version: 1
@@ -444,7 +395,22 @@ cases:
       _schema: test:citing@1
       source: {repository: lab, id: ada}
   issues:
-  - [repository.yml, legacy-repository-manifest, /schema_version]
+  - [repository.yml, retired-repository-manifest, '']
+- id: retired-repository-manifest-of-a-lost-identity
+  note: >-
+    Without the section repository, the identifier of the manifest is lost, and the report names
+    the override that keeps it.
+  repository: null
+  files:
+    repository.yml: |
+      _schema: anagraphe:repository@1
+      repository: {id: lab}
+    cite.yml: |
+      _schema: test:citing@1
+      source: {repository: lab, id: ada}
+  issues:
+  - [cite.yml, unknown-repository, /source]
+  - [repository.yml, retired-repository-manifest, '']
 - id: unknown-record
   files:
     cite.yml: |
@@ -520,9 +486,9 @@ cases:
   issues:
   - [cite.yml, unknown-repository, /cites/0]
   - [cite.yml, unknown-repository, /cites/1]
-- id: unknown-repository-without-manifest
-  note: A repository without a manifest resolves only its targets without repository.
-  remove: [repository.yml]
+- id: unknown-repository-without-identity
+  note: A repository without identity resolves only its targets without repository.
+  repository: null
   files:
     cite.yml: |
       _schema: test:citing@1
@@ -534,10 +500,8 @@ cases:
   note: >-
     A former identifier of the root names the root, with a warning; the check then resolves the
     target in the root, its unit included.
+  repository: {id: lab, retired: [old-lab]}
   files:
-    repository.yml: |
-      _schema: anagraphe:repository@1
-      repository: {id: lab, retired: [old-lab]}
     cite.yml: |
       _schema: test:citing@1
       cites:

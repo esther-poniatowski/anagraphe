@@ -4,11 +4,12 @@ The resolution context of a root: the selected state of each repository that its
 The context belongs to the root checked by the command, so one commit of a repository resolves
 alike in every clone of it. It holds two kinds of entry:
 
-- a derived entry for each submodule of the root. The gitlink in the index selects the commit, and
-  the manifest at that commit, read through the provider, names the repository. The address of the
-  submodule in ``.gitmodules`` is its remote, a relative address being resolved against the
-  remote of the root. A gitlink whose manifest cannot be read names no repository, and the context
-  keeps it as unnamed, with its remote, so that a fetch can supply its state;
+- a derived entry for each submodule of the root. The gitlink in the index selects the commit. The
+  address of the submodule in ``.gitmodules`` is its remote, a relative address being resolved
+  against the remote of the root. The identity of the state names the repository: the override
+  ``repository.id`` of the configuration at that commit, read through the provider, else the name
+  of its remote. A gitlink whose state cannot be read, or yields no identity, names no repository,
+  and the context keeps it as unnamed, with its remote, so that a fetch can supply its state;
 - a declared entry for each repository of the section ``resolution``, with its full commit, its
   remote address and, when the machine file names one, its local clone.
 
@@ -20,13 +21,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
-from anagraphe.core.configuration import ConfigurationError
+import yaml
+
+from anagraphe.core.configuration import CONFIG_LOCATIONS, ConfigurationError
 from anagraphe.core.git_state import default_remote_url, gitlinks, submodule_urls
 from anagraphe.resolution.configuration import ResolutionConfig, remote_problem
-from anagraphe.resolution.provider import Blob, Mode, State, StateProvider, Unavailable
-from anagraphe.targets.manifest import MANIFEST_FILE, Manifest, parse_manifest
+from anagraphe.resolution.provider import (
+    Blob,
+    Escaping,
+    Missing,
+    Mode,
+    State,
+    StateProvider,
+    Unavailable,
+)
+from anagraphe.targets.identity import Identity, state_identity
 
 
 @dataclass(frozen=True)
@@ -41,7 +52,7 @@ class Entry:
 
 @dataclass(frozen=True)
 class Unnamed:
-    """A submodule whose manifest at its commit names no repository, and why."""
+    """A submodule whose state at its commit names no repository, and why."""
 
     path: str
     commit: str
@@ -54,7 +65,7 @@ class Unnamed:
 class ResolutionContext:
     """The repositories that the targets of one root may name, each with its selected state."""
 
-    #: The identifier of the root, None when it declares none.
+    #: The identifier of the root, None when it has no identity.
     repository: str | None = None
     #: The former identifiers of the root.
     retired: tuple[str, ...] = ()
@@ -78,11 +89,14 @@ class ResolutionContext:
 
 def build_context(
     root: Path,
-    manifest: Manifest | None,
+    identity: Identity | None,
     config: ResolutionConfig | None,
     provider: StateProvider,
 ) -> ResolutionContext:
     """Return the context of the root, its submodules named through the provider.
+
+    The identity of the root, None for a root without identity, supplies its identifier and its
+    former identifiers.
 
     Raises
     ------
@@ -92,7 +106,7 @@ def build_context(
     config = config if config is not None else ResolutionConfig()
     entries: dict[str, Entry] = {}
     unnamed: list[Unnamed] = []
-    own = manifest.id if manifest is not None else None
+    own = identity.id if identity is not None else None
 
     def add(entry: Entry) -> None:
         if entry.repository == own:
@@ -112,7 +126,7 @@ def build_context(
     for link in links:
         remote = submodule_remote(urls.get(link.path), base)
         state = State(link.commit, remote, root / link.path)
-        named = _manifest_identifier(provider, state)
+        named = _state_identifier(provider, state)
         if isinstance(named, str):
             add(Entry(named, state, f"submodule {link.path}"))
         else:
@@ -127,7 +141,7 @@ def build_context(
         )
     return ResolutionContext(
         own,
-        manifest.retired if manifest is not None else (),
+        identity.retired if identity is not None else (),
         entries,
         tuple(unnamed),
     )
@@ -177,24 +191,71 @@ def submodule_remote(url: str | None, base: str | None) -> str | None:
 
 
 @dataclass(frozen=True)
+class Unreadable:
+    """Why the configuration of a state cannot be read: the reading of an unavailable state, or a
+    defect of the file."""
+
+    detail: str
+    reading: Unavailable | None = None
+
+
+def read_configuration(
+    provider: StateProvider, state: State
+) -> tuple[str, Mapping[str, Any]] | Unreadable | None:
+    """Return the place and the content of the configuration of Anagraphe at a state, None when
+    the state holds none at the places of the search.
+
+    Two configuration files, a folder or a link at a place, and a file that is not a YAML mapping
+    in UTF-8 make the configuration unreadable.
+    """
+    texts: dict[str, bytes] = {}
+    for location in CONFIG_LOCATIONS:
+        name = location.as_posix()
+        reading = provider.read(state, name)
+        if isinstance(reading, Unavailable):
+            return Unreadable(reading.detail, reading)
+        if isinstance(reading, Missing):
+            continue
+        if isinstance(reading, Escaping):
+            return Unreadable(f"{name} leaves the state")
+        if reading.mode is not Mode.FILE:
+            return Unreadable(f"{name} is a {reading.mode.value}, not a file")
+        texts[name] = reading.data
+    if len(texts) > 1:
+        return Unreadable(f"the state holds two configuration files: {', '.join(texts)}")
+    if not texts:
+        return None
+    ((name, data),) = texts.items()
+    try:
+        parsed = yaml.safe_load(data.decode("utf-8"))
+    except (ValueError, yaml.YAMLError):
+        # ValueError covers bytes that are not UTF-8, and a timestamp naming an impossible date.
+        parsed = None
+    if not isinstance(parsed, dict):
+        return Unreadable(f"{name} cannot be parsed as a mapping")
+    return name, parsed
+
+
+@dataclass(frozen=True)
 class _Unnamed:
-    """Why the manifest of a state names no repository."""
+    """Why the state of a submodule names no repository."""
 
     detail: str
 
 
-def _manifest_identifier(provider: StateProvider, state: State) -> str | _Unnamed:
-    """Return the identifier declared by the manifest of a state, or why it declares none."""
-    reading = provider.read(state, MANIFEST_FILE)
-    if isinstance(reading, Unavailable):
-        return _Unnamed(reading.detail)
-    if not isinstance(reading, Blob) or reading.mode is not Mode.FILE:
-        return _Unnamed(f"the state holds no file {MANIFEST_FILE}")
+def _state_identifier(provider: StateProvider, state: State) -> str | _Unnamed:
+    """Return the identifier of the identity of a state, or why the state names no repository."""
+    configuration = read_configuration(provider, state)
+    if isinstance(configuration, Unreadable):
+        return _Unnamed(configuration.detail)
+    name, data = configuration if configuration is not None else ("", None)
     try:
-        text = reading.data.decode("utf-8")
-    except UnicodeDecodeError:
-        return _Unnamed(f"{MANIFEST_FILE} of the state is not UTF-8 text")
-    parsed = parse_manifest(text)
-    if parsed.manifest is None:
-        return _Unnamed(f"{MANIFEST_FILE} of the state is invalid")
-    return parsed.manifest.id
+        identity = state_identity(state.remote, data)
+    except ConfigurationError as error:
+        return _Unnamed(f"{name} of the state: {error}")
+    if identity.id is None:
+        return _Unnamed(
+            "the configuration of the state declares no repository.id, and its remote names no "
+            "repository identifier"
+        )
+    return identity.id

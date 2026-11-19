@@ -4,7 +4,7 @@ The Git provider of ADR 0010: the selected states read from Git object stores, a
 A state is read from the first store that holds its commit: the clone of its entry, then the cache
 of the machine. The cache is one bare Git repository shared by every root of the machine. Its
 objects are addressed by their hashes, so the states of several repositories share it safely, and
-the state of a submodule enters it before its manifest names the repository.
+the state of a submodule enters it before its identity names the repository.
 
 The provider reads the object database, never a working tree. It hashes every object that it reads,
 the commit, each tree along the path and the file, and compares the hash with the identifier that

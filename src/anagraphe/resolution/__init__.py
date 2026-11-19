@@ -17,8 +17,10 @@ Examples
 A tool reads the record of a target into another repository::
 
     from anagraphe.resolution import RecordResolver, build_context, parse_section
+    from anagraphe.targets.identity import repository_identity
 
-    context = build_context(root, manifest, parse_section(root, raw), provider)
+    identity = repository_identity(root, declared)
+    context = build_context(root, identity, parse_section(root, raw), provider)
     resolver = RecordResolver(context, provider, declarations)
     resolution = resolver.resolve(target)
     if resolution.outcome is Outcome.RECORD:

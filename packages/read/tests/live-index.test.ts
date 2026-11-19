@@ -1,6 +1,6 @@
 /**
  * The live index of the open repository: the events of the host, the races between indexings, the
- * changes of schemas, of the manifest and of the registry, and the resolution of targets. The
+ * changes of schemas, of the identity and of the registry, and the resolution of targets. The
  * cases of the index of Ekphrasis are ported, binding by `_schema` through a schema registry.
  */
 import { describe, expect, it } from "vitest";
@@ -28,9 +28,16 @@ const RECORD_SCHEMA = "x-identifier: id\nproperties:\n  id: {type: string}\n";
 const NESTED_SCHEMA =
   "x-identifier: identity.id\nproperties:\n  identity:\n    properties:\n      id: {type: string}\n";
 
-/** An index over a mutable map of files, with the record registry at its default path. */
-function service(vault: Record<string, string>, files = new MemoryFiles(vault)): RepositoryIndex {
-  return memoryIndex(files, REGISTRY, "record-registry.yml");
+/**
+ * An index over a mutable map of files, with the record registry at its default path, in a
+ * repository whose identifier the host derived.
+ */
+function service(
+  vault: Record<string, string>,
+  files = new MemoryFiles(vault),
+  repository: string | null = null,
+): RepositoryIndex {
+  return memoryIndex(files, REGISTRY, "record-registry.yml", repository);
 }
 
 describe("the indexing of identifiers", () => {
@@ -124,7 +131,7 @@ describe("the indexing of identifiers", () => {
     };
     const index = new RepositoryIndex(
       { files, bindings, schemas: new RegistrySchemas(files, REGISTRY) },
-      { registry: null },
+      { registry: null, repository: null },
     );
     await index.rebuild(["q/a.yml"]);
     expect(index.identifierOf("q/a.yml")).toBeNull();
@@ -305,7 +312,6 @@ describe("the resolution of targets", () => {
       "      id: {type: string}",
       "",
     ].join("\n"),
-    "repository.yml": "_schema: anagraphe:repository@1\nrepository: {id: lab}\n",
     "record-registry.yml": [
       "_schema: anagraphe:record-registry@1",
       "repository: lab",
@@ -320,7 +326,7 @@ describe("the resolution of targets", () => {
   });
 
   async function indexed(files: Record<string, string>): Promise<RepositoryIndex> {
-    const index = service(files);
+    const index = service(files, undefined, "lab");
     await index.rebuild(Object.keys(files));
     return index;
   }
@@ -357,7 +363,7 @@ describe("the resolution of targets", () => {
     });
   });
 
-  it("reads a target into the repository, into another one, and without a manifest", async () => {
+  it("reads a target into the repository, into another one, and without identity", async () => {
     const files = vault();
     const index = await indexed(files);
     expect(index.resolve({ repository: "lab" })).toEqual({ status: "repository" });
@@ -366,20 +372,25 @@ describe("the resolution of targets", () => {
       status: "unverified",
       repository: "other",
     });
-    delete files["repository.yml"];
-    index.removeFile("repository.yml");
+    index.setRepository(null);
     expect(index.resolve({ repository: "lab", id: "arg.one" }).status).toBe("unverified");
   });
 
-  it("follows the changes of the manifest and of the registry", async () => {
+  it("keeps a retired manifest out of the records", async () => {
+    const files = vault();
+    files["repository.yml"] = "repository: {id: lab}\nid: not-a-record\n";
+    const index = await indexed(files);
+    expect(index.record("repository.yml")).toBeUndefined();
+    expect(index.pathsOf("not-a-record")).toEqual([]);
+  });
+
+  it("follows a change of the identity and of the registry", async () => {
     const files = vault();
     const index = await indexed(files);
-    files["repository.yml"] = "schema_version: 1\nrepository: {id: lab-two}\n";
-    await index.indexFile("repository.yml");
+    index.setRepository("lab-two");
     expect(index.repository).toBe("lab-two");
-    expect(index.manifest.problems.map((problem) => problem.kind)).toEqual([
-      "legacy-repository-manifest",
-    ]);
+    expect(index.resolve({ repository: "lab-two", id: "arg.one" }).status).toBe("resolved");
+    expect(index.resolve({ repository: "lab", id: "arg.one" }).status).toBe("unverified");
     files["record-registry.yml"] = "records: {\n";
     await index.indexFile("record-registry.yml");
     expect(index.registry.problems.map((problem) => problem.pointer)).toEqual([""]);

@@ -18,7 +18,7 @@ properties:
     description: The logical identifier of the contract that the registry follows.
   repository:
     $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
-    description: The identifier of the repository, declared under repository.id of its repository.yml.
+    description: The identifier of the repository, overridden under repository.id of its anagraphe.yml, else derived from the name of its remote origin or of its folder.
   records:
     type: object
     description: The file of each record of the repository, keyed by the identifier of the record.

@@ -19,7 +19,9 @@ each subpackage that the repository uses:
 
 The section ``resolution``, parsed by :mod:`anagraphe.resolution.configuration`, declares the
 repositories that the targets name besides the submodules, and the machine file of their local
-clones. It serves the check of the targets, and enables no command of its own.
+clones. The section ``repository``, parsed by :mod:`anagraphe.targets.identity`, declares the
+override of the identifier of the repository and its former identifiers. Both serve the check of
+the targets and the record registry, and enable no command of their own.
 
 A section left out disables its subpackage, so a repository adopts each one apart.
 """
@@ -45,6 +47,7 @@ from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
 from anagraphe.resolution import configuration as resolution
 from anagraphe.targets import configuration as targets
+from anagraphe.targets import identity
 from anagraphe.targets.registry import configuration as records
 
 #: The environment variable naming the root, read when the command line gives none.
@@ -67,6 +70,7 @@ TOP_LEVEL_KEYS = frozenset(
         "targets",
         "records",
         "resolution",
+        identity.SECTION,
     }
 )
 #: The sections of ``anagraphe.yml``, one per capability.
@@ -84,6 +88,9 @@ class RepositoryConfig:
     records: records.RecordsConfig | None = None
     #: The repositories that the targets name besides the submodules, and their local clones.
     resolution: resolution.ResolutionConfig = resolution.ResolutionConfig()
+    #: The override of the identifier of the repository and its former identifiers; None when the
+    #: section ``repository`` is left out.
+    repository: identity.DeclaredIdentity | None = None
     #: The metadata of each file, read from the source that the repository declares for it.
     metadata: MetadataReader | None = None
 
@@ -186,6 +193,11 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
         resolution=resolution.parse_section(
             root,
             mapping(raw["resolution"], "resolution") if "resolution" in raw else None,
+        ),
+        repository=(
+            identity.parse_section(mapping(raw[identity.SECTION], identity.SECTION))
+            if identity.SECTION in raw
+            else None
         ),
         metadata=reader,
     )

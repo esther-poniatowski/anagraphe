@@ -5,7 +5,7 @@ Command-line interface: one group of commands per subpackage, and one check of a
 - ``anagraphe refs check`` reports the references that do not resolve or break a convention;
 - ``anagraphe bindings check|show`` checks the bindings of the texts, or prints those of one file;
 - ``anagraphe targets check`` reports the logical targets that do not resolve within the
-  repository, and the defects of the identifiers and of the manifest;
+  repository, the defects of the identifiers, and the warnings of the identity of the repository;
 - ``anagraphe records write|check|retire`` writes the record registry, reports its differences
   from the records, or retires an identifier that no record holds any longer;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
@@ -77,7 +77,7 @@ from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
 from anagraphe.resolution.configuration import ResolutionConfig
 from anagraphe.resolution.context import build_context
 from anagraphe.resolution.git import GitProvider, default_cache, fetch_states
-from anagraphe.targets.manifest import read_manifest
+from anagraphe.targets.identity import DeclaredIdentity, repository_identity
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -94,7 +94,7 @@ app.add_typer(indexes_app, name="indexes")
 app.add_typer(refs_app, name="refs")
 targets_app = typer.Typer(
     no_args_is_help=True,
-    help="Check the logical targets, the identifiers of the records and the repository manifest.",
+    help="Check the logical targets, the identifiers of the records and the repository identity.",
 )
 records_app = typer.Typer(
     no_args_is_help=True,
@@ -376,11 +376,13 @@ def _targets(  # pylint: disable=too-many-arguments,too-many-positional-argument
     strict: bool = True,
     findings: Findings | None = None,
     resolution: ResolutionConfig | None = None,
+    declared: DeclaredIdentity | None = None,
 ) -> Report:
     """Check the logical targets, print their report, and record it for the log."""
     try:
         provider = GitProvider(default_cache())
-        report = TargetChecker(root, config, registry, resolution, provider).check(paths, strict)
+        checker = TargetChecker(root, config, registry, resolution, provider, declared)
+        report = checker.check(paths, strict)
     except (ConfigurationError, OSError, TargetError) as error:
         _fail(error, findings)
     _emit(report, f"targets: checked {report.processed} records", findings)
@@ -437,13 +439,18 @@ def check(
                 False,
                 findings,
                 repository.resolution,
+                repository.repository,
             )
         )
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
     # The registry is checked against the whole repository, whatever the targets.
     if repository.records is not None and repository.targets is not None:
-        reports.append(_records(resolved, repository.targets, repository.records, findings))
+        reports.append(
+            _records(
+                resolved, repository.targets, repository.records, findings, repository.repository
+            )
+        )
     _exit(*reports, findings=findings)
 
 
@@ -511,8 +518,8 @@ def targets_check(
     output_format: Format = OutputFormat.TEXT,
     output: Output = None,
 ) -> None:
-    """Report the targets that do not resolve within the repository, and the defects of the
-    identifiers, of their declarations and of repository.yml."""
+    """Report the targets that do not resolve within the repository, the defects of the
+    identifiers and of their declarations, and the warnings of the identity of the repository."""
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     section = _section(repository.targets, "targets", findings)
@@ -523,6 +530,7 @@ def targets_check(
         _here(paths),
         findings=findings,
         resolution=repository.resolution,
+        declared=repository.repository,
     )
     _exit(report, findings=findings)
 
@@ -534,7 +542,10 @@ def _registry(
     records = _section(repository.records, "records", findings)
     # The configuration refuses the section records without the section targets.
     assert repository.targets is not None
-    return RegistryService(root, repository.targets, records)
+    try:
+        return RegistryService(root, repository.targets, records, declared=repository.repository)
+    except ConfigurationError as error:
+        _fail(error, findings)
 
 
 def _records(
@@ -542,10 +553,11 @@ def _records(
     targets: TargetConfig,
     records: RecordsConfig,
     findings: Findings | None = None,
+    declared: DeclaredIdentity | None = None,
 ) -> Report:
     """Check the record registry, print its report, and record it for the log."""
     try:
-        report = RegistryService(root, targets, records).check()
+        report = RegistryService(root, targets, records, declared=declared).check()
     except (ConfigurationError, OSError) as error:
         _fail(error, findings)
     _emit(report, f"records: checked {records.rel} against {report.processed} records", findings)
@@ -557,7 +569,8 @@ def _records(
 @records_app.command("write")
 def records_write(root: Root = None, config: Config = None) -> None:
     """Generate the record registry from the records of the repository, carrying over its retired
-    identifiers; write nothing when the records, the registry or repository.yml hold a defect.
+    identifiers; write nothing when the records or the registry hold a defect, or the repository has
+    no identity.
     """
     resolved, repository = _load(root, config)
     service = _registry(resolved, repository)
@@ -588,7 +601,7 @@ def records_check(
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
     service = _registry(resolved, repository, findings)
-    report = _records(resolved, service.targets, service.records, findings)
+    report = _records(resolved, service.targets, service.records, findings, service.declared)
     _exit(report, findings=findings)
 
 
@@ -721,9 +734,8 @@ def states_fetch(root: Root = None, config: Config = None) -> None:
     cache = default_cache()
     provider = GitProvider(cache)
     try:
-        context = build_context(
-            resolved, read_manifest(resolved).manifest, repository.resolution, provider
-        )
+        identity = repository_identity(resolved, repository.repository)
+        context = build_context(resolved, identity, repository.resolution, provider)
     except ConfigurationError as error:
         _fail(error)
     results = fetch_states(context.states(), cache)

@@ -22,7 +22,7 @@ from anagraphe.cli import app
 from anagraphe.resolution import Availability, Blob, Escaping, Missing, Mode, State, Unavailable
 from anagraphe.resolution import MemoryProvider, build_context
 from anagraphe.resolution.git import STATE_REFERENCES, FetchStatus, GitProvider, fetch_states
-from anagraphe.targets.manifest import Manifest
+from anagraphe.targets.identity import Identity, IdentitySource
 from anagraphe.targets.resource import TARGET_REFERENCE
 
 #: A commit that no repository of the tests holds.
@@ -165,9 +165,9 @@ def test_a_state_without_remote_is_reported(tmp_path: Path) -> None:
 # --- The context and the commands.
 
 
-def _manifest_text(identifier: str) -> str:
-    """Return the manifest of a repository."""
-    return f"_schema: anagraphe:repository@1\nrepository: {{id: {identifier}}}\n"
+def _configuration_text(identifier: str, sections: str = "") -> str:
+    """Return a configuration overriding the identifier of a repository, with further sections."""
+    return f"_schema: anagraphe:configuration@2\nrepository: {{id: {identifier}}}\n{sections}"
 
 
 def test_a_relative_submodule_address_resolves_against_the_remote_of_the_root(
@@ -178,9 +178,9 @@ def test_a_relative_submodule_address_resolves_against_the_remote_of_the_root(
     _git(root, "remote", "add", "origin", "https://h.org/lab/vault.git")
     _git(root, "update-index", "--add", "--cacheinfo", f"160000,{'5' * 40},projects/x")
     provider = MemoryProvider(
-        {"5" * 40: {"repository.yml": Blob(_manifest_text("x-lab").encode())}}
+        {"5" * 40: {"anagraphe.yml": Blob(_configuration_text("x-lab").encode())}}
     )
-    context = build_context(root, Manifest("lab"), None, provider)
+    context = build_context(root, Identity("lab", IdentitySource.OVERRIDE), None, provider)
     assert context.entries["x-lab"].state.remote == "https://h.org/lab/x.git"
 
 
@@ -191,8 +191,7 @@ def _workspace(tmp_path: Path) -> Path:
     sub_commit = _repository(
         sub,
         {
-            "repository.yml": _manifest_text("x-lab"),
-            "anagraphe.yml": "_schema: anagraphe:configuration@2\nrecords: {}\n",
+            "anagraphe.yml": _configuration_text("x-lab", "records: {}\n"),
             "record-registry.yml": (
                 "_schema: anagraphe:record-registry@1\nrepository: x-lab\n"
                 "records:\n  ada: {path: people/ada.yml, format: yaml}\nretired: {}\n"
@@ -203,7 +202,6 @@ def _workspace(tmp_path: Path) -> Path:
     root = tmp_path / "root"
     _git(root, "init", "-q")
     files = {
-        "repository.yml": _manifest_text("lab"),
         "specs/schema-registry.yml": (
             "_schema: kleisis:schema-registry@2\nschemas:\n"
             "  test:person@1: schemas/person.schema.yml\n"
@@ -221,6 +219,7 @@ def _workspace(tmp_path: Path) -> Path:
         "anagraphe.yml": yaml.safe_dump(
             {
                 "_schema": "anagraphe:configuration@2",
+                "repository": {"id": "lab"},
                 "targets": {"records": {"registry": "specs/schema-registry.yml"}},
             }
         ),

@@ -16,7 +16,7 @@ from anagraphe.core.configuration import ConfigurationError
 from anagraphe.core.metadata import frontmatter_problem, split_frontmatter
 from anagraphe.core.schemas import SchemaReader
 from anagraphe.core.structured import _plain
-from anagraphe.targets import TargetChecker, read_manifest
+from anagraphe.targets import TargetChecker, repository_identity
 
 IMPOSSIBLE = "2026-02-30"
 NOTE = f"---\nid: note-a\ncreated: {IMPOSSIBLE}\n---\nBody\n"
@@ -32,16 +32,16 @@ def test_a_value_reading_as_an_impossible_date_is_not_plain() -> None:
     assert _plain(IMPOSSIBLE) is False
 
 
-def test_a_manifest_naming_an_impossible_date_is_invalid(tmp_path: Path) -> None:
+def test_a_retired_manifest_naming_an_impossible_date_is_reported(tmp_path: Path) -> None:
+    """The manifest is read leniently for the identifier that it declares, and an unparsed one
+    declares none."""
     (tmp_path / "repository.yml").write_text(
         f"_schema: anagraphe:repository@1\nrepository: {{id: lab}}\ncreated: {IMPOSSIBLE}\n",
         encoding="utf-8",
     )
-    reading = read_manifest(tmp_path)
-    assert reading.manifest is None
-    assert [problem.detail for problem in reading.problems][0].startswith(
-        "repository.yml cannot be parsed"
-    )
+    (problem,) = repository_identity(tmp_path, None).problems
+    assert (problem.kind, problem.rel) == ("retired-repository-manifest", "repository.yml")
+    assert "delete repository.yml" in problem.detail
 
 
 def test_a_configuration_naming_an_impossible_date_is_a_configuration_error(

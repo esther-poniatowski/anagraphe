@@ -4,7 +4,8 @@ The record resolver of ADR 0009.
 The conformance cases of ``specs/conformance/resolution.yml`` fix the operations ``resolve`` and
 ``read`` on a declared context and an in-memory provider. The tests below them build the context
 of a root from its gitlinks and its section ``resolution``, validate that section and the machine
-file of the local clones, and run the check of the targets with a provider.
+file of the local clones, name a submodule by the identity of its state, and run the check of the
+targets with a provider.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ from anagraphe.resolution import (
 from anagraphe.targets import TargetChecker
 from anagraphe.targets.declarations import Declarations
 from anagraphe.targets.kinds import KINDS
-from anagraphe.targets.manifest import Manifest
+from anagraphe.targets.identity import Identity, IdentitySource
 from anagraphe.targets.model import Target
 from anagraphe.targets.resource import TARGET_REFERENCE
 
@@ -65,6 +66,8 @@ RESOLVER_KINDS = frozenset(
         "unverified-target",
     }
 )
+#: The identity of the root of the tests of the context.
+ROOT_IDENTITY = Identity("lab", IdentitySource.OVERRIDE)
 #: Two commits of 40 hexadecimal digits.
 COMMIT = "1" * 40
 OTHER_COMMIT = "2" * 40
@@ -107,11 +110,14 @@ def _provider(case: Mapping[str, Any]) -> MemoryProvider:
 def _context(case: Mapping[str, Any]) -> ResolutionContext:
     """Return the resolution context declared by a case."""
     declared = case["context"]
+    remotes = declared.get("remotes", {})
     return ResolutionContext(
         declared["repository"],
         tuple(declared.get("retired", [])),
         {
-            identifier: Entry(identifier, State(commit), "resolution.repositories")
+            identifier: Entry(
+                identifier, State(commit, remotes.get(identifier)), "resolution.repositories"
+            )
             for identifier, commit in declared["commits"].items()
         },
         tuple(
@@ -184,9 +190,9 @@ def test_the_providers_reject_an_escaping_path() -> None:
 # --- The context of a root.
 
 
-def _manifest_bytes(identifier: str) -> Blob:
-    """Return the manifest of a repository as the file of a state."""
-    return Blob(f"_schema: anagraphe:repository@1\nrepository: {{id: {identifier}}}\n".encode())
+def _configuration_bytes(identifier: str) -> Blob:
+    """Return a configuration overriding the identifier of a repository, as the file of a state."""
+    return Blob(f"_schema: anagraphe:configuration@2\nrepository: {{id: {identifier}}}\n".encode())
 
 
 def _root_with_gitlink(root: Path) -> None:
@@ -197,8 +203,8 @@ def _root_with_gitlink(root: Path) -> None:
 
 def test_a_gitlink_names_its_repository_through_the_provider(tmp_path: Path) -> None:
     _root_with_gitlink(tmp_path)
-    provider = MemoryProvider({COMMIT: {"repository.yml": _manifest_bytes("x-lab")}})
-    context = build_context(tmp_path, Manifest("lab"), None, provider)
+    provider = MemoryProvider({COMMIT: {"anagraphe.yml": _configuration_bytes("x-lab")}})
+    context = build_context(tmp_path, ROOT_IDENTITY, None, provider)
     assert set(context.entries) == {"x-lab"}
     entry = context.entries["x-lab"]
     assert (entry.state.commit, entry.state.clone, entry.origin) == (
@@ -211,23 +217,42 @@ def test_a_gitlink_names_its_repository_through_the_provider(tmp_path: Path) -> 
 
 def test_an_unread_gitlink_stays_unnamed(tmp_path: Path) -> None:
     _root_with_gitlink(tmp_path)
-    context = build_context(tmp_path, Manifest("lab"), None, EmptyProvider())
+    context = build_context(tmp_path, ROOT_IDENTITY, None, EmptyProvider())
     assert context.entries == {}
     assert [(item.path, item.commit) for item in context.unnamed] == [("projects/x", COMMIT)]
+
+
+def test_a_gitlink_without_override_is_named_by_its_remote(tmp_path: Path) -> None:
+    _root_with_gitlink(tmp_path)
+    _write(
+        tmp_path,
+        {".gitmodules": '[submodule "x"]\n\tpath = projects/x\n\turl = git@h.org:lab/x-lab.git\n'},
+    )
+    context = build_context(tmp_path, ROOT_IDENTITY, None, MemoryProvider({COMMIT: {}}))
+    assert set(context.entries) == {"x-lab"}
+    assert context.entries["x-lab"].state.remote == "git@h.org:lab/x-lab.git"
+
+
+def test_a_gitlink_without_identity_stays_unnamed(tmp_path: Path) -> None:
+    _root_with_gitlink(tmp_path)
+    context = build_context(tmp_path, ROOT_IDENTITY, None, MemoryProvider({COMMIT: {}}))
+    assert context.entries == {}
+    (unnamed,) = context.unnamed
+    assert "declares no repository.id" in unnamed.detail
 
 
 def test_a_derived_and_a_declared_entry_of_one_repository_stop_the_command(
     tmp_path: Path,
 ) -> None:
     _root_with_gitlink(tmp_path)
-    provider = MemoryProvider({COMMIT: {"repository.yml": _manifest_bytes("x-lab")}})
+    provider = MemoryProvider({COMMIT: {"anagraphe.yml": _configuration_bytes("x-lab")}})
     config = parse_section(
         tmp_path,
         {"repositories": {"x-lab": {"commit": OTHER_COMMIT, "remote": "https://h.org/x.git"}}},
         environment={},
     )
     with pytest.raises(ConfigurationError, match="both select a state of x-lab"):
-        build_context(tmp_path, Manifest("lab"), config, provider)
+        build_context(tmp_path, ROOT_IDENTITY, config, provider)
 
 
 def test_an_entry_naming_the_root_stops_the_command(tmp_path: Path) -> None:
@@ -237,7 +262,7 @@ def test_an_entry_naming_the_root_stops_the_command(tmp_path: Path) -> None:
         environment={},
     )
     with pytest.raises(ConfigurationError, match="the repository of the root itself"):
-        build_context(tmp_path, Manifest("lab"), config, EmptyProvider())
+        build_context(tmp_path, ROOT_IDENTITY, config, EmptyProvider())
 
 
 # --- The section resolution and the machine file.
@@ -320,7 +345,6 @@ def _checked_repository(root: Path, citing: str) -> None:
     _write(
         root,
         {
-            "repository.yml": "_schema: anagraphe:repository@1\nrepository: {id: lab}\n",
             "schemas/citing.schema.yml": (
                 "properties:\n  _schema: {const: test:citing@1}\n  profile:\n"
                 f"    $ref: {TARGET_REFERENCE}\n"
@@ -331,6 +355,7 @@ def _checked_repository(root: Path, citing: str) -> None:
                 {
                     "_schema": "anagraphe:configuration@2",
                     "targets": SUITE["consumer"]["section"],
+                    "repository": {"id": "lab"},
                     "resolution": {
                         "repositories": {
                             "other-lab": {"commit": COMMIT, "remote": "https://h.org/o.git"}
@@ -353,7 +378,9 @@ def _issues(root: Path, provider: MemoryProvider | EmptyProvider) -> list[tuple[
     """Check the targets of a repository with a provider, and return its sorted issues."""
     config = load_config(root, root / "anagraphe.yml")
     assert config.targets is not None
-    checker = TargetChecker(root, config.targets, None, config.resolution, provider)
+    checker = TargetChecker(
+        root, config.targets, None, config.resolution, provider, config.repository
+    )
     return sorted((issue.kind, issue.level, issue.locus) for issue in checker.check().issues)
 
 

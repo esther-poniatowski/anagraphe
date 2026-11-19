@@ -5,8 +5,8 @@ The section declares three optional keys:
 
 - ``records``, the schema registry through which a record reaches the schema of its contract, and
   the key of a record naming its contract, ``_schema`` by default, as the section ``bindings``
-  declares them. Without it, the check reads the identifiers of the records and the manifest, and
-  finds no target field;
+  declares them. Without it, the check reads the identifiers of the records and the identity of the
+  repository, and finds no target field;
 - ``exclude``, the files left unread by the check, after the shared exclusions;
 - ``read_sides``, the declarations of the versions implemented by the other read sides of the
   repository, each a JSON or YAML file and the JSON Pointer of the mapping in it.

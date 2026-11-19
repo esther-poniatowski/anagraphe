@@ -3,7 +3,9 @@ title: Repository manifest
 description: >-
   The identity of a repository, written in repository.yml at its root. The contract fixes the block
   repository and leaves every other root key open, so that the contract of the project
-  specification adds its block project beside it.
+  specification adds its block project beside it. The manifest is retired: Anagraphe derives the
+  identity, overridden by the section repository of anagraphe.yml, and the contract stays
+  registered until the files bound to it migrate.
 type: object
 required: [_schema, repository]
 properties:

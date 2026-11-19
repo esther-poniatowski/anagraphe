@@ -1,7 +1,7 @@
 {
   "name": "@anagraphe/read",
   "version": "0.10.0",
-  "description": "Reads the logical targets, identifier declarations, units, repository manifests and record registries of Anagraphe in TypeScript.",
+  "description": "Reads the logical targets, identifier declarations, units, repository identities and record registries of Anagraphe in TypeScript.",
   "author": "Esther Poniatowski",
   "license": "GPL-3.0-or-later",
   "repository": {

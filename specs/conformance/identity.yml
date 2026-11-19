@@ -1,0 +1,188 @@
+# Conformance cases of the identity of a repository, which ADR 0006 derives as amended on
+# 2026-11-19. Each read side, in Python and in TypeScript, passes them.
+#
+# A section case states whether the section repository of anagraphe.yml is valid: its keys are id
+# and retired, each identifier lies in the pattern repository-id of the resource addressing.v1, the
+# retired identifiers are unique, and none of them is the override.
+#
+# A derivation case reads the address of the remote origin or null, the name of the folder of the
+# root or null, as for a state of another repository, and the section repository or null. The
+# identifier is the override when the section declares one, else the name of the remote, else the
+# name of the folder, each name kept only when the pattern repository-id admits it. The name of a
+# remote is the last segment of its address, after / or the : of an scp-like address, without a
+# final / and .git. A case states the identifier or null, the retired identifiers, the source among
+# override, remote, folder and none, and the kinds of the warnings; or error, when the retired
+# identifiers list the derived identifier, which is a configuration error.
+sections:
+- id: override-and-retired
+  section: {id: lab, retired: [old-lab]}
+  valid: true
+- id: empty-section
+  note: A section declaring nothing leaves the identity to the derivation.
+  section: {}
+  valid: true
+- id: retired-alone
+  section: {retired: [old-lab]}
+  valid: true
+- id: unknown-key
+  section: {id: lab, name: Lab}
+  valid: false
+- id: override-outside-the-pattern
+  section: {id: Lab_1}
+  valid: false
+- id: override-not-a-string
+  section: {id: 2024}
+  valid: false
+- id: retired-outside-the-pattern
+  section: {retired: [Old Lab]}
+  valid: false
+- id: retired-not-a-list
+  section: {retired: old-lab}
+  valid: false
+- id: retired-empty-string
+  section: {retired: ''}
+  valid: false
+- id: retired-null
+  section: {id: lab, retired: null}
+  valid: true
+- id: retired-twice
+  section: {retired: [old-lab, old-lab]}
+  valid: false
+- id: retired-holding-the-override
+  section: {id: lab, retired: [lab]}
+  valid: false
+
+derivations:
+- id: https-remote-equal-to-the-folder
+  note: The usual case, in which the remote and the folder name the same identifier.
+  remote: https://github.com/esther-poniatowski/geonexus.git
+  folder: geonexus
+  declared: null
+  identity: geonexus
+  retired: []
+  source: remote
+  warnings: []
+- id: scp-like-remote
+  remote: git@github.com:esther-poniatowski/mixture-input-encoding.git
+  folder: mixture-input-encoding
+  declared: null
+  identity: mixture-input-encoding
+  retired: []
+  source: remote
+  warnings: []
+- id: scp-like-remote-without-path
+  remote: git@host.org:notes
+  folder: null
+  declared: null
+  identity: notes
+  retired: []
+  source: remote
+  warnings: []
+- id: remote-without-git-suffix
+  remote: https://github.com/lab/notes
+  folder: notes
+  declared: null
+  identity: notes
+  retired: []
+  source: remote
+  warnings: []
+- id: remote-with-a-trailing-slash
+  note: The folder name lies outside the pattern, so it raises no disagreement.
+  remote: https://github.com/lab/notes.git/
+  folder: Notes
+  declared: null
+  identity: notes
+  retired: []
+  source: remote
+  warnings: []
+- id: remote-name-outside-the-pattern
+  note: A remote name that the pattern rejects falls back to the folder, without a warning.
+  remote: https://github.com/lab/Geonexus.git
+  folder: geonexus
+  declared: null
+  identity: geonexus
+  retired: []
+  source: folder
+  warnings: []
+- id: folder-without-remote
+  remote: null
+  folder: mixture-input-encoding
+  declared: null
+  identity: mixture-input-encoding
+  retired: []
+  source: folder
+  warnings: []
+- id: both-names-outside-the-pattern
+  remote: https://github.com/lab/My_Notes.git
+  folder: My Notes
+  declared: null
+  identity: null
+  retired: []
+  source: none
+  warnings: []
+- id: folder-with-a-trailing-newline
+  note: A pattern admits a whole string, so a final line break is no part of an identifier.
+  remote: null
+  folder: "lab\n"
+  declared: null
+  identity: null
+  retired: []
+  source: none
+  warnings: []
+- id: state-of-another-repository
+  note: A state has no folder of its own, so its remote alone names it.
+  remote: https://example.org/lab/other-lab.git
+  folder: null
+  declared: null
+  identity: other-lab
+  retired: []
+  source: remote
+  warnings: []
+- id: disagreement
+  note: The remote and the folder name two identifiers; the remote wins, with a warning.
+  remote: https://github.com/lab/lab-notes.git
+  folder: notes
+  declared: null
+  identity: lab-notes
+  retired: []
+  source: remote
+  warnings: [identity-disagreement]
+- id: override-of-a-fork
+  note: A fork keeps the identifier of its origin through the override, without a warning.
+  remote: https://github.com/someone/geonexus-fork.git
+  folder: geonexus-fork
+  declared: {id: geonexus}
+  identity: geonexus
+  retired: []
+  source: override
+  warnings: []
+- id: override-settling-a-disagreement
+  remote: https://github.com/lab/a-lab.git
+  folder: b-lab
+  declared: {id: lab}
+  identity: lab
+  retired: []
+  source: override
+  warnings: []
+- id: override-with-retired-identifiers
+  remote: null
+  folder: null
+  declared: {id: lab, retired: [old-lab, older-lab]}
+  identity: lab
+  retired: [old-lab, older-lab]
+  source: override
+  warnings: []
+- id: retired-identifiers-of-a-derived-identity
+  remote: git@github.com:lab/lab.git
+  folder: lab
+  declared: {retired: [old-lab]}
+  identity: lab
+  retired: [old-lab]
+  source: remote
+  warnings: []
+- id: retired-identifiers-listing-the-derived-identity
+  note: A renamed repository whose remote still bears the former name must declare its override.
+  remote: https://github.com/lab/old-lab.git
+  folder: old-lab
+  declared: {retired: [old-lab]}
+  error: true

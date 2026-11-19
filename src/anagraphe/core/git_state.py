@@ -2,7 +2,7 @@
 The Git adapter of Anagraphe: the files committed in ``HEAD``, for the indexes introduced after
 the last commit; the files that Git ignores without tracking them, for the exclusions; and the
 gitlinks of the index, the addresses of the submodules, the default remote and the ignored state of
-one path, for the record resolver.
+one path, for the record resolver; and the remote ``origin`` of a root, for its identity.
 """
 
 from __future__ import annotations
@@ -157,6 +157,25 @@ def default_remote_url(root: Path) -> str | None:
     name = remote.decode().strip() if remote is not None else "origin"
     url = _git(root, environment, "config", f"remote.{name}.url")
     return url.decode("utf-8").strip() if url is not None else None
+
+
+def origin_url(root: Path) -> str | None:
+    """Return the address of the remote ``origin`` of the repository whose work tree has its top
+    at ``root``.
+
+    Returns
+    -------
+    str | None
+        The address, or None when ``root`` is not the top of a Git work tree, declares no remote
+        ``origin``, or Git cannot run.
+    """
+    environment = _environment()
+    top = _git(root, environment, "rev-parse", "--show-toplevel")
+    if top is None or Path(top.decode("utf-8").strip()).resolve() != root.resolve():
+        return None
+    url = _git(root, environment, "config", "--get", "remote.origin.url")
+    address = url.decode("utf-8").strip() if url is not None else ""
+    return address or None
 
 
 #: The variables through which Git locates a repository, set by Git for a hook, which a command run

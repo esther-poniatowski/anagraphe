@@ -5,11 +5,13 @@ The record resolver: the operations ``resolve`` and ``read`` on the targets of o
 
 1. normalize the target: a target naming the repository of the root, or one of its former
    identifiers, is a local target, which the check of the root resolves in its working tree;
-2. select the state of the repository from the context. An identifier that a manifest of the
-   context lists as retired resolves to the current identifier of that manifest, with a warning;
-3. read the manifest and the configuration of Anagraphe at that state, then the registry at the
-   path that the configuration names. A target naming the repository itself resolves once the
-   manifest declares its identifier;
+2. select the state of the repository from the context. An identifier that the configuration of a
+   state of the context lists under ``repository.retired`` resolves to the identifier of that
+   state, with a warning;
+3. read the configuration of Anagraphe at that state, derive the identity of the state from its
+   override ``repository.id``, else from the name of its remote, and require it to equal the
+   identifier naming the state; then read the registry at the path that the configuration names.
+   A target naming the repository itself resolves once the identity of the state is verified;
 4. look up the identifier in the registry, and follow a chain of ``replaced_by`` to a live record.
 
 ``read`` reads the registered path through the provider, never through a symbolic link, then
@@ -26,11 +28,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import PurePosixPath
+from typing import Any, Mapping
 
-import yaml
-
-from anagraphe.core.configuration import CONFIG_LOCATIONS
-from anagraphe.resolution.context import Entry, ResolutionContext
+from anagraphe.core.configuration import ConfigurationError
+from anagraphe.resolution.context import Entry, ResolutionContext, Unreadable, read_configuration
 from anagraphe.resolution.provider import (
     Availability,
     Blob,
@@ -58,7 +59,7 @@ from anagraphe.targets.kinds import (
     UNREADABLE_TARGET_STATE,
     UNVERIFIED_TARGET,
 )
-from anagraphe.targets.manifest import MANIFEST_FILE, Manifest, parse_manifest
+from anagraphe.targets.identity import Identity, state_identity
 from anagraphe.targets.model import Target
 from anagraphe.targets.records import Record, parse_record
 from anagraphe.targets.registry.configuration import DEFAULT_PATH
@@ -158,7 +159,7 @@ class RecordResolver:
     provider: StateProvider
     declarations: Declarations | None = None
     binding: str = "_schema"
-    _manifests: dict[str, Manifest | Finding] = field(default_factory=dict, init=False)
+    _identities: dict[str, Identity | Finding] = field(default_factory=dict, init=False)
     _registries: dict[str, RecordRegistry | Finding] = field(default_factory=dict, init=False)
 
     def resolve(self, target: Target) -> Resolution:
@@ -181,12 +182,12 @@ class RecordResolver:
             current = replace(target, repository=entry.repository)
             warnings.append(_renamed(written, repository, current))
             target = current
-        manifest = self._manifest(entry)
-        if isinstance(manifest, Finding):
-            return _stop(target, written, manifest, warnings, entry)
+        identity = self._identity(entry)
+        if isinstance(identity, Finding):
+            return _stop(target, written, identity, warnings, entry)
         if target.id is None:
             return Resolution(target, Outcome.REPOSITORY, tuple(warnings), entry)
-        registry = self._registry(entry, manifest)
+        registry = self._registry(entry, identity)
         if isinstance(registry, Finding):
             return _stop(target, written, registry, warnings, entry)
         return self._lookup(target, written, entry, registry, warnings)
@@ -295,15 +296,15 @@ class RecordResolver:
         return findings
 
     def _successor(self, repository: str) -> Entry | Finding:
-        """Return the entry whose manifest retires an identifier, or why none is found."""
+        """Return the entry whose identity retires an identifier, or why none is found."""
         unread: list[str] = []
         for identifier in sorted(self.context.entries):
             entry = self.context.entries[identifier]
-            manifest = self._manifest(entry)
-            if isinstance(manifest, Manifest):
-                if repository in manifest.retired:
+            identity = self._identity(entry)
+            if isinstance(identity, Identity):
+                if repository in identity.retired:
                     return entry
-            elif manifest.kind in (UNREADABLE_TARGET_STATE, INVALID_TARGET_STATE):
+            elif identity.kind in (UNREADABLE_TARGET_STATE, INVALID_TARGET_STATE):
                 unread.append(f"{identifier} at {entry.state.commit}")
         unread.extend(
             f"the submodule {link.path} at {link.commit}" for link in self.context.unnamed
@@ -320,78 +321,85 @@ class RecordResolver:
             "resolution.repositories, or add it as a submodule",
         )
 
-    def _manifest(self, entry: Entry) -> Manifest | Finding:
-        """Return the manifest of the state of an entry, read once per commit."""
+    def _identity(self, entry: Entry) -> Identity | Finding:
+        """Return the identity of the state of an entry, read once per commit."""
         commit = entry.state.commit
-        if commit not in self._manifests:
-            self._manifests[commit] = self._read_manifest(entry)
-        return self._manifests[commit]
+        if commit not in self._identities:
+            self._identities[commit] = self._read_identity(entry)
+        return self._identities[commit]
 
-    def _read_manifest(self, entry: Entry) -> Manifest | Finding:
-        """Read the manifest of a state, and require it to declare the identifier of its entry."""
+    def _read_identity(self, entry: Entry) -> Identity | Finding:
+        """Derive the identity of a state from its configuration and its remote, and require it to
+        equal the identifier of its entry."""
         at = f"the state {entry.state.commit} of {entry.repository}"
-        text = self._text(entry, MANIFEST_FILE, INVALID_TARGET_REPOSITORY)
-        if isinstance(text, Finding):
-            return text
-        if text is None:
-            return Finding(INVALID_TARGET_REPOSITORY, f"{at} holds no {MANIFEST_FILE}")
-        reading = parse_manifest(text)
-        if reading.manifest is None:
-            detail = reading.problems[0].detail if reading.problems else "no identifier"
-            return Finding(INVALID_TARGET_REPOSITORY, f"{at}: {detail}")
-        if reading.manifest.id != entry.repository:
+        configuration = self._configuration(entry)
+        if isinstance(configuration, Finding):
+            return configuration
+        name, data = configuration if configuration is not None else ("", None)
+        try:
+            identity = state_identity(entry.state.remote, data)
+        except ConfigurationError as error:
+            return Finding(INVALID_TARGET_REPOSITORY, f"{at}: {name}: {error}")
+        if identity.id is None:
             return Finding(
                 INVALID_TARGET_REPOSITORY,
-                f"{at}: {MANIFEST_FILE} declares the identifier {reading.manifest.id}",
+                f"{at} has no identity: its configuration declares no repository.id, and its "
+                "remote names no repository identifier",
             )
-        return reading.manifest
+        if identity.id != entry.repository:
+            return Finding(
+                INVALID_TARGET_REPOSITORY,
+                f"{at}: the identity of the state is {identity.id}, from the "
+                f"{identity.source.value}",
+            )
+        return identity
 
-    def _registry(self, entry: Entry, manifest: Manifest) -> RecordRegistry | Finding:
+    def _configuration(self, entry: Entry) -> tuple[str, Mapping[str, Any]] | Finding | None:
+        """Return the place and the content of the configuration of a state, None without one."""
+        configuration = read_configuration(self.provider, entry.state)
+        if not isinstance(configuration, Unreadable):
+            return configuration
+        if configuration.reading is not None:
+            return _unavailable(entry, configuration.reading)
+        return Finding(
+            INVALID_TARGET_REPOSITORY,
+            f"the state {entry.state.commit} of {entry.repository}: {configuration.detail}",
+        )
+
+    def _registry(self, entry: Entry, identity: Identity) -> RecordRegistry | Finding:
         """Return the record registry of the state of an entry, read once per commit."""
         commit = entry.state.commit
         if commit not in self._registries:
-            self._registries[commit] = self._read_registry(entry, manifest)
+            self._registries[commit] = self._read_registry(entry, identity)
         return self._registries[commit]
 
-    def _read_registry(self, entry: Entry, manifest: Manifest) -> RecordRegistry | Finding:
+    def _read_registry(self, entry: Entry, identity: Identity) -> RecordRegistry | Finding:
         """Read the configuration of a state, then the registry that its section ``records``
         names; a state without either holds no registry, as ADR 0007 admits."""
         at = f"the state {entry.state.commit} of {entry.repository}"
-        texts: dict[str, str] = {}
-        for location in CONFIG_LOCATIONS:
-            text = self._text(entry, location.as_posix(), INVALID_TARGET_REPOSITORY)
-            if isinstance(text, Finding):
-                return text
-            if text is not None:
-                texts[location.as_posix()] = text
-        if len(texts) > 1:
-            return Finding(
-                INVALID_TARGET_REPOSITORY, f"{at} holds two configuration files: {', '.join(texts)}"
-            )
-        if not texts:
+        configuration = self._configuration(entry)
+        if isinstance(configuration, Finding):
+            return configuration
+        if configuration is None:
             return Finding(
                 UNVERIFIED_TARGET,
                 f"{at} holds no configuration of Anagraphe, so no record registry; only the form "
                 "of the target is checked",
             )
-        ((name, text),) = texts.items()
-        try:
-            data = yaml.safe_load(text)
-        except (ValueError, yaml.YAMLError):
-            data = None
-        if isinstance(data, dict) and "records" not in data:
+        name, data = configuration
+        if "records" not in data:
             return Finding(
                 UNVERIFIED_TARGET,
                 f"{at} declares no section records in {name}, so no record registry; only the "
                 "form of the target is checked",
             )
-        records = (data.get("records") or {}) if isinstance(data, dict) else None
+        records = data.get("records") or {}
         path = records.get("path", DEFAULT_PATH) if isinstance(records, dict) else None
         normal = confined(path) if isinstance(path, str) else None
         if normal is None:
             return Finding(
                 INVALID_TARGET_REPOSITORY,
-                f"{at}: {name} cannot be parsed, or names no registry inside the repository",
+                f"{at}: {name} names no registry inside the repository",
             )
         registry_text = self._text(entry, normal, INVALID_RECORD_REGISTRY)
         if isinstance(registry_text, Finding):
@@ -407,11 +415,11 @@ class RecordResolver:
             problem = reading.problems[0]
             place = f" at {problem.pointer}" if problem.pointer else ""
             return Finding(INVALID_RECORD_REGISTRY, f"{at}{place}: {problem.detail}")
-        if reading.registry.repository != manifest.id:
+        if reading.registry.repository != identity.id:
             return Finding(
                 INVALID_RECORD_REGISTRY,
-                f"{at}: {normal} names the repository {reading.registry.repository}, and "
-                f"{MANIFEST_FILE} declares {manifest.id}",
+                f"{at}: {normal} names the repository {reading.registry.repository}, and the "
+                f"identity of the state is {identity.id}",
             )
         return reading.registry
 

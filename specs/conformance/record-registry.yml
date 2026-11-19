@@ -8,7 +8,8 @@
 # chain of replaced_by returns to an identifier that it has left.
 #
 # A check case writes its files below an empty repository root, over the shared files, declares the
-# sections of anagraphe.yml, then states the issues of one check: records, for
+# sections of anagraphe.yml, among them the section repository that names the repository, then
+# states the issues of one check: records, for
 # anagraphe records check, or targets, for anagraphe targets check reading the retired identifiers.
 # The key remove lists shared files that a case leaves out, and the key sections replaces the
 # shared sections. An issue is [file, kind, locus]; the issues of a case are listed in sorted order.
@@ -109,6 +110,7 @@ sections:
   targets:
     records: {registry: specs/schema-registry.yml}
   records: {}
+  repository: {id: lab}
 files:
   specs/schema-registry.yml: |
     _schema: kleisis:schema-registry@2
@@ -135,10 +137,6 @@ files:
         type: array
         items:
           $ref: https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target
-  repository.yml: |
-    _schema: anagraphe:repository@1
-    repository:
-      id: lab
   people/ada.yml: |
     _schema: test:person@1
     identity: {id: ada}
@@ -256,10 +254,14 @@ cases:
   issues:
   - [record-registry.yml, stale-registry, '']
 - id: stale-repository
-  note: The registry names another repository than its manifest.
+  note: The registry names another repository than the identity, after a rename of the repository.
   check: records
-  files:
-    repository.yml: "_schema: anagraphe:repository@1\nrepository: {id: lab-two, retired: [lab]}\n"
+  sections:
+    targets:
+      records: {registry: specs/schema-registry.yml}
+    records: {}
+    repository: {id: lab-two, retired: [lab]}
+  files: {}
   issues:
   - [record-registry.yml, stale-registry, /repository]
 - id: vanished-identifier

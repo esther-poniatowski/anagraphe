@@ -9,7 +9,7 @@ description: >-
 $defs:
   repository-id:
     title: Repository identifier
-    description: The identifier of a repository, declared under repository.id of its repository.yml.
+    description: The identifier of a repository, overridden under repository.id of its anagraphe.yml, else derived from the name of its remote origin or of its folder.
     type: string
     pattern: '^[a-z0-9]+(-[a-z0-9]+)*$(?!\n)'
   record-id:

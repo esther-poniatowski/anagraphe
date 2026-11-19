@@ -3,8 +3,8 @@ The versions of the specification of the addressing that the Python read side im
 
 Each read side, in Python and in TypeScript, declares the same mapping, so that a gate can report
 a consumer whose two read sides declare different versions. The mapping names the absolute
-``$id`` of the resource ``addressing.v1``, and the contracts of the manifest and of the record
-registry. The TypeScript package ``@anagraphe/read`` exports it as ``IMPLEMENTED_SPECIFICATION``.
+``$id`` of the resource ``addressing.v1``, and the contracts of the retired manifest and of the
+record registry. The TypeScript package ``@anagraphe/read`` exports it as ``IMPLEMENTED_SPECIFICATION``.
 
 Examples
 --------

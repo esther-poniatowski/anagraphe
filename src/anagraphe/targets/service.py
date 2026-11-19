@@ -1,8 +1,8 @@
 """
 The check of the logical targets of a repository, within that repository.
 
-The check reads the manifest ``repository.yml`` at the root, then the identifier of every record of
-the repository, so that a target resolves whichever files the command selects. A file of a nested
+The check derives the identity of the repository, as :mod:`anagraphe.targets.identity` states,
+then reads the identifier of every record of the repository, so that a target resolves whichever files the command selects. A file of a nested
 repository, such as a submodule, belongs to that repository, so the check reads none of them. For
 each selected record, the check reports its identifier, then each value of its target fields:
 
@@ -51,14 +51,13 @@ from anagraphe.targets.kinds import (
     INVALID_IDENTIFIER,
     INVALID_TARGET,
     KINDS,
-    LEGACY_REPOSITORY_MANIFEST,
     MISSING_IDENTIFIER,
     RENAMED_TARGET,
     RETIRED_TARGET,
     UNKNOWN_RECORD,
     UNREADABLE_RECORD,
 )
-from anagraphe.targets.manifest import MANIFEST_FILE, ManifestReading, read_manifest
+from anagraphe.targets.identity import DeclaredIdentity, Identity, repository_identity
 from anagraphe.targets.model import InvalidTarget, Target
 from anagraphe.targets.read_sides import check_read_sides
 from anagraphe.targets.records import Record
@@ -92,6 +91,14 @@ class TargetChecker:
         None when the repository declares none.
     provider : StateProvider
         The reader of the states of other repositories; by default, none is read.
+    declared : DeclaredIdentity or None
+        The section ``repository``, which overrides the derived identifier and lists the former
+        identifiers; None when the repository declares none.
+
+    Raises
+    ------
+    ConfigurationError
+        If the former identifiers list the derived identifier.
     """
 
     root: Path
@@ -99,14 +106,15 @@ class TargetChecker:
     registry: RecordsConfig | None = None
     resolution: ResolutionConfig | None = None
     provider: StateProvider = field(default_factory=EmptyProvider)
-    manifest: ManifestReading = field(init=False)
+    declared: DeclaredIdentity | None = None
+    identity: Identity = field(init=False)
     walk: RecordWalk = field(init=False)
     #: The retired identifiers of the registry, empty without a valid registry.
     retired: Mapping[str, Retirement] = field(init=False)
 
     def __post_init__(self) -> None:
         self.root = self.root.resolve()
-        self.manifest = read_manifest(self.root)
+        self.identity = repository_identity(self.root, self.declared)
         reserved = frozenset({self.registry.rel}) if self.registry is not None else frozenset()
         self.walk = RecordWalk(self.root, self.config, reserved)
         reading = (
@@ -125,8 +133,8 @@ class TargetChecker:
 
     @property
     def repository(self) -> str | None:
-        """Return the identifier of the checked repository, None when it declares none."""
-        return self.manifest.manifest.id if self.manifest.manifest is not None else None
+        """Return the identifier of the checked repository, None when it has no identity."""
+        return self.identity.id
 
     @cached_property
     def resolver(self) -> RecordResolver:
@@ -138,18 +146,18 @@ class TargetChecker:
         ConfigurationError
             If two entries of the context select states of one repository.
         """
-        context = build_context(self.root, self.manifest.manifest, self.resolution, self.provider)
+        context = build_context(self.root, self.identity, self.resolution, self.provider)
         binding = self.config.records.binding if self.config.records is not None else "_schema"
         return RecordResolver(context, self.provider, self.declarations, binding)
 
     def covers(self, rel: str) -> bool:
-        """Whether a file is a record of the checked repository; the manifest is none."""
+        """Whether a file is a record of the checked repository; a retired manifest is none."""
         return self.walk.covers(rel)
 
     def check(self, paths: tuple[Path, ...] = (), strict: bool = True) -> Report:
         """Check the records below the given targets, the whole repository without a target."""
         selected = select(self.root, paths, self.config.exemptions, self.covers, strict)
-        issues = self._manifest_issues()
+        issues = self._identity_issues()
         issues.extend(check_read_sides(self.config.read_sides))
         for rel in selected:
             issues.extend(self.check_record(self.walk.record(rel)))
@@ -321,18 +329,11 @@ class TargetChecker:
             for finding in held_findings(target, target_field.contracts, held)
         ]
 
-    def _manifest_issues(self) -> list[Issue]:
-        """Return the defects of the manifest of the repository."""
+    def _identity_issues(self) -> list[Issue]:
+        """Return the warnings of the identity of the repository."""
         return [
-            Issue(
-                MANIFEST_FILE,
-                None,
-                problem.kind,
-                problem.detail,
-                blocking=problem.kind != LEGACY_REPOSITORY_MANIFEST,
-                locus=problem.pointer,
-            )
-            for problem in self.manifest.problems
+            Issue(problem.rel or "", None, problem.kind, problem.detail, blocking=False)
+            for problem in self.identity.problems
         ]
 
     def _schema_issues(self) -> list[Issue]:

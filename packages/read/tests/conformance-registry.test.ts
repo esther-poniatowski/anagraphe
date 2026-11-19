@@ -3,6 +3,7 @@
  * cases of the targets, which read the retired identifiers of the registry.
  */
 import { describe, expect, it } from "vitest";
+import { deriveIdentity, readDeclaredIdentity } from "../src/identity.js";
 import { readRegistry } from "../src/registry.js";
 import { REGISTRY_CONTRACT, REGISTRY_ID } from "../src/resources.js";
 import { caseFiles, findings, suite, type CheckCase } from "./support/conformance.js";
@@ -42,11 +43,13 @@ describe.each(DOCUMENTS)("the document $id", (document) => {
 // generation from the walk, which belongs to the write side, in Python only.
 describe.each(CASES.filter((check) => check.check === "targets"))("the check case $id", (check) => {
   it("yields the findings of the case", async () => {
-    const records = check.sections === undefined || "records" in check.sections;
+    const sections = check.sections ?? (SUITE["sections"] as Record<string, unknown>);
+    const declared = "repository" in sections ? readDeclaredIdentity(sections["repository"]) : null;
     const { issues } = await findings(
       caseFiles(FILES, check),
       "specs/schema-registry.yml",
-      records ? "record-registry.yml" : null,
+      "records" in sections ? "record-registry.yml" : null,
+      deriveIdentity({ remote: null, folder: null, declared }).id,
     );
     expect(issues).toEqual(check.issues);
   });

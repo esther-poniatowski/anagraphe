@@ -1,7 +1,7 @@
 /**
  * The schema resources of the addressing, read from the module generated from the packaged schemas
- * of Anagraphe: the resource `addressing.v1`, the contract `anagraphe:repository@1` of
- * `repository.yml`, and the contract `anagraphe:record-registry@1`.
+ * of Anagraphe: the resource `addressing.v1`, the contract `anagraphe:repository@1` of the
+ * retired manifest `repository.yml`, and the contract `anagraphe:record-registry@1`.
  *
  * Every pattern and identifier below derives from the generated module, so the package states no
  * pattern of its own. A consumer schema references the definition `target` by its absolute URI,
@@ -20,7 +20,7 @@ export const ADDRESSING_ID = ADDRESSING_SCHEMA.$id;
 /** The reference to the definition of a logical target. */
 export const TARGET_REFERENCE = `${ADDRESSING_ID}#/$defs/target`;
 
-/** The contract of `repository.yml`. */
+/** The contract of the retired manifest `repository.yml`, published until its files migrate. */
 export const REPOSITORY_CONTRACT = REPOSITORY_SCHEMA.properties._schema.const;
 
 /** The absolute `$id` of the schema of the record registry. */
@@ -31,7 +31,7 @@ export const REGISTRY_CONTRACT = RECORD_REGISTRY_SCHEMA.properties._schema.const
 
 /**
  * The versions of the specification that this read side implements: the `$id` of the resource of
- * the addressing, and the contracts of the manifest and of the record registry. The Python read
+ * the addressing, and the contracts of the retired manifest and of the record registry. The Python read
  * side exports the same mapping as `anagraphe.targets.IMPLEMENTED_SPECIFICATION`.
  */
 export const IMPLEMENTED_SPECIFICATION = {
