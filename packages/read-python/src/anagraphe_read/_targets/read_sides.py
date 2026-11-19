@@ -6,7 +6,7 @@ A repository may bundle another read side of the addressing, such as the TypeScr
 ``@anagraphe/read`` inside an Obsidian plugin, which writes its ``IMPLEMENTED_SPECIFICATION`` into
 a file of the repository. The key ``read_sides`` of the section ``targets`` names each such file
 and the JSON Pointer of the declaration in it. The check reads each declaration and compares it,
-key by key, with :data:`anagraphe_read._targets.specification.IMPLEMENTED_SPECIFICATION`:
+key by key, with :data:`anagraphe_read.IMPLEMENTED_SPECIFICATION`:
 
 - a declaration that differs is reported as ``read-side-mismatch``, naming each differing key with
   the declared and the implemented value;

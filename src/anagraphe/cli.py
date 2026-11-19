@@ -47,17 +47,14 @@ from anagraphe_read._bindings.contract import CONTRACT as BINDINGS_CONTRACT
 from anagraphe_read._bindings.kinds import KINDS as BINDING_KINDS
 from anagraphe_read._bindings.kinds import UNANALYZED as BINDING_UNANALYZED
 from anagraphe_read._bindings.model import Merge, Role
-from anagraphe_read._bindings.resolution import BindingResolver
+from anagraphe_read._configuration import locate_config
 from anagraphe_read._core.configuration import ConfigurationError
 from anagraphe_read._core.exclusions import KINDS as EXCLUSION_KINDS
 from anagraphe_read._core.exclusions import local_issues
 from anagraphe_read._core.files import TargetError
 from anagraphe_read._core.issues import IssueKind, Report
-from anagraphe_read._resolution.configuration import ResolutionConfig
-from anagraphe_read._resolution.context import build_context
-from anagraphe_read._resolution.git import GitProvider, default_cache
-from anagraphe_read._targets.configuration import TargetConfig
-from anagraphe_read._targets.identity import DeclaredIdentity, repository_identity
+from anagraphe_read._repository import Composition
+from anagraphe_read._resolution.git import default_cache
 from anagraphe_read._targets.kinds import KINDS as TARGET_KINDS
 from anagraphe_read._targets.kinds import UNANALYZED as TARGET_UNANALYZED
 from anagraphe_read._targets.registry.configuration import RecordsConfig
@@ -69,7 +66,6 @@ from anagraphe.configuration import (
     RepositoryConfig,
     find_root,
     load_config,
-    locate_config,
 )
 from anagraphe.core.sarif import Section, sarif_log
 from anagraphe.indexes.configuration import IndexConfig
@@ -379,21 +375,19 @@ def _bindings(
     return report
 
 
-def _targets(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-    root: Path,
-    config: TargetConfig,
-    registry: RecordsConfig | None,
+def _targets(
+    reading: Composition,
     paths: tuple[Path, ...],
     strict: bool = True,
     findings: Findings | None = None,
-    resolution: ResolutionConfig | None = None,
-    declared: DeclaredIdentity | None = None,
 ) -> Report:
-    """Check the logical targets, print their report, and record it for the log."""
+    """Check the logical targets, print their report, and record it for the log.
+
+    The composition of the read side reads the states of other repositories through the Git
+    provider of the machine.
+    """
     try:
-        provider = GitProvider(default_cache())
-        checker = TargetChecker(root, config, registry, resolution, provider, declared)
-        report = checker.check(paths, strict)
+        report = TargetChecker(reading).check(paths, strict)
     except (ConfigurationError, OSError, TargetError) as error:
         _fail(error, findings)
     _emit(report, f"targets: checked {report.processed} records", findings)
@@ -441,27 +435,12 @@ def check(
     if repository.bindings is not None:
         reports.append(_bindings(resolved, repository.bindings, targets, False, findings))
     if repository.targets is not None:
-        reports.append(
-            _targets(
-                resolved,
-                repository.targets,
-                repository.records,
-                targets,
-                False,
-                findings,
-                repository.resolution,
-                repository.repository,
-            )
-        )
+        reports.append(_targets(repository.reading, targets, False, findings))
     if targets and not any(report.processed for report in reports):
         _fail(TargetError("the targets hold no file that a declared section reads"), findings)
     # The registry is checked against the whole repository, whatever the targets.
     if repository.records is not None and repository.targets is not None:
-        reports.append(
-            _records(
-                resolved, repository.targets, repository.records, findings, repository.repository
-            )
-        )
+        reports.append(_records(repository.reading, repository.records, findings))
     _exit(*reports, findings=findings)
 
 
@@ -533,42 +512,26 @@ def targets_check(
     identifiers and of their declarations, and the warnings of the identity of the repository."""
     findings = Findings(output_format, output)
     resolved, repository = _load(root, config, findings)
-    section = _section(repository.targets, "targets", findings)
-    report = _targets(
-        resolved,
-        section,
-        repository.records,
-        _here(paths),
-        findings=findings,
-        resolution=repository.resolution,
-        declared=repository.repository,
-    )
+    _section(repository.targets, "targets", findings)
+    report = _targets(repository.reading, _here(paths), findings=findings)
     _exit(report, findings=findings)
 
 
-def _registry(
-    root: Path, repository: RepositoryConfig, findings: Findings | None = None
-) -> RegistryService:
+def _registry(repository: RepositoryConfig, findings: Findings | None = None) -> RegistryService:
     """Return the service of the record registry, or exit naming the section that it requires."""
-    records = _section(repository.records, "records", findings)
-    # The configuration refuses the section records without the section targets.
-    assert repository.targets is not None
+    _section(repository.records, "records", findings)
     try:
-        return RegistryService(root, repository.targets, records, declared=repository.repository)
+        return RegistryService(repository.reading)
     except ConfigurationError as error:
         _fail(error, findings)
 
 
 def _records(
-    root: Path,
-    targets: TargetConfig,
-    records: RecordsConfig,
-    findings: Findings | None = None,
-    declared: DeclaredIdentity | None = None,
+    reading: Composition, records: RecordsConfig, findings: Findings | None = None
 ) -> Report:
     """Check the record registry, print its report, and record it for the log."""
     try:
-        report = RegistryService(root, targets, records, declared=declared).check()
+        report = RegistryService(reading).check()
     except (ConfigurationError, OSError) as error:
         _fail(error, findings)
     _emit(report, f"records: checked {records.rel} against {report.processed} records", findings)
@@ -584,7 +547,7 @@ def records_write(root: Root = None, config: Config = None) -> None:
     no identity.
     """
     resolved, repository = _load(root, config)
-    service = _registry(resolved, repository)
+    service = _registry(repository)
     try:
         result = service.write()
     except (ConfigurationError, OSError) as error:
@@ -610,9 +573,9 @@ def records_check(
 ) -> None:
     """Report the differences between the record registry and the records, and write no file."""
     findings = Findings(output_format, output)
-    resolved, repository = _load(root, config, findings)
-    service = _registry(resolved, repository, findings)
-    report = _records(resolved, service.targets, service.records, findings, service.declared)
+    _, repository = _load(root, config, findings)
+    service = _registry(repository, findings)
+    report = _records(repository.reading, service.records, findings)
     _exit(report, findings=findings)
 
 
@@ -635,7 +598,7 @@ def records_retire(
     """Move an identifier that no record holds any longer from records into retired, with the day
     and its successor; a retired identifier is never reused."""
     resolved, repository = _load(root, config)
-    service = _registry(resolved, repository)
+    service = _registry(repository)
     try:
         registry = service.retire(identifier, replaced_by)
     except RetireRefused as error:
@@ -752,7 +715,7 @@ def bindings_show(
     if resolved not in target.parents or not target.is_file():
         _fail(TargetError(f"target is no file of the repository: {path}"))
     rel = target.relative_to(resolved).as_posix()
-    resolver = BindingResolver(resolved, bindings)
+    resolver = repository.reading.binding_resolver
     try:
         results = [resolver.resolve(rel, Role(name, merge)) for name in roles or bindings.roles]
     except (ConfigurationError, ValueError) as error:
@@ -818,11 +781,10 @@ def states_fetch(root: Root = None, config: Config = None) -> None:
     status 1 when a state stays absent from the machine.
     """
     resolved, repository = _load(root, config)
+    # The composition reads the states through the Git provider over this cache.
     cache = default_cache()
-    provider = GitProvider(cache)
     try:
-        identity = repository_identity(resolved, repository.repository)
-        context = build_context(resolved, identity, repository.resolution, provider)
+        context = repository.reading.context
     except ConfigurationError as error:
         _fail(error)
     results = fetch_states(context.states(), cache)

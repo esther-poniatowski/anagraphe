@@ -69,7 +69,5 @@ def test_the_check_of_the_targets_reports_the_note_as_unreadable(tmp_path: Path)
     (tmp_path / "notes" / "a.md").write_text(NOTE, encoding="utf-8")
     path = tmp_path / "anagraphe.yml"
     path.write_text("_schema: anagraphe:configuration@3\ntargets: {}\n", encoding="utf-8")
-    config = load_config(tmp_path, path).targets
-    assert config is not None
-    issues = TargetChecker(tmp_path, config).check().issues
+    issues = TargetChecker(load_config(tmp_path, path).reading).check().issues
     assert [(issue.rel, issue.kind) for issue in issues] == [("notes/a.md", "unreadable-record")]

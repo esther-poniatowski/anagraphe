@@ -42,11 +42,8 @@ def _plugin(declaration: Any) -> str:
 
 
 def _issues(root: Path) -> list[tuple[str, str, str]]:
-    config = load_config(root, root / "anagraphe.yml").targets
-    assert config is not None
-    return sorted(
-        (issue.rel, issue.kind, issue.locus) for issue in TargetChecker(root, config).check().issues
-    )
+    checker = TargetChecker(load_config(root, root / "anagraphe.yml").reading)
+    return sorted((issue.rel, issue.kind, issue.locus) for issue in checker.check().issues)
 
 
 def test_a_matching_declaration_raises_no_finding(tmp_path: Path) -> None:
@@ -72,9 +69,9 @@ def test_a_differing_declaration_names_each_key_with_both_values(tmp_path: Path)
         "repository": "anagraphe:repository@1",
     }
     _repository(tmp_path, {MANIFEST: _plugin(declared)}, [{"path": MANIFEST, "pointer": POINTER}])
-    config = load_config(tmp_path, tmp_path / "anagraphe.yml").targets
-    assert config is not None
-    (issue,) = TargetChecker(tmp_path, config).check().issues
+    (issue,) = (
+        TargetChecker(load_config(tmp_path, tmp_path / "anagraphe.yml").reading).check().issues
+    )
     assert (issue.rel, issue.kind, issue.locus, issue.blocking) == (
         MANIFEST,
         "read-side-mismatch",

@@ -17,10 +17,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from anagraphe_read._configuration import locate_config
 from anagraphe_read._core.configuration import ConfigurationError
 
 from anagraphe.cli import app
-from anagraphe.configuration import find_root, load_config, locate_config
+from anagraphe.configuration import find_root, load_config
 
 #: A valid configuration, which the command ``check`` reads with no issue.
 VALID = "_schema: anagraphe:configuration@3\nreferences: {}\n"

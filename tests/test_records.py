@@ -133,9 +133,7 @@ def _service(
     others are given."""
     config = _configure(root, sections)
     assert config.targets is not None and config.records is not None
-    return RegistryService(
-        root, config.targets, config.records, clock=lambda: clock, declared=config.repository
-    )
+    return RegistryService(config.reading, clock=lambda: clock)
 
 
 def _repository(
@@ -154,13 +152,9 @@ def test_case_conforms(tmp_path: Path, case_id: str) -> None:
     assert config.targets is not None
     if case["check"] == "records":
         assert config.records is not None
-        report = RegistryService(
-            tmp_path, config.targets, config.records, declared=config.repository
-        ).check()
+        report = RegistryService(config.reading).check()
     else:
-        report = TargetChecker(
-            tmp_path, config.targets, config.records, declared=config.repository
-        ).check()
+        report = TargetChecker(config.reading).check()
     issues = sorted([issue.rel, issue.kind, issue.locus] for issue in report.issues)
     assert issues == case["issues"]
 
@@ -188,14 +182,7 @@ def test_a_followed_rename_names_its_successor(tmp_path: Path) -> None:
     _repository(tmp_path, {"cite.yml": "_schema: test:citing@1\nsource: {id: note-old, unit: x}\n"})
     config = _configure(tmp_path)
     assert config.targets is not None
-    details = {
-        issue.kind: issue.detail
-        for issue in TargetChecker(
-            tmp_path, config.targets, config.records, declared=config.repository
-        )
-        .check()
-        .issues
-    }
+    details = {issue.kind: issue.detail for issue in TargetChecker(config.reading).check().issues}
     assert details["renamed-target"] == (
         "/source: {id: note-old, unit: x}: the identifier note-old is retired and replaced by "
         "note-n through note-mid; write {id: note-n, unit: x}"
@@ -256,9 +243,7 @@ def test_write_creates_the_folders_of_its_path(tmp_path: Path) -> None:
     sections = {**SUITE["sections"], "records": {"path": "build/registry/records.yml"}}
     config = _configure(tmp_path, sections)
     assert config.targets is not None and config.records is not None
-    result = RegistryService(
-        tmp_path, config.targets, config.records, declared=config.repository
-    ).write()
+    result = RegistryService(config.reading).write()
     assert result.changed and (tmp_path / "build" / "registry" / "records.yml").is_file()
 
 
@@ -319,9 +304,7 @@ def test_write_refuses_a_defect_and_writes_nothing(tmp_path: Path, defect: str) 
         sections = {key: value for key, value in sections.items() if key != "repository"}
     config = _configure(tmp_path, sections)
     assert config.targets is not None and config.records is not None
-    result = RegistryService(
-        tmp_path, config.targets, config.records, declared=config.repository
-    ).write()
+    result = RegistryService(config.reading).write()
     assert sorted(issue.kind for issue in result.issues) == kinds
     assert result.registry is None and not result.changed
     assert _bytes(tmp_path / REGISTRY) == before

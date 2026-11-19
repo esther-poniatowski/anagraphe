@@ -1,215 +1,133 @@
 """
-The configuration of a repository, ``anagraphe.yml``, composed of one section per subpackage.
+The configuration of a repository for the command line: the sections of the read side, composed
+by the read distribution, and the sections of the commands that write.
 
-The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below the root, and both
-places holding a file is an error, unless the command line names another file. The root of a
-command is the folder given by ``--root``, else by the variable ``ANAGRAPHE_ROOT``, else the
-nearest folder, from the current one upwards, that holds the file at one of its places, else the
-current folder. The file declares its format under ``_schema``, the sources of the metadata of its files
-under ``metadata``, the files that every subpackage excludes under ``exclude``, then the section of
-each subpackage that the repository uses:
+The read distribution locates ``anagraphe.yml``, checks its format and its top-level keys, and
+parses the sections ``targets``, ``records``, ``bindings``, ``resolution`` and ``repository``, as
+:mod:`anagraphe_read._configuration` states. Its composition, :func:`anagraphe_read._repository.compose`,
+builds the identity of the repository, the walk of its records, its resolution context and its
+resolvers. The command line adds two sections, parsed from the same file:
 
 - ``indexes``, parsed by :mod:`anagraphe.indexes.configuration`;
-- ``references``, parsed by :mod:`anagraphe.references.configuration`;
-- ``bindings``, parsed by :mod:`anagraphe_read._bindings.configuration`;
-- ``targets``, parsed by :mod:`anagraphe_read._targets.configuration`;
-- ``records``, parsed by :mod:`anagraphe_read._targets.registry.configuration`, which names the record
-  registry. Its records are those of the walk of the section ``targets``, so it requires that
-  section.
+- ``references``, parsed by :mod:`anagraphe.references.configuration`.
 
-The section ``resolution``, parsed by :mod:`anagraphe_read._resolution.configuration`, declares the
-repositories that the targets name besides the submodules, and the machine file of their local
-clones. The section ``repository``, parsed by :mod:`anagraphe_read._targets.identity`, declares the
-override of the identifier of the repository and its former identifiers. Both serve the check of
-the targets and the record registry, and enable no command of their own.
-
-A section left out disables its subpackage, so a repository adopts each one apart. When the
-sections ``indexes`` and ``targets`` are both declared, a nested group of an index designates a
-parent by the identifier that the targets resolve, so ``x-identifier`` applies there too.
+The root of a command is the folder given by ``--root``, else by the variable ``ANAGRAPHE_ROOT``,
+else the nearest folder, from the current one upwards, that holds the file at one of its places,
+else the current folder. A command requires one section among ``indexes``, ``references``,
+``bindings``, ``targets`` and ``records``. A section left out disables its subpackage, so a
+repository adopts each one apart. When the sections ``indexes`` and ``targets`` are both declared, a
+nested group of an index designates a parent by the identifier that the targets resolve, so
+``x-identifier`` applies there too.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Mapping
 
-from anagraphe_read._bindings import configuration as bindings
-from anagraphe_read._core.configuration import (
-    CONFIG_FILE,
-    CONFIG_LOCATIONS,
-    ConfigurationError,
-    known_keys,
-    load_yaml,
-    mapping,
-)
-from anagraphe_read._core.exclusions import exemptions
-from anagraphe_read._core.metadata import MetadataReader, parse_metadata
-from anagraphe_read._resolution import configuration as resolution
-from anagraphe_read._targets import configuration as targets
-from anagraphe_read._targets import identity
-from anagraphe_read._targets.registry import configuration as records
-from anagraphe_read._targets.walk import RecordWalk
+from anagraphe_read._bindings.configuration import BindingConfig
+from anagraphe_read._configuration import holds_config, load_configuration
+from anagraphe_read._core.configuration import ConfigurationError, mapping
+from anagraphe_read._core.metadata import MetadataReader
+from anagraphe_read._repository import Composition, compose
+from anagraphe_read._resolution.configuration import ResolutionConfig
+from anagraphe_read._resolution.provider import StateProvider
+from anagraphe_read._targets.configuration import TargetConfig
+from anagraphe_read._targets.identity import DeclaredIdentity
+from anagraphe_read._targets.registry.configuration import RecordsConfig
 
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
 
 #: The environment variable naming the root, read when the command line gives none.
 ROOT_VARIABLE = "ANAGRAPHE_ROOT"
-#: The key of ``anagraphe.yml`` naming its format.
-FORMAT_KEY = "_schema"
-#: The format of ``anagraphe.yml`` read by this release.
-CONFIGURATION_FORMAT = "anagraphe:configuration@3"
-#: The former format, whose section ``indexes`` named a vocabulary, with the changes to write.
-FORMER_FORMAT = "anagraphe:configuration@2"
-VOCABULARY_MOVES = (
-    "indexes.vocabulary is removed",
-    "the values of each key under key_values become the enum of properties.<key>, or of "
-    "properties.<key>.items for a list, of a metadata schema named by indexes.metadata_schema, "
-    "in their order",
-    "the relations under context_relations become the enum of "
-    "properties.context_relations.items.properties.relation of that schema",
-    "schema.entry_point becomes indexes.entry_point",
-    "schema.generated_index_areas becomes indexes.generated_areas",
-    "archived_statuses becomes indexes.archived_statuses",
-    "each role declaring listed: false under roles is listed under indexes.unlisted_roles",
-    "schema.frames is checked by Hermeneia, and roles is no longer read",
-)
-#: The key that named the version of the layout before ``_schema``, rejected with its replacement.
-RETIRED_FORMAT_KEY = "schema_version"
-#: The top-level keys of ``anagraphe.yml``.
-TOP_LEVEL_KEYS = frozenset(
-    {
-        FORMAT_KEY,
-        "metadata",
-        "exclude",
-        "indexes",
-        "references",
-        "bindings",
-        "targets",
-        "records",
-        "resolution",
-        identity.SECTION,
-    }
-)
-#: The sections of ``anagraphe.yml``, one per capability.
+#: The sections of ``anagraphe.yml`` that enable a command, one per capability.
 SECTIONS = ("indexes", "references", "bindings", "targets", "records")
 
 
 @dataclass(frozen=True)
 class RepositoryConfig:
-    """The resolved configuration of one repository, None for each section left out."""
+    """The resolved configuration of one repository, None for each section left out.
 
+    The sections of the read side, and the objects built from them, come from the composition of
+    the read distribution.
+    """
+
+    #: The composition of the read side: its sections, the identity and the resolvers.
+    reading: Composition
     indexes: indexes.IndexConfig | None = None
     references: references.ReferenceConfig | None = None
-    bindings: bindings.BindingConfig | None = None
-    targets: targets.TargetConfig | None = None
-    records: records.RecordsConfig | None = None
-    #: The repositories that the targets name besides the submodules, and their local clones.
-    resolution: resolution.ResolutionConfig = resolution.ResolutionConfig()
-    #: The override of the identifier of the repository and its former identifiers; None when the
-    #: section ``repository`` is left out.
-    repository: identity.DeclaredIdentity | None = None
-    #: The metadata of each file, read from the source that the repository declares for it.
-    metadata: MetadataReader | None = None
+
+    @property
+    def bindings(self) -> BindingConfig | None:
+        """Return the section ``bindings``."""
+        return self.reading.configuration.bindings
+
+    @property
+    def targets(self) -> TargetConfig | None:
+        """Return the section ``targets``."""
+        return self.reading.configuration.targets
+
+    @property
+    def records(self) -> RecordsConfig | None:
+        """Return the section ``records``."""
+        return self.reading.configuration.records
+
+    @property
+    def resolution(self) -> ResolutionConfig:
+        """Return the repositories that the targets name besides the submodules."""
+        return self.reading.configuration.resolution
+
+    @property
+    def repository(self) -> DeclaredIdentity | None:
+        """Return the section ``repository``: the override of the identifier and its former
+        identifiers."""
+        return self.reading.configuration.repository
+
+    @property
+    def metadata(self) -> MetadataReader | None:
+        """Return the reader of the metadata of each file."""
+        return self.reading.configuration.metadata
 
 
 def find_root(start: Path) -> Path:
     """Return the root of a command that names none: the nearest folder holding a configuration.
 
     The search runs from ``start`` up to the top of the file system, and stops at the first folder
-    holding a file at one of :data:`CONFIG_LOCATIONS`. Without such a folder, the root is
+    holding a file at one of the places of the search. Without such a folder, the root is
     ``start``.
     """
     start = start.resolve()
     for folder in (start, *start.parents):
-        if any((folder / location).is_file() for location in CONFIG_LOCATIONS):
+        if holds_config(folder):
             return folder
     return start
 
 
-def locate_config(root: Path, path: Path | None = None) -> Path:
-    """Return the configuration file of the repository at ``root``.
+def load_config(root: Path, path: Path, provider: StateProvider | None = None) -> RepositoryConfig:
+    """Validate and resolve the configuration of a repository.
 
-    A given ``path`` is read from the current folder, unless it is absolute, and must name a file.
-    Without one, the file is the one of ``config/tools/anagraphe.yml`` and ``anagraphe.yml`` that
-    exists below the root; both existing is an error that names both.
+    The provider reads the selected states of other repositories, the Git provider of the read
+    distribution by default.
     """
-    if path is not None:
-        given = path.absolute()
-        if not given.is_file():
-            raise ConfigurationError(f"no configuration file at {path}")
-        return given
-    found = [root / location for location in CONFIG_LOCATIONS if (root / location).is_file()]
-    if len(found) > 1:
-        raise ConfigurationError(
-            "two configuration files: " + " and ".join(str(item) for item in found) + "; keep one"
-        )
-    if found:
-        return found[0]
-    places = " or ".join(location.as_posix() for location in CONFIG_LOCATIONS)
-    raise ConfigurationError(f"no configuration file at {places} below {root}")
-
-
-def _require_format(raw: Mapping[str, Any]) -> None:
-    """Require the format of ``anagraphe.yml``, or raise an error naming the value to write."""
-    instruction = f"write {FORMAT_KEY}: {CONFIGURATION_FORMAT} as the first key of anagraphe.yml"
-    if RETIRED_FORMAT_KEY in raw:
-        layout = (
-            "; this format holds the index keys under the section indexes, and the shared exclude "
-            "at the top level"
-            if raw[RETIRED_FORMAT_KEY] == 1
-            else ""
-        )
-        raise ConfigurationError(f"{RETIRED_FORMAT_KEY} is retired: {instruction}{layout}")
-    if FORMAT_KEY not in raw:
-        raise ConfigurationError(f"anagraphe.yml declares no {FORMAT_KEY}: {instruction}")
-    if raw[FORMAT_KEY] == FORMER_FORMAT:
-        raise ConfigurationError(
-            f"{FORMAT_KEY}: {FORMER_FORMAT} is retired: write {FORMAT_KEY}: {CONFIGURATION_FORMAT}"
-            f"; this format moves the vocabulary into the section indexes: "
-            + "; ".join(VOCABULARY_MOVES)
-        )
-    if raw[FORMAT_KEY] != CONFIGURATION_FORMAT:
-        raise ConfigurationError(
-            f"{FORMAT_KEY} must equal {CONFIGURATION_FORMAT}, not {raw[FORMAT_KEY]}"
-        )
-
-
-def load_config(root: Path, path: Path) -> RepositoryConfig:
-    """Validate and resolve the configuration of a repository."""
-    root = root.resolve()
-    config_path = path.resolve()
-    try:
-        config_path.relative_to(root)
-    except ValueError as error:
-        raise ConfigurationError("configuration path must stay inside the repository") from error
-    raw = load_yaml(config_path)
-    _require_format(raw)
-    known_keys(raw, TOP_LEVEL_KEYS, "anagraphe.yml")
-    reader = MetadataReader(root, parse_metadata(raw.get("metadata"), "metadata"))
-    shared = exemptions(raw.get("exclude"), "exclude", root, reader)
-    target_section = (
-        targets.parse_section(root, mapping(raw["targets"], "targets"), shared, reader)
-        if "targets" in raw
-        else None
-    )
-    binding_section = (
-        bindings.parse_section(root, mapping(raw["bindings"], "bindings"), shared, reader)
-        if "bindings" in raw
-        else None
-    )
+    reading = compose(root, load_configuration(root, path), provider)
+    root = reading.root
+    read = reading.configuration
+    raw, shared, reader = read.document, read.exclusions, read.metadata
+    # A configuration loaded from a file holds its shared exclusions and its metadata reader.
+    assert shared is not None and reader is not None
     # The metadata schema of the indexes resolves an absolute $ref through the schema registry of
     # the records, as the targets declare it, else as the bindings declare it.
     records_schemas = next(
         (
             section.records
-            for section in (target_section, binding_section)
+            for section in (read.targets, read.bindings)
             if section is not None and section.records is not None
         ),
         None,
     )
     config = RepositoryConfig(
+        reading,
         indexes=(
             indexes.parse_section(
                 root,
@@ -226,33 +144,12 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
             if "references" in raw
             else None
         ),
-        bindings=binding_section,
-        targets=target_section,
-        records=(
-            records.parse_section(root, mapping(raw["records"], "records"))
-            if "records" in raw
-            else None
-        ),
-        resolution=resolution.parse_section(
-            root,
-            mapping(raw["resolution"], "resolution") if "resolution" in raw else None,
-        ),
-        repository=(
-            identity.parse_section(mapping(raw[identity.SECTION], identity.SECTION))
-            if identity.SECTION in raw
-            else None
-        ),
-        metadata=reader,
     )
     if not any(name in raw for name in SECTIONS):
         raise ConfigurationError(f"anagraphe.yml declares no section: {', '.join(SECTIONS)}")
-    if config.records is not None and config.targets is None:
-        raise ConfigurationError(
-            "the section records reads its records through the walk of the section targets; "
-            "declare targets"
-        )
-    if config.indexes is not None and config.targets is not None:
+    if config.indexes is not None and reading.walk is not None:
         # A nested group designates a parent by the identifier that the targets resolve.
-        walk = RecordWalk(root, config.targets)
-        config = replace(config, indexes=replace(config.indexes, identifiers=walk.identifier))
+        config = replace(
+            config, indexes=replace(config.indexes, identifiers=reading.walk.identifier)
+        )
     return config

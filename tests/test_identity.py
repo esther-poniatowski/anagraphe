@@ -167,7 +167,7 @@ def test_the_section_is_read_by_the_configuration(tmp_path: Path) -> None:
     config = load_config(tmp_path, _configure(tmp_path, {"id": "lab", "retired": ["old-lab"]}))
     assert config.repository == DeclaredIdentity("lab", ("old-lab",))
     assert config.targets is not None
-    checker = TargetChecker(tmp_path, config.targets, declared=config.repository)
+    checker = TargetChecker(config.reading)
     assert (checker.repository, checker.identity.retired) == ("lab", ("old-lab",))
 
 

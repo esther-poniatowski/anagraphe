@@ -121,7 +121,7 @@ def _check(
     (root / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
     config = load_config(root, root / "anagraphe.yml")
     assert config.targets is not None
-    checker = TargetChecker(root, config.targets, declared=config.repository)
+    checker = TargetChecker(config.reading)
     return sorted([issue.rel, issue.kind, issue.locus] for issue in checker.check().issues)
 
 

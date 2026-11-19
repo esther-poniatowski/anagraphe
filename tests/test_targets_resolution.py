@@ -20,11 +20,7 @@ from resolution_cases import consumer_repository, other_lab_state
 
 def _issues(root: Path, provider: MemoryProvider | EmptyProvider) -> list[tuple[str, str, str]]:
     """Check the targets of a repository with a provider, and return its sorted issues."""
-    config = load_config(root, root / "anagraphe.yml")
-    assert config.targets is not None
-    checker = TargetChecker(
-        root, config.targets, None, config.resolution, provider, config.repository
-    )
+    checker = TargetChecker(load_config(root, root / "anagraphe.yml", provider).reading)
     return sorted((issue.kind, issue.level, issue.locus) for issue in checker.check().issues)
 
 

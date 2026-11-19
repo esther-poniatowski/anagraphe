@@ -103,9 +103,7 @@ def _registered(root: Path) -> list[str]:
     """Write the registry, and return the identifiers that it registers."""
     config = load_config(root, root / "anagraphe.yml")
     assert config.targets is not None and config.records is not None
-    result = RegistryService(
-        root, config.targets, config.records, declared=config.repository
-    ).write()
+    result = RegistryService(config.reading).write()
     assert result.registry is not None, result.issues
     return sorted(result.registry.records)
 
@@ -128,7 +126,7 @@ def test_a_file_ignored_by_the_clone_stays_out_of_every_generated_file(tmp_path:
     assert _listed(tmp_path) == ["a.md"]
     config = load_config(tmp_path, tmp_path / "anagraphe.yml")
     assert config.targets is not None and config.records is not None
-    registry = RegistryService(tmp_path, config.targets, config.records, declared=config.repository)
+    registry = RegistryService(config.reading)
     assert not registry.check().issues
 
 
@@ -167,7 +165,7 @@ def test_an_ignored_duplicate_is_not_reported(tmp_path: Path) -> None:
     _ignore_locally(tmp_path, "m/copy.md")
     config = load_config(tmp_path, tmp_path / "anagraphe.yml")
     assert config.targets is not None
-    checker = TargetChecker(tmp_path, config.targets, config.records, declared=config.repository)
+    checker = TargetChecker(config.reading)
     assert not checker.check().issues
 
 

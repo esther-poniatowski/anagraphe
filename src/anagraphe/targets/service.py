@@ -33,20 +33,18 @@ the versions declared by the read sides of the key ``read_sides`` with those of 
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from functools import cached_property
 from pathlib import Path
 from typing import Mapping
 
+from anagraphe_read._core.configuration import ConfigurationError
 from anagraphe_read._core.files import select
 from anagraphe_read._core.issues import Issue, Report, distinct, pointer
 from anagraphe_read._core.schemas import values_at
-from anagraphe_read._resolution.configuration import ResolutionConfig
-from anagraphe_read._resolution.context import build_context
-from anagraphe_read._resolution.provider import EmptyProvider, StateProvider
+from anagraphe_read._repository import Composition
 from anagraphe_read._resolution.resolver import Outcome, RecordResolver
 from anagraphe_read._targets.configuration import TargetConfig
 from anagraphe_read._targets.declarations import Declarations, TargetField
-from anagraphe_read._targets.identity import DeclaredIdentity, Identity, repository_identity
+from anagraphe_read._targets.identity import Identity
 from anagraphe_read._targets.kinds import (
     INVALID_TARGET,
     KINDS,
@@ -58,7 +56,6 @@ from anagraphe_read._targets.kinds import (
 from anagraphe_read._targets.model import InvalidTarget, Target
 from anagraphe_read._targets.read_sides import check_read_sides
 from anagraphe_read._targets.records import Record
-from anagraphe_read._targets.registry.configuration import RecordsConfig
 from anagraphe_read._targets.registry.contract import Retirement, follow, read_registry
 from anagraphe_read._targets.verification import Finding, held_findings
 from anagraphe_read._targets.walk import RecordWalk, identifier_issues, unit_issues
@@ -75,49 +72,38 @@ class TargetChecker:
 
     Parameters
     ----------
-    root : Path
-        The root of the repository.
-    config : TargetConfig
-        The section ``targets``.
-    registry : RecordsConfig or None
-        The section ``records``, whose registry supplies the retired identifiers; None when the
-        repository declares no registry.
-    resolution : ResolutionConfig or None
-        The section ``resolution``, which declares the repositories named besides the submodules;
-        None when the repository declares none.
-    provider : StateProvider
-        The reader of the states of other repositories; by default, none is read.
-    declared : DeclaredIdentity or None
-        The section ``repository``, which overrides the derived identifier and lists the former
-        identifiers; None when the repository declares none.
+    reading : Composition
+        The composition of the read side of the repository: its sections ``targets``, ``records``,
+        ``resolution`` and ``repository``, its identity, the walk of its records and its record
+        resolver, which reads the states of other repositories through its provider.
 
     Raises
     ------
     ConfigurationError
-        If the former identifiers list the derived identifier.
+        If the configuration declares no section ``targets``, or the former identifiers list the
+        derived identifier.
     """
 
-    root: Path
-    config: TargetConfig
-    registry: RecordsConfig | None = None
-    resolution: ResolutionConfig | None = None
-    provider: StateProvider = field(default_factory=EmptyProvider)
-    declared: DeclaredIdentity | None = None
+    reading: Composition
+    root: Path = field(init=False)
+    #: The section ``targets``.
+    config: TargetConfig = field(init=False)
     identity: Identity = field(init=False)
     walk: RecordWalk = field(init=False)
     #: The retired identifiers of the registry, empty without a valid registry.
     retired: Mapping[str, Retirement] = field(init=False)
 
     def __post_init__(self) -> None:
-        self.root = self.root.resolve()
-        self.identity = repository_identity(self.root, self.declared)
-        reserved = frozenset({self.registry.rel}) if self.registry is not None else frozenset()
-        self.walk = RecordWalk(self.root, self.config, reserved)
-        reading = (
-            read_registry(self.registry.path, self.registry.rel)
-            if self.registry is not None
-            else None
-        )
+        configuration = self.reading.configuration
+        walk = self.reading.walk
+        if configuration.targets is None or walk is None:
+            raise ConfigurationError("anagraphe.yml declares no section targets")
+        self.root = self.reading.root
+        self.config = configuration.targets
+        self.identity = self.reading.identity
+        self.walk = walk
+        registry = configuration.records
+        reading = read_registry(registry.path, registry.rel) if registry is not None else None
         self.retired = (
             reading.registry.retired if reading is not None and reading.registry is not None else {}
         )
@@ -132,7 +118,7 @@ class TargetChecker:
         """Return the identifier of the checked repository, None when it has no identity."""
         return self.identity.id
 
-    @cached_property
+    @property
     def resolver(self) -> RecordResolver:
         """Return the record resolver of the root, its context built on the first target into
         another repository.
@@ -142,9 +128,7 @@ class TargetChecker:
         ConfigurationError
             If two entries of the context select states of one repository.
         """
-        context = build_context(self.root, self.identity, self.resolution, self.provider)
-        binding = self.config.records.binding if self.config.records is not None else "_schema"
-        return RecordResolver(context, self.provider, self.declarations, binding)
+        return self.reading.resolver
 
     def covers(self, rel: str) -> bool:
         """Whether a file is a record of the checked repository; a retired manifest is none."""

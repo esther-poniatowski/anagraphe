@@ -22,14 +22,10 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
+from anagraphe_read._core.configuration import ConfigurationError
 from anagraphe_read._core.issues import Issue, Report, pointer
-from anagraphe_read._targets.configuration import TargetConfig
-from anagraphe_read._targets.identity import (
-    DeclaredIdentity,
-    Identity,
-    configuration_rel,
-    repository_identity,
-)
+from anagraphe_read._repository import Composition
+from anagraphe_read._targets.identity import Identity, configuration_rel
 from anagraphe_read._targets.kinds import (
     INVALID_RECORD_REGISTRY,
     UNIDENTIFIED_REPOSITORY,
@@ -83,36 +79,37 @@ class RegistryService:
 
     Parameters
     ----------
-    root : Path
-        The root of the repository.
-    targets : TargetConfig
-        The section ``targets``, whose walk supplies the records.
-    records : RecordsConfig
-        The section ``records``, which names the file of the registry.
+    reading : Composition
+        The composition of the read side of the repository: its section ``records``, which names
+        the file of the registry, the walk of the records of its section ``targets``, and the
+        identity that the registry names.
     clock : Callable[[], datetime.date]
         The source of the day of a retirement, today by default.
-    declared : DeclaredIdentity or None
-        The section ``repository``, from which the identity that the registry names derives; None
-        when the repository declares none.
 
     Raises
     ------
     ConfigurationError
-        If the former identifiers list the derived identifier.
+        If the configuration declares no section ``records`` or ``targets``, or the former
+        identifiers list the derived identifier.
     """
 
-    root: Path
-    targets: TargetConfig
-    records: RecordsConfig
+    reading: Composition
     clock: Callable[[], datetime.date] = datetime.date.today
-    declared: DeclaredIdentity | None = None
+    root: Path = field(init=False)
+    #: The section ``records``, which names the file of the registry.
+    records: RecordsConfig = field(init=False)
     walk: RecordWalk = field(init=False)
     identity: Identity = field(init=False)
 
     def __post_init__(self) -> None:
-        self.root = self.root.resolve()
-        self.identity = repository_identity(self.root, self.declared)
-        self.walk = RecordWalk(self.root, self.targets, frozenset({self.records.rel}))
+        records = self.reading.configuration.records
+        walk = self.reading.walk
+        if records is None or walk is None:
+            raise ConfigurationError("anagraphe.yml declares no section records with targets")
+        self.root = self.reading.root
+        self.records = records
+        self.identity = self.reading.identity
+        self.walk = walk
 
     @property
     def rel(self) -> str:

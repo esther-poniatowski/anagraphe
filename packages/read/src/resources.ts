@@ -33,7 +33,7 @@ export const REGISTRY_CONTRACT = RECORD_REGISTRY_SCHEMA.properties._schema.const
  * The versions of the specification that this read side implements: the `$id` of the resource of
  * the addressing, and the contract of the record registry. The contract of the retired manifest is
  * no longer read, since the identity of a repository is derived. The Python read side exports the
- * same mapping as `anagraphe_read._targets.specification.IMPLEMENTED_SPECIFICATION`.
+ * same mapping as `anagraphe_read.IMPLEMENTED_SPECIFICATION`.
  */
 export const IMPLEMENTED_SPECIFICATION = {
   addressing: ADDRESSING_ID,
