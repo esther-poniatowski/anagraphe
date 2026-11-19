@@ -1,6 +1,6 @@
 # ADR 0005: Text bindings
 
-**Status**: Accepted on 2026-11-04, proposed on 2026-11-03. The record implements the bindings assigned to Anagraphe by the
+**Status**: Accepted on 2026-11-04, proposed on 2026-11-03, amended on 2026-11-19. The record implements the bindings assigned to Anagraphe by the
 [decision on designation and typography](https://github.com/esther-poniatowski/geonexus/blob/main/docs/_decisions/designation-and-typography.md)
 of Geonexus.
 
@@ -111,5 +111,7 @@ states them, and the [bindings guide](../guide/bindings.md) states the section a
 - A repository migrating to bindings declares its roles, then moves its bindings into the
   frontmatter of its indexes and texts. The bindings of the `project.yml` of each project of
   Geonexus move the same way.
-- Anagraphe reads the schema registry of Kleisis without importing Kleisis, in its format version 1
-  or 2, and rejects any other version.
+- Anagraphe reads the schema registry through `kleisis.registry`, the public reader of Kleisis,
+  declared as a dependency. Kleisis owns the format, and the decision on tool roles of Geonexus
+  forbids a tool to implement a format of another tool again. Amended on 2026-11-19: Anagraphe had
+  read the registry with a reader of its own, which accepted forms that Kleisis rejects.

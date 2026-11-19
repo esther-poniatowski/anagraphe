@@ -447,8 +447,8 @@ REGISTRY_ENTRIES: dict[str, Any] = {
 
 @pytest.mark.parametrize(
     "marker",
-    [{"_schema": "kleisis:schema-registry@2"}, {"schema_version": 1}, {"schema_version": 2}],
-    ids=["identifier", "legacy-1", "legacy-2"],
+    [{"_schema": "kleisis:schema-registry@2"}, {"schema_version": 2}],
+    ids=["identifier", "legacy-2"],
 )
 def test_registry_is_read_in_each_admitted_format(tmp_path: Path, marker: dict[str, Any]) -> None:
     files = {"specs/schema-registry.yml": {**marker, **REGISTRY_ENTRIES}}
@@ -467,8 +467,18 @@ def test_registry_is_read_in_each_admitted_format(tmp_path: Path, marker: dict[s
         {"schema_version": 3},
         {"schema_version": "2"},
         {"_schema": "kleisis:schema-registry@2", "schema_version": 2},
+        # The legacy form 1 holds no resources, as the cases of Kleisis state.
+        {"schema_version": 1},
     ],
-    ids=["absent", "wrong-major", "wrong-type", "wrong-legacy", "legacy-string", "both-keys"],
+    ids=[
+        "absent",
+        "wrong-major",
+        "wrong-type",
+        "wrong-legacy",
+        "legacy-string",
+        "both-keys",
+        "legacy-1-with-resources",
+    ],
 )
 def test_registry_in_another_format_stops_the_check_with_status_2(
     tmp_path: Path, marker: dict[str, Any]
@@ -479,8 +489,7 @@ def test_registry_in_another_format_stops_the_check_with_status_2(
         app, ["bindings", "check", "--root", str(root), "--config", str(root / "anagraphe.yml")]
     )
     assert result.exit_code == 2
-    assert "configuration: the schema registry" in result.output
-    assert "_schema: kleisis:schema-registry@2" in result.output
+    assert "configuration: cannot read the schema registry" in result.output
 
 
 def test_show_json_names_its_contract_and_its_problems(

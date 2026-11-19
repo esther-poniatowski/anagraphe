@@ -36,4 +36,6 @@ dependencies:
   - pip
   - pip:
       - merismos @ git+https://github.com/esther-poniatowski/merismos.git@74267731c172676ace9cee9ea224d74d118b1f32
+      - kleisis @ git+https://github.com/esther-poniatowski/kleisis.git@2608f1b0494eee2f88751bd5ff17a9eb24d21d3d
+      - hodegos @ git+https://github.com/esther-poniatowski/hodegos.git@e61d0d97eaa80cc0cfdd90c3022c1e3916ef1ad9
 variables:

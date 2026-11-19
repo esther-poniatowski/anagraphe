@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The schema registry is read through `kleisis.registry`, the public reader of Kleisis, now a
+  dependency. A registry of the legacy form `schema_version: 1` holding `resources` is rejected, as
+  Kleisis rejects it, and a missing `resources` reads as an empty map.
+
 ## [0.10.0] - 2026-11-17
 
 ### Added
