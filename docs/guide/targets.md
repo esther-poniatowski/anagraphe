@@ -373,6 +373,55 @@ Each defect is reported under one kind. Therefore, an entry naming no record is
 check compares no identifier held by two records, since `duplicate-identifier` of the check of the
 targets reports that defect. Nor does the check compare the entry of a record that cannot be read.
 
+## Migrate the contracts of the records
+
+When a domain tool publishes a new version of a contract, the domain tool migrates the fields of
+its records, and Anagraphe rewrites the contract that each record names under its binding key,
+`_schema` by default. A migration plan, in the contract `anagraphe:migration-plan@1`, lists each
+former contract and its successor:
+
+```yaml
+_schema: anagraphe:migration-plan@1
+contracts:
+  - {from: 'geonexus:contact@16', to: 'geonexus:contact@17'}
+  - {from: 'geonexus:audience@1', to: 'geonexus:audience@2'}
+```
+
+The command `anagraphe records migrate --plan PATH` reads the plan, then rewrites the binding key
+of every record of the walk of the check of the targets that names a `from`. The mappings apply
+simultaneously: each record takes the `to` of the contract that it names before the migration, and
+no mapping is chained. The command replaces the characters of the value alone, in the frontmatter
+of a note, in a YAML or JSON document, or at the top level of a TOML document, so the comments, the
+quoting, the order of the keys and the line breaks of each file are kept. The record registry and
+the plan itself, when it lies in the repository, are never rewritten. The command requires the
+section `targets` with its schema registry under `records`, and rejects the plan, with status `2`,
+when:
+
+- the plan cannot be parsed, or violates `anagraphe:migration-plan@1`;
+- a `from` or a `to` is not a contract identifier, under the grammar of Kleisis;
+- a `from` equals its `to`, or is listed twice;
+- a `to` is also a `from`, so the order of the two mappings would be ambiguous;
+- a `to` is no contract of the schema registry of the records.
+
+Each rewritten record is parsed again, and must read as the record before with its new contract.
+A record that cannot be rewritten so is reported as `unmigratable-record`, such as a frontmatter
+written with Windows line breaks, or a key written twice. A record that cannot be read is reported
+as `unreadable-record`, since it may name a migrated contract. Either issue blocks the migration,
+which then writes no file and exits with status `1`. Otherwise, the command replaces every changed
+file at once, and restores them all when one replacement fails. It prints one line per changed
+file, `path:line: _schema: from -> to`.
+
+| Option | Effect | Status |
+| --- | --- | --- |
+| none | applies the plan | `0`, or `1` when an issue blocks the migration |
+| `--dry-run` | lists the changes, and writes no file | `0`, or `1` when an issue would block the migration |
+| `--check` | reports each record to migrate as `pending-migration`, and writes no file; takes `--format sarif` and `--output` | `1` when a record would change, or an issue blocks |
+
+A gate runs `anagraphe records migrate --plan PATH --check` after the domain tool migrates its
+records, so that no record keeps a former contract. When the two contracts declare their identifier
+in different fields, the identifiers change with the contract; `anagraphe records check` then
+reports the registry as stale, and `anagraphe records write` writes it again.
+
 ## Resolve targets into other repositories
 
 The record resolver reads a target into another repository at a selected state of that

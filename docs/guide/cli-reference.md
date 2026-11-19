@@ -29,6 +29,7 @@ anagraphe targets check [PATHS]... [--root PATH] [--config PATH] [--format FORMA
 anagraphe records write [--root PATH] [--config PATH]
 anagraphe records check [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe records retire ID [--replaced-by NEW] [--root PATH] [--config PATH]
+anagraphe records migrate --plan PATH [--dry-run | --check] [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe states fetch [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 ```
@@ -45,6 +46,7 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe records write` | generates the record registry from the records, carrying over its retired identifiers, and writes no file when the records or the registry hold a defect, or the repository has no identity |
 | `anagraphe records check` | checks the record registry against the records, and changes no file |
 | `anagraphe records retire` | moves an identifier held by no record from the records of the registry into its retired identifiers, with the date and an optional successor |
+| `anagraphe records migrate` | rewrites the contract named by the binding key of each record whose contract a migration plan replaces, keeping every other byte, and writes no file when a record cannot be read or rewritten; `--dry-run` lists the changes and `--check` reports them, both changing no file |
 | `anagraphe states fetch` | fetches into the cache of the machine each selected state of the resolution context that no Git store of the machine holds; the only command that uses the network |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
 
@@ -55,12 +57,14 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
 | `--replaced-by NEW` | of `records retire`: the successor of a rename, a record or a retired identifier | no successor |
-| `--format FORMAT` | of the check commands: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
+| `--plan PATH` | of `records migrate`, required: the migration plan in `anagraphe:migration-plan@1`, relative to the current folder | none |
+| `--check` | of `records migrate`: reports each record to migrate as a violation, and changes no file; excludes `--dry-run` | applies the plan |
+| `--format FORMAT` | of the check commands and of `records migrate --check`: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
 | `-o`, `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current folder, and creates its missing folders | standard output |
-| `--dry-run` | of `move`: prints the plan and changes no file | applies the plan |
+| `--dry-run` | of `move`: prints the plan and changes no file; of `records migrate`: lists the changes and changes no file | applies the plan |
 | `--yes` | of `move`: applies the plan without asking for a confirmation | asks on a terminal, and stops with status `2` without one |
 
-Every path typed on the command line, a target, `OLD`, `NEW`, `--config` or `--output`, is read from
+Every path typed on the command line, a target, `OLD`, `NEW`, `--plan`, `--config` or `--output`, is read from
 the current folder; every path written in the configuration is read from the root. For the
 indexes, each path may name an index, a directory, or a member whose parent index must be
 processed. For the references, the bindings and the targets, each path names a file or a directory
@@ -77,8 +81,8 @@ status at `0`.
 | Status | Meaning |
 | --- | --- |
 | `0` | no issue blocks |
-| `1` | at least one violation is reported, `records write` or `records retire` refuses its change, or `states fetch` leaves a state absent from the machine |
-| `2` | the configuration, a named target, or a required section is invalid or absent; the log cannot be written; or a move lacks its confirmation without a terminal |
+| `1` | at least one violation is reported, `records write`, `records retire` or `records migrate` refuses its change, `records migrate --check` finds a record to migrate, or `states fetch` leaves a state absent from the machine |
+| `2` | the configuration, a named target, a migration plan, or a required section is invalid or absent; two options exclude each other; the log cannot be written; or a move lacks its confirmation without a terminal |
 
 ## Findings log
 

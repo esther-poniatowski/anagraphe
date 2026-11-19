@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The command `anagraphe records migrate --plan PATH [--dry-run | --check]`, which rewrites the
+  contract named by the binding key of the records under a migration plan in the new contract
+  `anagraphe:migration-plan@1`, keeping every other byte of each file. A plan is rejected when a
+  contract lies outside the grammar of Kleisis, a `from` equals its `to` or is listed twice, a `to`
+  is also a `from`, or a `to` is absent from the schema registry of the records. The findings
+  `pending-migration`, `unmigratable-record` and `unreadable-record` form the section `migration`
+  of the findings log. The schema `migration-plan.v1.schema.yml` is packaged and exported by the
+  registry of Anagraphe.
 - A TOML document is a record of the check of the targets and of the record registry when the
   section `metadata` declares a `toml` source for it, and the registry admits the format `toml`.
 - The finding `invalid-identifier` also reports a declared item identifier outside the pattern

@@ -8,6 +8,9 @@ Command-line interface: one group of commands per subpackage, and one check of a
   repository, the defects of the identifiers, and the warnings of the identity of the repository;
 - ``anagraphe records write|check|retire`` writes the record registry, reports its differences
   from the records, or retires an identifier that no record holds any longer;
+- ``anagraphe records migrate --plan PLAN`` rewrites the contract named by the binding key of the
+  records under a migration plan, lists the changes under ``--dry-run``, or reports them under
+  ``--check``;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
   the indexes, once confirmed on a terminal or by ``--yes``.
@@ -70,6 +73,9 @@ from anagraphe.references.service import UNREADABLE, ReferenceChecker
 from anagraphe.refactor import MovePlan, MoveService
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.kinds import KINDS as TARGET_KINDS
+from anagraphe.targets.migration import KINDS as MIGRATION_KINDS
+from anagraphe.targets.migration import UNANALYZED as MIGRATION_UNANALYZED
+from anagraphe.targets.migration import Migration, MigrationService, read_plan
 from anagraphe.targets.kinds import UNANALYZED as TARGET_UNANALYZED
 from anagraphe.targets.registry import RecordsConfig, RegistryService, RetireRefused
 from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
@@ -174,6 +180,7 @@ CATALOGUES: dict[str, tuple[IssueKind, ...]] = {
     "bindings": BINDING_KINDS,
     "targets": TARGET_KINDS,
     "records": RECORD_KINDS,
+    "migration": MIGRATION_KINDS,
 }
 
 #: The kinds of each section reporting a file left unanalyzed, which makes a run incomplete.
@@ -184,6 +191,7 @@ UNANALYZED: dict[str, frozenset[str]] = {
     "bindings": BINDING_UNANALYZED,
     "targets": TARGET_UNANALYZED,
     "records": RECORD_UNANALYZED,
+    "migration": MIGRATION_UNANALYZED,
 }
 
 
@@ -637,6 +645,82 @@ def records_retire(
         f", replaced by {retirement.replaced_by}" if retirement.replaced_by is not None else ""
     )
     typer.echo(f"records: retired {identifier} on {retirement.date}{successor}, in {service.rel}")
+
+
+def _print_changes(migration: Migration) -> None:
+    """Print each change of a migration, in the order of the files."""
+    for change in migration.changes:
+        typer.echo(f"{change.rel}:{change.line}: {migration.binding}: {change.old} -> {change.new}")
+
+
+@records_app.command("migrate")
+def records_migrate(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    plan: Annotated[
+        Path,
+        typer.Option(
+            "--plan",
+            metavar="PATH",
+            help="Migration plan in anagraphe:migration-plan@1, relative to the current folder.",
+        ),
+    ],
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="List the changes, and change no file.")
+    ] = False,
+    check_only: Annotated[
+        bool,
+        typer.Option(
+            "--check", help="Report each record to migrate as a violation, and change no file."
+        ),
+    ] = False,
+    root: Root = None,
+    config: Config = None,
+    output_format: Format = OutputFormat.TEXT,
+    output: Output = None,
+) -> None:
+    """Rewrite the contract named by the binding key of every record whose contract the plan
+    replaces, keeping every other byte of each file; write no file when a record cannot be read or
+    rewritten."""
+    if dry_run and check_only:
+        raise typer.BadParameter("--dry-run and --check exclude each other", param_hint="--check")
+    if output_format is OutputFormat.SARIF and not check_only:
+        raise typer.BadParameter("--format sarif requires --check", param_hint="--format")
+    findings = Findings(output_format, output)
+    resolved, repository = _load(root, config, findings)
+    targets = _section(repository.targets, "targets", findings)
+    given = plan.absolute()
+    reserved = {repository.records.rel} if repository.records is not None else set()
+    if given.resolve().is_relative_to(resolved):
+        reserved.add(given.resolve().relative_to(resolved).as_posix())
+    try:
+        service = MigrationService(resolved, targets, frozenset(reserved))
+        migration = service.plan(read_plan(given, plan.as_posix()))
+    except (ConfigurationError, OSError) as error:
+        _fail(error, findings)
+    summary = f"records: checked {migration.processed} records against {plan.as_posix()}"
+    if check_only:
+        report = Report(migration.processed, (*migration.pending(), *migration.issues))
+        _emit(report, summary, findings)
+        findings.record("migration", report)
+        _exit(report, findings=findings)
+        return
+    _print_changes(migration)
+    blocking = Report(migration.processed, migration.issues)
+    for issue in migration.issues:
+        typer.echo(issue.format())
+    count = f"{len(migration.changes)} records to migrate in {len(migration.texts)} files"
+    if dry_run:
+        typer.echo(f"\n{summary}: {count}; dry run, no file changed")
+        _exit(blocking)
+        return
+    try:
+        written = service.apply(migration)
+    except OSError as error:
+        _fail(error)
+    if not written:
+        typer.echo(f"\n{summary}: {count}; no file changed, since issues block the migration")
+        _exit(blocking)
+        return
+    typer.echo(f"\n{summary}: migrated {len(migration.changes)} records")
 
 
 @bindings_app.command("show")

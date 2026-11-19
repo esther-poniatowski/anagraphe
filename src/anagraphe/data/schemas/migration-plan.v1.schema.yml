@@ -1,0 +1,39 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/esther-poniatowski/anagraphe/schemas/migration-plan.v1.schema.yml
+title: Migration plan
+description: >-
+  The contracts whose records a domain tool migrates, read by anagraphe records migrate. Each
+  mapping rewrites the value of the binding key of every record naming its from into its to, and
+  the mappings apply simultaneously, never chained. The domain tool migrates the fields of the
+  records; Anagraphe rewrites the binding key alone. Beyond this schema, every from and every to
+  follows the grammar of a contract identifier that Kleisis owns, a from differs from its to, no
+  from is listed twice, no to is also a from, and every to is a contract of the schema registry of
+  the records. A change that makes a valid plan invalid, or changes the meaning of a key,
+  publishes a new major version under a new $id.
+type: object
+additionalProperties: false
+required: [_schema, contracts]
+properties:
+  _schema:
+    const: anagraphe:migration-plan@1
+    title: Schema
+    description: The logical identifier of the contract that the plan follows.
+  contracts:
+    type: array
+    minItems: 1
+    description: The mappings of the plan, each from a former contract to its successor.
+    items:
+      $ref: '#/$defs/mapping'
+$defs:
+  mapping:
+    title: Contract mapping
+    type: object
+    additionalProperties: false
+    required: [from, to]
+    properties:
+      from:
+        type: string
+        description: The contract that the binding key of a record names before the migration.
+      to:
+        type: string
+        description: The contract that the binding key of the record names after the migration.
