@@ -41,8 +41,8 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe refs check` | reports the references that name no file or anchor, or break a convention |
 | `anagraphe bindings check` | reports the required texts bound to no value, and the invalid declarations and marks |
 | `anagraphe bindings show` | prints the values bound to a file for each role, with the declarations supplying them |
-| `anagraphe targets check` | reports the logical targets that do not resolve, within the repository or at the selected state of another repository, and the defects of the identifiers, of their declarations and of `repository.yml` |
-| `anagraphe records write` | generates the record registry from the records, carrying over its retired identifiers, and writes no file when the records, the registry or `repository.yml` hold a defect |
+| `anagraphe targets check` | reports the logical targets that do not resolve, within the repository or at the selected state of another repository, the defects of the identifiers and of their declarations, and the warnings of the identity of the repository |
+| `anagraphe records write` | generates the record registry from the records, carrying over its retired identifiers, and writes no file when the records or the registry hold a defect, or the repository has no identity |
 | `anagraphe records check` | checks the record registry against the records, and changes no file |
 | `anagraphe records retire` | moves an identifier held by no record from the records of the registry into its retired identifiers, with the date and an optional successor |
 | `anagraphe states fetch` | fetches into the cache of the machine each selected state of the resolution context that no Git store of the machine holds; the only command that uses the network |

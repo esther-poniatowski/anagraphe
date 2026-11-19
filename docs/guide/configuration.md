@@ -10,7 +10,9 @@ another value than `anagraphe:configuration@2`. The file also declares one secti
 `indexes` to generate the indexes, `references` to check the references between files, `bindings` to
 resolve the bindings of texts, and `targets` to check the logical targets between records and the
 versions declared by the other read sides. The section `records` names the record registry and
-enables its commands. A section left out disables its capability. Each declared path is relative to
+enables its commands. A section left out disables its capability. The optional section
+`repository` overrides the identifier that Anagraphe derives for the repository, and lists its
+former identifiers; it enables no command. Each declared path is relative to
 the repository root selected by the root option. Absolute paths and paths that resolve outside that
 root are invalid.
 
@@ -36,8 +38,8 @@ references: {}
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
 the keys of the section `references`, the [bindings guide](bindings.md) those of the section
-`bindings`, and the [targets guide](targets.md) those of the sections `targets`, `records` and
-`resolution`. The rest of this page states the keys of the section
+`bindings`, and the [targets guide](targets.md) those of the sections `targets`, `records`,
+`resolution` and `repository`. The rest of this page states the keys of the section
 `indexes`.
 
 ## Metadata sources

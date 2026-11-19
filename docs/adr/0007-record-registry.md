@@ -11,6 +11,15 @@ its first identifier or target, the repository holds no registry. A resolver rep
 such a repository as unverified. When the registry was released, seven of the eight research
 projects outside Anagraphe declared no record identifier.
 
+**Amended** on 2026-11-19, with the derivation of the identity in
+[ADR 0006](0006-logical-targets.md): a repository no longer holds a manifest. It derives its
+identifier from the override `repository.id` of `anagraphe.yml`, else from its remote, else from
+its folder. Each mention of a repository with a manifest in this record, the amendment of 2026-11-16
+included, reads as a repository with an identity. The key
+`repository` of the registry names the derived identifier. The check reports a registry naming
+another identifier as `stale-registry`, so a change of a derived identifier is detected, and
+`anagraphe records write` refuses a repository without identity as `unidentified-repository`.
+
 ---
 
 ## Problem Statement
@@ -164,9 +173,11 @@ retired:
   removed-id: {date: 2026-11-21}
 ```
 
-The key `repository` holds the identifier of the manifest. The format is `markdown`, `yaml` or `json`. A nested repository, such as a submodule,
-is a repository of its own, and its records belong to its own registry. The walk is the walk of
-`anagraphe targets check`, with its exclusions and its reading of `x-identifier`.
+The key `repository` holds the identifier of the manifest; since the amendment of 2026-11-19, the
+derived identifier of the repository. The format is `markdown`, `yaml` or `json`. A nested
+repository, such as a submodule, is a repository of its own, and its records belong to its own
+registry. The walk is the walk of `anagraphe targets check`, with its exclusions and its reading of
+`x-identifier`.
 
 The resolver verifies the bytes of a record against the tree of the selected state, or against the
 digest of the record in the manifest of a bundle or a cache. The decision on cross-repository
@@ -238,10 +249,10 @@ These two findings replace `unknown-record` for a retired identifier.
 - **ADR 0006**: the sentence stating that the generated registry replaces the walk of the check
   changes. The walk stays within one repository, and the registry serves the other repositories. The
   deferred finding of a renamed record becomes `renamed-target`.
-- **Consumers**: a repository with a manifest adopts the registry once it declares a record
-  identifier, or once another repository targets one of its records, as amended on 2026-11-16. To
-  adopt it, the repository declares the section `records`, commits its registry and runs
-  `anagraphe records check` in its gate.
+- **Consumers**: a repository with a manifest, or with an identity since 2026-11-19, adopts the
+  registry once it declares a record identifier, or once another repository targets one of its
+  records, as amended on 2026-11-16. To adopt it, the repository declares the section `records`,
+  commits its registry and runs `anagraphe records check` in its gate.
 - **Resolver**: the task `record-resolver` of Geonexus loads the registry of the selected state, and
   the TypeScript read package reads the same file.
 
@@ -253,10 +264,10 @@ The researcher answered the open questions of the proposal on 2026-11-14:
    change.
 2. A vanished identifier is retired by the command `retire` only.
 3. The registry defaults to `record-registry.yml` at the root, under the section `records`.
-4. Every repository with a manifest commits a registry, so that any of its records can be cited
-   from another repository without a further step. Amended on 2026-11-16: the registry is
-   committed once the repository declares a record identifier or another repository targets one
-   of its records.
+4. Every repository with a manifest, or with an identity since 2026-11-19, commits a registry, so
+   that any of its records can be cited from another repository without a further step. Amended on
+   2026-11-16: the registry is committed once the repository declares a record identifier or another
+   repository targets one of its records.
 
 ---
 

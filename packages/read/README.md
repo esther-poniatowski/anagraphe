@@ -3,8 +3,8 @@
 The package `@anagraphe/read` reads the addressing of Anagraphe in TypeScript, as the Python read
 side of Anagraphe reads it. The package serves a host without Python, such as the Obsidian plugin
 Ekphrasis on mobile. The package passes the conformance cases of `specs/conformance/targets.yml`,
-`specs/conformance/record-registry.yml` and `specs/conformance/field-paths.yml`, and Python alone
-writes the record registry.
+`specs/conformance/identity.yml`, `specs/conformance/record-registry.yml` and
+`specs/conformance/field-paths.yml`, and Python alone writes the record registry.
 
 ## Installation
 
@@ -87,10 +87,16 @@ The live index holds the records of the open repository, and the host reports ea
 files to it, as the example below shows:
 
 ```ts
-import { RepositoryIndex, readTarget } from "@anagraphe/read";
+import { RepositoryIndex, deriveIdentity, readDeclaredIdentity, readTarget } from "@anagraphe/read";
 
-const index = new RepositoryIndex({ files, bindings, schemas }, { registry: "record-registry.yml" });
-await index.rebuild(allPaths); // reads repository.yml, the registry and the records
+// The host reads the section repository of anagraphe.yml, and knows the folder of the vault.
+const declared = readDeclaredIdentity(configuration.repository);
+const identity = deriveIdentity({ remote: null, folder: vaultFolderName, declared });
+const index = new RepositoryIndex(
+  { files, bindings, schemas },
+  { registry: "record-registry.yml", repository: identity.id },
+);
+await index.rebuild(allPaths); // reads the registry and the records
 await index.indexFile(path); // a file created or changed
 index.removeFile(path); // a file deleted
 await index.renameFile(oldPath, newPath);
@@ -101,10 +107,19 @@ if (reading.ok) console.log(index.resolve(reading.target));
 ```
 
 The option `registry` holds the path of the record registry, named by the section `records` of
-`anagraphe.yml`, and the value `null` declares no registry. When an indexing of a file completes
-after a later indexing or a removal of that file, or after a rebuild of the index, the index
-discards the result of that indexing. The method `resolve` returns a resolution in one of these
-statuses:
+`anagraphe.yml`, and the value `null` declares no registry. The option `repository` holds the
+identifier of the repository, which the package reads from no file. The host derives it with
+`deriveIdentity`, as the Python read side derives it. The identifier is the override `repository.id`
+of `anagraphe.yml`, else the name of the remote `origin`, else the name of the folder of the root,
+each name kept only when the pattern `repository-id` admits it. `readDeclaredIdentity` validates the
+section `repository`, and throws `IdentityError` for an invalid one. `deriveIdentity` throws
+`IdentityError` when `retired` lists the derived identifier. After a change of that section, the
+host passes the new identifier to `setRepository`. The index never reads `repository.yml`, the
+retired manifest, as a record.
+
+When an indexing of a file completes after a later indexing or a removal of that file, or after a
+rebuild of the index, the index discards the result of that indexing. The method `resolve` returns a
+resolution in one of these statuses:
 
 | Status | Meaning |
 | --- | --- |
@@ -113,7 +128,7 @@ statuses:
 | `retired` | the identifier is retired, and its successors reach no record |
 | `duplicate` | several records hold the identifier |
 | `unknown` | no record holds the identifier, and the registry does not retire it |
-| `unverified` | the target names another repository, or names any repository while the manifest is absent or invalid |
+| `unverified` | the target names another repository, or names any repository while the open repository has no identity |
 | `repository` | the target names the open repository itself |
 
 ## API
@@ -126,13 +141,13 @@ The functions, the class and the constants are grouped by reading:
 | contracts of a target field | `readContracts`, `admits`, `contractVerdict` |
 | declarations of a schema | `readDeclarations` |
 | records | `parseRecord`, `readRecord`, `formatOf` |
-| manifest | `readManifest`, `MANIFEST_FILE` |
+| identity of a repository | `deriveIdentity`, `readDeclaredIdentity`, `remoteName`, `IdentityError`, `RETIRED_MANIFEST_FILE` |
 | record registry | `readRegistry`, `checkRegistry`, `lookup`, `follow`, `REGISTRY_FILE` |
 | live index | `RepositoryIndex` |
 | key paths and YAML | `valuesAt`, `pointer`, `readYaml` |
 | field paths | `parseFieldPath`, `parseFieldPathPattern`, `printFieldPath`, `isFieldPath`, `isFieldPathPattern`, `toPointer`, `fromPointer`, `pointerTokens`, `matchNodes`, `expand`, `ANY_ITEM`, `ANY_KEY`, `FieldPathError`, `PointerError` |
 | resources | `ADDRESSING_ID`, `TARGET_REFERENCE`, `REPOSITORY_CONTRACT`, `REGISTRY_CONTRACT`, `REGISTRY_ID`, `matches`, `IMPLEMENTED_SPECIFICATION` |
-| kinds of problem | `INVALID_IDENTIFIER_DECLARATION`, `INVALID_TARGET_CONTRACT`, `UNRESOLVED_REFERENCE`, `UNREADABLE_SCHEMA`, `INVALID_REPOSITORY_MANIFEST`, `LEGACY_REPOSITORY_MANIFEST` |
+| kinds of problem | `INVALID_IDENTIFIER_DECLARATION`, `INVALID_TARGET_CONTRACT`, `UNRESOLVED_REFERENCE`, `UNREADABLE_SCHEMA`, `IDENTITY_DISAGREEMENT` |
 
 The [logical targets specification](../../docs/specification/logical-targets.md), the
 [record registry specification](../../docs/specification/record-registry.md) and the

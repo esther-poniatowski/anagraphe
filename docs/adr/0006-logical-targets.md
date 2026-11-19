@@ -13,6 +13,15 @@ another repository follow the table of outcomes of ADR 0009, which replaces the 
 cross-repository failures and of `unverified-target` below. An unreadable state is the warning
 `unreadable-target-state`, not an error.
 
+**Amended** on 2026-11-19, under decision D3 of the repair of the tool boundaries, which the
+researcher ratified on 2026-11-18 in the record `_handoff_tool-boundaries.md` of Geonexus: a
+repository no longer declares its identifier in `repository.yml`. Anagraphe derives
+the identifier from the override `repository.id` of `anagraphe.yml`, else from the name of the
+remote `origin`, else from the name of the folder of the root. The former identifiers come from
+`repository.retired` of `anagraphe.yml`. Each amended passage below carries the date and keeps the
+former text beside it. The schema of `anagraphe:repository@1` stays in the package and in its
+registry until the files bound to it migrate.
+
 ---
 
 ## Problem Statement
@@ -104,6 +113,10 @@ The remaining choice is whether a compact string is admitted beside the mapping,
 | The repository omitted when, and only when, the target lies in the same repository | One spelling per location | An explicit own repository then becomes a finding, although it names the same record without ambiguity |
 | **The repository optional; an absent repository names the repository holding the citing file** | Short targets inside a repository, and no finding on an explicit own repository | Taken. Targets compare after normalization, which fills the repository |
 
+*Amended on 2026-11-19*: a repository now derives its identifier. The reason of the first row
+therefore concerns a repository without identity, such as a root whose remote name and folder name
+both lie outside the pattern. The choice stands.
+
 **3. Form of a unit.**
 
 | Option | Benefit | Reason it is not taken |
@@ -130,8 +143,19 @@ The remaining choice is whether a compact string is admitted beside the mapping,
 | **`x-identifier` at the root of a schema, by default the key `id` of the metadata source of the file** | One keyword, read as Ekphrasis reads it; the default matches the metadata sources of [ADR 0003](0003-pointers-across-moves.md) | Taken |
 | A separate keyword for the identifier of a unit, such as `x-unit` | The role of each keyword visible by its name | Ekthesis already writes `x-identifier` on the definitions of its items, as its [argument record][ekthesis-field-roles] states, with the meaning required here |
 | **`x-identifier` on a definition reached as the items of an array** | One keyword at both levels | Taken |
-| The repository identifier in `anagraphe.yml` | One file of Anagraphe | The identity of a repository is not the configuration of a tool, and the decision on cross-repository resolution fixes `repository.yml` |
-| **`repository.yml` at the root, named by `_schema: anagraphe:repository@1`** | The format named as every other contract is named, as `anagraphe.yml` already is | Taken. The current manifests write `schema_version: 1` |
+| The repository identifier in `anagraphe.yml` | One file of Anagraphe | The identity of a repository is not the configuration of a tool, and the decision on cross-repository resolution fixes `repository.yml`. Adopted on 2026-11-19 as an override of the derived identifier |
+| `repository.yml` at the root, named by `_schema: anagraphe:repository@1` | The format named as every other contract is named, as `anagraphe.yml` already is | Taken until 2026-11-19. The current manifests write `schema_version: 1` |
+| **The identifier derived from the name of the remote `origin`, else of the folder of the root, with an override `repository.id` in `anagraphe.yml`** | No file restates the name that the remote and the folder already carry | Taken on 2026-11-19 |
+
+*Amended on 2026-11-19*: the derivation replaces the manifest for two reasons. First, on 2026-11-18,
+the identifier of Geonexus and of each of its twelve project repositories equalled both the name of
+its remote and the name of its folder. Each manifest thus restated a name that Git and the file
+system already held. Second, the record registry of [ADR 0007](0007-record-registry.md) records the
+identifier under `repository`, so its check reports a change of a derived identifier, such as a
+renamed remote. The override serves a fork, whose remote bears another name than the repository that
+it continues. The objection of the first row stands against an identifier declared in every
+configuration, whereas the override is declared only where the derived identifier differs from the
+intended one.
 
 **6. Targets that the first version cannot resolve.**
 
@@ -190,7 +214,7 @@ A target is a mapping with three keys and no other:
 
 | Key | Required | Content | Pattern |
 | --- | --- | --- | --- |
-| `repository` | no | the identifier of a repository, declared by its `repository.yml` | `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `repository` | no | the identifier of a repository, declared by its `repository.yml`; derived, or overridden in `anagraphe.yml`, since the amendment of 2026-11-19 | `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `id` | yes, unless the target names a repository | the identifier of a record, unique within its repository | `^[a-z0-9]+([._-][a-z0-9]+)*$` |
 | `unit` | no | the identifier of a unit declared inside the record | `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
 
@@ -289,7 +313,29 @@ syntax, which this record leaves to its own decision.
   by identifier, such as the entries of an Onomasia notation, are not units in this version, since
   no consumer in scope targets them.
 
-A repository declares its identifier in `repository.yml` at its root:
+A repository derives its identifier, as amended on 2026-11-19, in this order:
+
+1. the override `repository.id` of `anagraphe.yml`, when the configuration declares it;
+2. the name of the remote `origin`: the last segment of its address, after `/` or the `:` of an
+   scp-like address, without a final `/` and `.git`, when the pattern of `repository-id` admits it;
+3. the name of the folder of the root, under the same pattern;
+4. otherwise, the repository has no identity.
+
+```yaml
+# anagraphe.yml
+repository:
+  id: geonexus        # optional override of the derived identifier
+  retired: []         # former identifiers, never reused
+```
+
+The list `repository.retired` names the former identifiers of the repository. A retired
+identifier is never reused, and the resolver follows it to the current identifier with a warning.
+A section `repository` holding another key, an identifier outside the pattern, or a retired list
+holding the identifier is a configuration error. Without an override, a remote name and a folder
+name that are two different identifiers raise the warning `identity-disagreement`. The repository
+of the vault is identified as `geonexus`.
+
+Until 2026-11-19, a repository declared its identifier in `repository.yml` at its root:
 
 ```yaml
 _schema: anagraphe:repository@1
@@ -308,6 +354,11 @@ than `_schema` and `repository` open. The repository of the vault is identified 
 Anagraphe also reads the current form `schema_version: 1`, and reports it as
 `legacy-repository-manifest`.
 
+*Amended on 2026-11-19*: the check reports a `repository.yml` left at the root as
+`retired-repository-manifest`. The finding names the section `repository` to write when the derived
+identifier differs from the identifier of the manifest, or when the configuration does not yet list
+its former identifiers.
+
 #### Checks
 
 The section `targets` of `anagraphe.yml` enables the check. The check reads the schema registry through
@@ -324,8 +375,10 @@ Pointer of the target, or of the declaring field, as its locus, under
 | `missing-identifier` | error | a record of a contract whose schema declares `x-identifier` holds no value there | yes |
 | `invalid-identifier` | error | an identifier lies outside the pattern of `record-id` | yes |
 | `duplicate-identifier` | error | two records of the repository hold one identifier; reported at each record | yes |
-| `invalid-repository-manifest` | error | `repository.yml` violates `anagraphe:repository@1` | yes |
-| `legacy-repository-manifest` | warning | `repository.yml` writes `schema_version: 1` | yes |
+| `invalid-repository-manifest` | error | `repository.yml` violates `anagraphe:repository@1` | yes; removed on 2026-11-19, with the manifest |
+| `legacy-repository-manifest` | warning | `repository.yml` writes `schema_version: 1` | yes; removed on 2026-11-19, with the manifest |
+| `identity-disagreement` | warning | no override is declared, and the name of the remote and the name of the folder are two different identifiers | no: added on 2026-11-19 |
+| `retired-repository-manifest` | warning | a `repository.yml` is left at the root; the finding names the section `repository` to write when the derived identifier or the configured former identifiers differ from those of the manifest | no: added on 2026-11-19, in place of the two kinds above |
 | `unknown-record` | error | no record of the repository holds the identifier of a target of the same repository | yes |
 | `unknown-unit` | error | the record holds no unit of the identifier | yes |
 | `ambiguous-unit` | error | two units of the record hold the identifier | yes |
@@ -337,15 +390,17 @@ Pointer of the target, or of the declaring field, as its locus, under
 
 A target of the same repository is one without `repository`, or one whose repository equals the
 identifier of the manifest at the checked root. A repository without a manifest resolves only its
-targets without `repository`. A target naming a duplicated identifier receives no finding of its
-own, since `duplicate-identifier` reports its cause. A duplicated unit is reported only through a
-target that names it, because Ekthesis lets an idea and a part share an identifier in one record.
-Anagraphe reports `invalid-target` even when the domain tool of the citing record validates the
-same record against its schema, so that Anagraphe stays usable without that tool. A gate that runs
-both tools removes one of the two findings through its suppressions.
-The first version builds the identifiers of the repository in memory from the walk of the check.
-Under [ADR 0007](0007-record-registry.md), the walk stays within one repository, and the record
-registry serves the other repositories.
+targets without `repository`. *Amended on 2026-11-19*: the identifier of the checked root is its
+derived identity. A repository without identity resolves only its targets without `repository`, and
+those naming one of its former identifiers. A target naming a duplicated identifier receives no
+finding of its own, since `duplicate-identifier` reports its cause. A duplicated unit is reported
+only through a target that names it, because Ekthesis lets an idea and a part share an identifier in
+one record. Anagraphe reports `invalid-target` even when the domain tool of the citing record
+validates the same record against its schema, so that Anagraphe stays usable without that tool. A
+gate that runs both tools removes one of the two findings through its suppressions. The first
+version builds the identifiers of the repository in memory from the walk of the check. Under [ADR
+0007](0007-record-registry.md), the walk stays within one repository, and the record registry serves
+the other repositories.
 
 ### Final Answers
 
@@ -360,8 +415,11 @@ registry serves the other repositories.
 3. `x-identifier` names the identifier field at the root of a schema, by default the key `id` of the
    metadata source, and the identifier of each unit on the definition of an item. A repository
    declares its identifier under `repository.id` of its `repository.yml`, in the contract
-   `anagraphe:repository@1`, with its former identifiers under `repository.retired`; the identity
-   of a project sits in a block `project` of the same file, outside the contract of Anagraphe.
+   `anagraphe:repository@1`, with its former identifiers under `repository.retired`; the identity of
+   a project sits in a block `project` of the same file, outside the contract of Anagraphe. *Amended
+   on 2026-11-19*: a repository derives its identifier from its remote, else from its folder;
+   `anagraphe.yml` overrides it under `repository.id`, and lists the former identifiers under
+   `repository.retired`.
 4. The first version checks the form, the declarations, the resolution within one repository and
    the contract, and reports every target into another repository as `unverified-target`. The
    failures of cross-repository resolution and the renames wait on the registries and the resolver.
@@ -385,7 +443,7 @@ Each consumer field below writes its target as text, or as a link, until it migr
 | Onomasia, denotes targets, `targets[*].target` ([schema][onomasia-denotes-schema]) | a unit | text written by Gnomon, and matched to `denotes` by string equality in [contracts.py][onomasia-signatures] | a target written with its repository; Onomasia matches normalized targets |
 | Gnomon, every record ([dotted identifiers][gnomon-dotted]) | records by their dotted `id`, units by one further segment | `x-identifier: id` at the root of each base schema, such as [concept.base.schema.yml][gnomon-concept-schema]; no unit declared in a schema | `x-identifier` on the definitions of declared elements (`symbol`) and of steps (`id`); a target into Gnomon writes the record segments under `id` and the last segment under `unit` |
 | Geonexus, contact, `identity.communities[*]` ([contact schema][geonexus-contact-schema]) | a record: an audience | a Markdown link to the audience file, read by `x-checks` with `extract: link-id` | `{id: computational-modelers}`, typed `['ekthesis:audience']` |
-| Repository manifests | a repository | `schema_version: 1` and `repository.id` in each project, such as [symmetry][symmetry-manifest]; no manifest at the root of Geonexus, nor in Mixture | `_schema: anagraphe:repository@1`; a manifest added where none exists |
+| Repository manifests | a repository | `schema_version: 1` and `repository.id` in each project, such as [symmetry][symmetry-manifest]; no manifest at the root of Geonexus, nor in Mixture | `_schema: anagraphe:repository@1`; a manifest added where none exists. Amended on 2026-11-19: each repository deletes its manifest, and declares the override `repository.id` only where the derived identifier differs from the former one |
 
 The identifier fields are declared today as follows. The contact schema of Geonexus declares
 `x-identifier: identity.id`, and repeats the field under `x-checks.id_key`
@@ -402,7 +460,11 @@ The migration follows this order:
    conformance cases, the Python read side and the first check.
 2. **Repository manifests**: Geonexus and Mixture add their `repository.yml`, and each project
    converts its manifest to `_schema`. A target can name another repository only once that
-   repository declares its identifier.
+   repository declares its identifier. *Amended on 2026-11-19*: the manifests are retired. A
+   repository lists its former identifiers under `repository.retired` of `anagraphe.yml`. It then
+deletes its `repository.yml` once its derived identifier equals the former one, or once
+`anagraphe.yml` declares the override. The contract `anagraphe:repository@1` stays published until
+the files bound to it migrate.
 3. **Declarations without a new version**: Onomasia adds `x-identifier: id` to `onomasia:glossary@1`
    and `onomasia:notation@1`, and Gnomon declares its units. An annotation invalidates no record and
    changes no field, so each lands as a coordinated update under the same identifier.
@@ -436,6 +498,10 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
 | `record-reader-views` | the omission rule, and the mapping from a unit to the fragment `#^unit` of a Markdown record | the output profiles |
 | `record-reference-migration-dispatch` and its successors | the migration order above | the tasks of each repository |
 
+*Amended on 2026-11-19*: the task `record-reference-schema` no longer needs the contract
+`anagraphe:repository@1`. The task `record-resolver` names a repository by the derived identity of
+its selected state: the override of the configuration of that state, else the name of its remote.
+
 ### Package and contracts
 
 - **Schema traversal**: the reading of marks through `allOf`, `anyOf`, `oneOf` and `$ref`, now in
@@ -463,10 +529,11 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
    2026-11-13.
 2. **Renames of a repository.** The decision on cross-repository resolution states that a repository
    identifier is never reused and stays stable ([canonical reference][resolution-canonical]),
-   whereas the project specification moves "its retired names" into `repository.yml`
-   ([project specification][tool-roles-project]). *Resolution*: a manifest may list its
-   former identifiers under `repository.retired`; a retired identifier is never reused, and the
-   resolver follows it with a warning. Accepted on 2026-11-13.
+   whereas the project specification moves "its retired names" into `repository.yml` ([project
+   specification][tool-roles-project]). *Resolution*: a manifest may list its former identifiers
+   under `repository.retired`; a retired identifier is never reused, and the resolver follows it
+   with a warning. Accepted on 2026-11-13. *Amended on 2026-11-19*: the former identifiers sit under
+   `repository.retired` of `anagraphe.yml`.
 3. **Dotted references of Gnomon.** Gnomon states that "every reference to a record, or to a unit of
    a record, is a uniform sequence of dots", and that its consumers cite steps from other
    repositories in that form ([dotted identifiers][gnomon-dotted]). A dotted string names no
@@ -483,8 +550,9 @@ The tasks below are those of the [task list of Geonexus][geonexus-todo].
    `gnomon:concept.population-coding` ([schema][ekthesis-audience-example]), which names a tool, and
    the tests of Onomasia write `mixture:weights` ([test_typography.py][onomasia-tests]), which names
    no declared repository. A target names a repository by the identifier of its manifest, such as
-   `symmetry-lens-on-representations`. *Resolution*: the migration writes the identifier of
-   each manifest; no alias of a repository is admitted.
+   `symmetry-lens-on-representations`. *Resolution*: the migration writes the identifier of each
+   manifest; no alias of a repository is admitted. *Amended on 2026-11-19*: a target names a
+   repository by its derived identity, which equals the identifier of each former manifest.
 6. **Reference to an export.** The decision of Ekthesis on glossaries still names a unit "by a
    relative link until the source publishes an export" ([concept reference][ekthesis-glossaries]),
    whereas the export is retired ([decision][independent-decision]). *Resolution*: the
@@ -496,9 +564,9 @@ The researcher answered the open questions of the proposal on 2026-11-13:
 
 1. `x-target-contract` is optional: a field that admits sources of any field omits it, and rule 1
    of the decision on tool roles names that exception.
-2. A repository may change its identifier: `repository.retired` lists its former identifiers, as
-   the decision on tool roles moves the retired names of a project into `repository.yml`, and a
-   retired identifier is never reused.
+2. A repository may change its identifier: `repository.retired` lists its former identifiers, as the
+   decision on tool roles moves the retired names of a project into `repository.yml`, and a retired
+   identifier is never reused. *Amended on 2026-11-19*: the list sits in `anagraphe.yml`.
 3. A record of Gnomon cites a record of Gnomon in another repository by a logical target; the dotted
    form stays the syntax of references within one repository.
 4. A record names a project by a target `{repository: R}` without `id`, since a project is
@@ -508,9 +576,12 @@ The researcher answered the open questions of the proposal on 2026-11-13:
 6. An unversioned entry of `x-target-contract` admits a new major version without review, since a
    target relies on the identity of its record; a field that reads the fields of the target pins
    the version.
-7. The contract `anagraphe:repository@1` owns `repository.id` and `repository.retired`; the
-   identity of a project sits in a block `project`, owned by the contract of the project
-   specification.
+7. The contract `anagraphe:repository@1` owns `repository.id` and `repository.retired`; the identity
+   of a project sits in a block `project`, owned by the contract of the project specification.
+   *Amended on 2026-11-19*: the section `repository` of `anagraphe.yml` owns the override
+   `repository.id` and the list `repository.retired`, and the configuration keeps
+   `anagraphe:configuration@2`, since the section is optional. The contract `anagraphe:repository@1`
+   stays registered until the files bound to it migrate.
 8. The repository of the vault is identified as `geonexus`.
 
 ---

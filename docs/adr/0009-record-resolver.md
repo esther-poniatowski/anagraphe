@@ -6,6 +6,13 @@ recorded under "Clarifications of the implementation". The record answers the ta
 [task list of Geonexus][geonexus-todo]. [ADR 0007](0007-record-registry.md) unblocked that task by
 adding the record registries.
 
+**Amended** on 2026-11-19, with the derivation of the identity in [ADR
+0006](0006-logical-targets.md): no state is named by a manifest any longer. The identity of a
+selected state is the override `repository.id` of the configuration of Anagraphe at that state, else
+the name of the remote of the state. Its former identifiers come from `repository.retired` of that
+configuration. Each passage below that named the manifest of a state carries the date of the
+amendment.
+
 ---
 
 ## Problem Statement
@@ -30,8 +37,8 @@ resolver:
 The decision assigns the library and its providers to Anagraphe. The task list of Geonexus divides
 that work into two tasks: `record-resolver`, the library, and `record-state-provider`, the readers
 of Git trees, caches and bundles. ADR 0006 adds three duties to the first task: the normalization of
-a target, the reading of the manifest that names a repository, and the matching of
-`x-target-contract`.
+a target, the reading of the manifest that names a repository (since 2026-11-19, the identity of a
+state), and the matching of `x-target-contract`.
 
 Two consumers wait on the library. The task `glossary-import-closure` of Onomasia imports a glossary
 from another repository, such as the glossary of Mixture copied today into the thesis. The check of
@@ -53,7 +60,8 @@ a body link into another repository waits on the task `record-reader-views`.
 - **Determinism**: a verified read follows from the target, a full commit and the bytes of that
   commit. A working tree, a branch, a tag or an abbreviated commit never certifies a record.
 - **Explicit availability**: an unreadable state stays distinguishable from a missing record, and
-  from an invalid manifest or registry of the target repository.
+  from an invalid manifest or registry of the target repository; since 2026-11-19, from a state
+  without identity or with an invalid configuration.
 - **Portability**: a committed file names neither a machine path nor a credential. Two clones of one
   commit, on two machines, select the same states.
 - **Usable gates**: the gate of a project runs on its host without the clones of the cited
@@ -73,7 +81,8 @@ a body link into another repository waits on the task `record-reader-views`.
      repository, named by an environment variable, or a file ignored by Git inside it, named by a
      path in the configuration.
 2. **Sibling discovery**: the resolver looks for a clone beside the root of the repository, whose
-   manifest declares the cited identifier, and reads the commit checked out in that clone.
+   manifest declares the cited identifier (since 2026-11-19, whose identity is the cited
+   identifier), and reads the commit checked out in that clone.
 3. **Workspace only**: a standalone clone resolves no target into another repository, and keeps
    reporting each of them as `unverified-target`.
 
@@ -204,7 +213,9 @@ repository resolves alike in every clone of it:
 
 - a root holding submodules derives an entry for each submodule. The gitlink in the index of the
   root selects the commit, since the index holds the state that the next commit records. The
-  manifest at that commit, read through the provider, names the repository;
+  manifest at that commit, read through the provider, names the repository. Since 2026-11-19, the
+  identity of the state at that commit names it: the override of its configuration, read through the
+  provider, else the name of the remote of the submodule;
 - the section `resolution` of the root declares the other entries, each with a full commit and a
   remote address without credentials. A derived and a declared entry of one identifier stop the
   command with a configuration error;
@@ -221,10 +232,13 @@ path that escapes the state, as the task list assigns to the task `record-state-
 **Resolve**. The operation follows the route of the decision of Geonexus:
 
 1. normalize the target: a target naming the repository of the root is a local target;
-2. select the state of the repository from the context. A repository identifier listed as retired
-   by a manifest of the context resolves to its current identifier, with a warning;
+2. select the state of the repository from the context. A repository identifier listed as retired by
+   a manifest of the context (since 2026-11-19, by the configuration of a state of the context)
+   resolves to its current identifier, with a warning;
 3. read the manifest and the configuration of Anagraphe at that state, then the registry at the path
-   named by that configuration;
+   named by that configuration. Since 2026-11-19, the resolver derives the identity of the state
+   from its configuration and its remote, in place of the manifest, and requires it to equal the
+   identifier naming the state;
 4. look up the identifier, and follow a chain of `replaced_by` as the check of a local target does.
 
 A target without `id` names the repository itself, and resolves once its state declares the
@@ -256,7 +270,7 @@ The check of the targets maps each outcome to a finding:
 | the record identifier was renamed, and its chain ends at a record | `renamed-target` | warning |
 | the record identifier was retired without a live successor | `retired-target` | error |
 | the context selects no state of the repository, and every submodule names its repository | `unknown-repository` | error |
-| the manifest of the state is absent, invalid, or declares another identifier; or the state holds two configuration files, or a configuration that cannot be parsed or names no registry inside the repository | `invalid-target-repository` | error |
+| the manifest of the state is absent, invalid, or declares another identifier (since 2026-11-19: the state has no identity, or another one, or its section `repository` is invalid); or the state holds two configuration files, or a configuration that cannot be parsed or names no registry inside the repository | `invalid-target-repository` | error |
 | the state holds no configuration of Anagraphe, no section `records`, or no registry at the path that this section names, as ADR 0007 admits | `unverified-target` | note |
 | the registry of the state violates its contract | `invalid-record-registry` | error |
 | the registry holds no such identifier | `unknown-record` | error |
@@ -267,7 +281,7 @@ The check of the targets maps each outcome to a finding:
 | the record declares no such unit, or two of them | `unknown-unit`, `ambiguous-unit` | error |
 | the contract of the record matches no admitted contract, or the record declares none | `target-contract-mismatch`, `unbound-target` | error |
 | the consumer lacks the schemas declaring the identifier or matching the contract | `unverified-target` | note |
-| the state is absent or denied on the machine; or the context selects no state of the repository, and a submodule whose manifest cannot be read may hold it | `unreadable-target-state` | warning |
+| the state is absent or denied on the machine; or the context selects no state of the repository, and a submodule whose manifest cannot be read (since 2026-11-19, whose state names no repository) may hold it | `unreadable-target-state` | warning |
 | the provider fails to verify the bytes of the state | `invalid-target-state` | error |
 
 A duplicated identifier stays out of a registry written by Anagraphe, since the command
@@ -317,17 +331,19 @@ case that the decision above leaves open, and the table of outcomes states its f
    state. Therefore, the defect lies in the configuration of the root, not on the machine. The
    warning `unreadable-target-state` of the period without a provider covers the repositories of
    the context alone.
-2. **A submodule naming no repository**. The context names a submodule by its manifest, read
-   through the provider. When that manifest cannot be read, the submodule may hold the repository
-   that a target names. A target naming a repository outside the context then receives
-   `unreadable-target-state`, since its cause may be a state that the machine cannot read.
-3. **A state without registry, or with a defective configuration**. A state holding no
-   configuration of Anagraphe, no section `records`, or no registry at the declared path holds no
-   registry, and its targets receive the note `unverified-target`. The gate of the target
-   repository reports a declared registry that is absent, through `anagraphe records check`. A state
-   holding two configuration files, or a configuration that cannot be parsed or that names a
-   registry outside the repository, receives `invalid-target-repository`, since the configuration
-   belongs with the manifest to the identity of the repository.
+2. **A submodule naming no repository**. The context names a submodule by its manifest, read through
+   the provider; since 2026-11-19, by the identity of its state. When that identity cannot be read
+   or derived, the submodule may hold the repository that a target names. A target naming a
+   repository outside the context then receives `unreadable-target-state`, since its cause may be a
+   state that the machine cannot read.
+3. **A state without registry, or with a defective configuration**. A state holding no configuration
+   of Anagraphe, no section `records`, or no registry at the declared path holds no registry, and
+   its targets receive the note `unverified-target`. The gate of the target repository reports a
+   declared registry that is absent, through `anagraphe records check`. A state holding two
+   configuration files, or a configuration that cannot be parsed or that names a registry outside
+   the repository, receives `invalid-target-repository`, since the configuration belongs with the
+   manifest to the identity of the repository. Since 2026-11-19, the configuration holds the
+   override of that identity.
 4. **The local clone of a submodule**. The machine file serves the declared repositories alone. A
    submodule is read from its own folder, which the gitlink of the root locates. That folder holds
    the commit that the gitlink selects, whereas another clone named by a machine file may lack it.

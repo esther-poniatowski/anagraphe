@@ -15,7 +15,7 @@ A target is a mapping with at most three keys:
 
 | Key | Content | Required |
 | --- | --- | --- |
-| `repository` | the identifier of a repository, declared by its `repository.yml` | no; an absent repository names the repository holding the citing file |
+| `repository` | the identifier of a repository, derived from its remote or its folder, or declared in its `anagraphe.yml` | no; an absent repository names the repository holding the citing file |
 | `id` | the identifier of a record, unique within its repository | yes, unless the target names a repository |
 | `unit` | the identifier of a unit inside the record | no; an absent unit names the whole record |
 
@@ -36,20 +36,33 @@ A target never holds a path, a URL, a title or an alias. Identifiers are compare
 
 ## Declare the identifiers
 
-A repository declares its identifier in `repository.yml` at its root:
+The identifier of a repository is derived, so most repositories declare none. The derivation takes
+the first of these names:
+
+1. the override `repository.id` of `anagraphe.yml`, when the configuration declares it;
+2. the name of the remote `origin`, without `.git`: `git@github.com:lab/geonexus.git` names
+   `geonexus`;
+3. the name of the folder of the root.
+
+A name is kept only when it is a repository identifier: lowercase letters and digits, in groups
+joined by single hyphens. Without such a name, the repository has no identity. The section
+`repository` of `anagraphe.yml` overrides the identifier, and lists the former identifiers of the
+repository:
 
 ```yaml
-_schema: anagraphe:repository@1
 repository:
-  id: symmetry-lens-on-representations
-  retired: []
+  id: symmetry-lens-on-representations   # optional; a fork declares the identifier it continues
+  retired: [symmetry-lens]               # former identifiers, never reused
 ```
 
-The optional list `retired` holds the former identifiers of the repository, and a retired
-identifier is never reused. Every root key other than `_schema` and `repository`, such as the
-block `project` of the project specification, belongs to another contract. A manifest written in
-the earlier form `schema_version: 1` is still read, and reported as `legacy-repository-manifest`
-until it is converted.
+A section holding another key, an identifier outside the pattern, or a list `retired` holding the
+override stops every command with a configuration error. A list `retired` holding the derived
+identifier stops every command that derives the identity. Without an override, a remote and a folder
+naming two different identifiers raise the warning `identity-disagreement`; the remote wins until
+the section declares the identifier. The manifest `repository.yml`, which declared the identifier
+before, is retired. A `repository.yml` left at the root is reported as
+`retired-repository-manifest`; when it declares another identifier or other former identifiers than
+the configuration, the finding names the section to write before the file is deleted.
 
 A record declares its own identifier in the field that the schema of its contract names by
 `x-identifier`, a dotted path of property names, at the root of the schema:
@@ -123,7 +136,7 @@ targets:
 
 | Key | Content | Default |
 | --- | --- | --- |
-| `records.registry` | the schema registry of Kleisis, relative to the root | no record reaches a schema: the check reads the default identifiers and the manifest only |
+| `records.registry` | the schema registry of Kleisis, relative to the root | no record reaches a schema: the check reads the default identifiers and the identity only |
 | `records.binding` | the key of a record naming its contract | `_schema` |
 | `exclude` | files left out of the check, after the shared exclusions | none |
 | `read_sides` | the places where other read sides declare their implemented versions, each `{path, pointer}`, as the section "Compare the read sides" below states | none |
@@ -141,10 +154,10 @@ reports the identifiers and the targets of the selected files:
 | `missing-identifier` | error | a record of a contract whose schema declares `x-identifier` holds no value there |
 | `invalid-identifier` | error | an identifier lies outside the pattern of a record identifier |
 | `duplicate-identifier` | error | two records of the repository hold one identifier; reported at each record |
-| `invalid-repository-manifest` | error | `repository.yml` violates `anagraphe:repository@1` |
-| `legacy-repository-manifest` | warning | `repository.yml` writes `schema_version: 1` |
+| `identity-disagreement` | warning | no override is declared, and the remote and the folder name two different identifiers; reported at the configuration file |
+| `retired-repository-manifest` | warning | a `repository.yml` is left at the root |
 | `unknown-record` | error | no record of the repository holds the identifier of a target of the same repository, and the identifier is not retired |
-| `renamed-repository` | warning | the target names a former identifier of the repository, which the manifest lists under `retired`; the check resolves the target in the repository |
+| `renamed-repository` | warning | the target names a former identifier of the repository, which `repository.retired` of `anagraphe.yml` lists; the check resolves the target in the repository |
 | `renamed-target` | warning | the target names an identifier retired with a successor |
 | `retired-target` | error | the target names an identifier retired without a successor, or whose successors reach no record |
 | `unknown-unit` | error | the record of a target holds no unit of its identifier |
@@ -156,12 +169,12 @@ reports the identifiers and the targets of the selected files:
 | `unreadable-schema` | error | the schema of a contract of the registry cannot be read |
 
 A target of the same repository is one without `repository`, or one whose repository equals the
-identifier of the manifest at the root or one of its former identifiers. A repository without a
-manifest therefore resolves only its targets without `repository`. The record resolver reads every
-other target, with the findings that the section "Resolve targets into other repositories" below
-lists. A target naming a duplicated identifier receives no finding of
-its own, since `duplicate-identifier` reports its cause. A duplicated unit is reported only through
-a target that names it.
+identifier of the repository or one of its former identifiers. A repository without identity
+therefore resolves only its targets without `repository`, and those naming one of its former
+identifiers. The record resolver reads every other target, with the findings that the section
+"Resolve targets into other repositories" below lists. A target naming a duplicated identifier
+receives no finding of its own, since `duplicate-identifier` reports its cause. A duplicated unit is
+reported only through a target that names it.
 
 The section `records` names the record registry, so the check reads the retired identifiers only
 when that section is declared. For a target naming an identifier retired by a rename, the check
@@ -272,7 +285,9 @@ retired:
   removed-id: {date: 2026-11-21}
 ```
 
-The key `repository` holds the identifier that `repository.yml` declares. Each entry of `records`
+The key `repository` holds the identifier of the repository. When that identifier changes, such as
+after a renamed remote, the check reports the registry as stale, so an identity never changes
+silently. Each entry of `records`
 holds the path of its record and its format, `markdown`, `yaml` or `json`. An entry holds no digest
 of the bytes of its record, so it changes only when its record appears, disappears, moves or
 changes its identifier. A second write yields the same bytes. Beyond its schema, the contract
@@ -284,7 +299,7 @@ The write refuses to change the file when the records or the registry hold a def
 - an identifier of the current registry names no record, and is not retired;
 - a `replaced_by` names neither a record nor a retired identifier;
 - the current registry cannot be read or parsed, or violates its contract;
-- `repository.yml` declares no valid identifier;
+- the repository has no identity, reported as `unidentified-repository`;
 - a schema of the schema registry cannot be read, and the walk misses the identifiers
   declared through that schema.
 
@@ -327,7 +342,7 @@ pointer:
 | Kind | Level | Issue | Repair |
 | --- | --- | --- | --- |
 | `invalid-record-registry` | error | the registry cannot be read or parsed, or violates `anagraphe:record-registry@1`; no other comparison runs | restore the last valid registry from Git, then write the registry |
-| `stale-registry` | error | the registry is absent; `records` omits a record, lists it with another path or format, or lists a retired identifier; `repository` differs from the manifest; or the file holds the generated entries in another written form | write the registry |
+| `stale-registry` | error | the registry is absent; `records` omits a record, lists it with another path or format, or lists a retired identifier; `repository` differs from the identifier of the repository; or the file holds the generated entries in another written form | write the registry |
 | `vanished-identifier` | error | an identifier of `records` names no record, and is not retired | retire the identifier, with its successor after a rename |
 | `reused-identifier` | error | a record holds a retired identifier | give the record another identifier |
 | `unknown-successor` | error | a `replaced_by` names neither a record nor a retired identifier | give the successor back to the record that replaced it, then rename that record in three steps |
@@ -344,7 +359,8 @@ repository: a full commit, never a branch, a tag or a working tree. The resoluti
 checked root selects that state for each repository identifier:
 
 - each submodule of the root yields an entry. The gitlink in the index selects the commit, and the
-  manifest at that commit names the repository;
+  identity of the state at that commit names the repository: the override `repository.id` of its
+  `anagraphe.yml`, else the name of the remote of the submodule;
 - the section `resolution` declares the other repositories, each with a full commit and a remote
   address.
 
@@ -374,20 +390,21 @@ A machine file inside the repository that Git does not ignore stops the command.
 `local` may be absent, as on the host of a gate, whereas a file named by the variable must exist.
 The clones serve the declared repositories; a submodule is read from its own folder.
 
-The resolver selects the state of the named repository, reads its manifest and its configuration,
-then the record registry that its section `records` names, and finally the registered record. A
-target without `id` names the repository itself, and resolves once the manifest of the state
-declares its identifier. A record of another repository follows a contract whose schemas the
-selected state does not carry, so the resolver reads those schemas through the schema registry of
-the checked repository. Each step adds its findings to those of the check:
+The resolver selects the state of the named repository and reads its configuration. It derives the
+identity of the state from that configuration and the remote of the state. It then reads the record
+registry that the section `records` names, and finally the registered record. A target without `id`
+names the repository itself, and resolves once the identity of the state equals the named
+identifier. A record of another repository follows a contract whose schemas the selected state does
+not carry, so the resolver reads those schemas through the schema registry of the checked
+repository. Each step adds its findings to those of the check:
 
 | Kind | Level | Issue |
 | --- | --- | --- |
-| `renamed-repository` | warning | the target names an identifier that the manifest of a state of the context retires; the check follows it to the current identifier |
+| `renamed-repository` | warning | the target names an identifier that the configuration of a state of the context retires; the check follows it to the current identifier |
 | `unknown-repository` | error | the context selects no state of the named repository |
-| `unreadable-target-state` | warning | the selected state is absent from the machine, or its access is denied; or a submodule whose manifest cannot be read may hold the named repository |
+| `unreadable-target-state` | warning | the selected state is absent from the machine, or its access is denied; or a submodule whose state names no repository may hold the named repository |
 | `invalid-target-state` | error | the bytes of the selected state fail the verification of the provider |
-| `invalid-target-repository` | error | the manifest of the state is absent, invalid, or declares another identifier; or the state holds two configuration files, or a configuration naming no registry inside the repository |
+| `invalid-target-repository` | error | the state has no identity, or its identity differs from the named identifier; or the state holds two configuration files, a configuration that cannot be parsed, an invalid section `repository`, or a configuration naming no registry inside the repository |
 | `unverified-target` | note | the state holds no configuration, no section `records`, or no registry at the declared path; or the schemas of the contract of the record, which may declare its identifier field, its units or further contracts, are not held by the checked repository |
 | `invalid-record-registry` | error | the registry of the state violates `anagraphe:record-registry@1`, or names another repository |
 | `unknown-record`, `renamed-target`, `retired-target` | as above | the identifier of the target, looked up in the registry of the state |
@@ -438,14 +455,18 @@ from a secret `READ_TOKEN`:
 A tool written in Python reads and compares targets through the package:
 
 ```python
-from anagraphe.targets import Target, read_manifest
+from anagraphe.targets import Target, repository_identity
 
-manifest = read_manifest(root).manifest
-repository = manifest.id if manifest is not None else None
+repository = repository_identity(root, config.repository).id
 same = Target.parse(a).normalized(repository) == Target.parse(b).normalized(repository)
 ```
 
-`Target.parse` raises `InvalidTarget`, whose `reason` names the first failed check, and
+`repository_identity` derives the identity of the root from the section `repository` of the
+configuration, the remote of the root and its folder. `derive_identity` holds the same derivation
+without Git.
+
+`Target.parse` raises
+`InvalidTarget`, whose `reason` names the first failed check, and
 `admits(entries, contracts)` states whether a list `x-target-contract` admits a record.
 
 A tool reads the record of a target into another repository through the module
@@ -454,7 +475,7 @@ A tool reads the record of a target into another repository through the module
 ```python
 from anagraphe.resolution import Outcome, RecordResolver, build_context, parse_section
 
-context = build_context(root, manifest, parse_section(root, section), provider)
+context = build_context(root, identity, parse_section(root, section), provider)
 resolver = RecordResolver(context, provider, declarations)
 resolution = resolver.resolve(target)
 if resolution.outcome is Outcome.RECORD:

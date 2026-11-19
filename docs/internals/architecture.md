@@ -65,7 +65,8 @@ Within `anagraphe.targets`, the model reads a target and matches the entries of
 `x-target-contract`, with the patterns compiled from the resource of the package data. The
 declarations of each contract, its identifier field, its units, its target fields and its
 `x-implements`, are read once from the walk of the schemas of the core, which leaves the URI of the
-resource unresolved. The check first reads the manifest, then the identifier of every record of the
+resource unresolved. The check first derives the identity of the repository, in
+`anagraphe.targets.identity`, then reads the identifier of every record of the
 repository into one table, and then reports the identifiers and the targets of the selected
 records against that table. The module `anagraphe.targets.walk` defines the walk, and the record
 registry of `anagraphe.targets.registry` shares it. The registry maps the identifiers of the walk

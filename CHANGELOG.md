@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The schema registry is read through `kleisis.registry`, the public reader of Kleisis, now a
   dependency. A registry of the legacy form `schema_version: 1` holding `resources` is rejected, as
   Kleisis rejects it, and a missing `resources` reads as an empty map.
+- The identifier of a repository is derived, as ADR 0006 states since 2026-11-19. It is the override
+  `repository.id` of `anagraphe.yml`, else the name of the remote `origin`, else the name of the
+  folder of the root, each name kept only under the pattern `repository-id`. The former identifiers
+  come from `repository.retired` of `anagraphe.yml`. The configuration keeps the format
+  `anagraphe:configuration@2`, since the section `repository` is optional, and an invalid section
+  stops a command with status 2. The function `anagraphe.targets.repository_identity` returns the
+  identity, and `derive_identity` holds the derivation without Git.
+- The check of the targets reports `identity-disagreement`, a warning, when the remote and the
+  folder name two different identifiers without an override, and `retired-repository-manifest`, a
+  warning, for a `repository.yml` left at the root. That finding names the section `repository` to
+  write when the derived identifier or the configured former identifiers differ from those of the
+  manifest.
+- The record registry compares its key `repository` with the derived identifier, so a change of
+  the identity makes it stale, and `anagraphe records write` refuses a repository without identity
+  as `unidentified-repository`.
+- The record resolver names a selected state by the override of its configuration, else by the
+  name of its remote, and reads its former identifiers from that configuration.
+- `@anagraphe/read` exports `deriveIdentity` and `readDeclaredIdentity`, and `RepositoryIndex`
+  takes the identifier of the repository from the host, through its option `repository` and its
+  method `setRepository`.
+
+### Removed
+
+- The manifest reader `anagraphe.targets.manifest`, with `Manifest`, `ManifestReading`,
+  `read_manifest` and `check_manifest`, and the kinds `invalid-repository-manifest` and
+  `legacy-repository-manifest`. The schema of `anagraphe:repository@1` stays packaged and
+  registered until the files bound to it migrate.
+- `manifest.ts` of `@anagraphe/read`, with `readManifest`, `MANIFEST_FILE`, the kinds of the
+  manifest, the types `Manifest`, `ManifestProblem` and `ManifestReading`, and the getter
+  `RepositoryIndex.manifest`.
 
 ## [0.10.0] - 2026-11-17
 

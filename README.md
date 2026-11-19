@@ -46,7 +46,7 @@ reference naming no file or anchor.
 - [x] Check the declared references of Markdown links and YAML record fields.
 - [x] Move a file or a folder, rewriting every pointer to it and updating the affected indexes.
 - [x] Resolve the bindings of texts to the roles of tools along the directory chain, records included through `x-binds`.
-- [x] Check the logical targets between records within one repository, with the identifiers and the repository manifest that they name.
+- [x] Check the logical targets between records within one repository, with the identifiers and the derived repository identity that they name.
 - [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
 - [x] Read the logical targets and the record registry in TypeScript, for a host without Python, through the package [`@anagraphe/read`](packages/read/README.md).
 - [x] Parse, print and expand field paths, and convert them to and from JSON Pointers, in Python and in TypeScript.

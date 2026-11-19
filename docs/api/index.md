@@ -241,7 +241,7 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.manifest
+.. automodule:: anagraphe.targets.identity
    :members:
    :undoc-members:
 

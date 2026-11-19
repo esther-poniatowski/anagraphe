@@ -255,10 +255,11 @@ The researcher ratified two choices of the implementation on 2026-11-17:
 
 1. **One cache for every repository**. The cache is one bare Git repository shared by every
    repository identifier, instead of one per identifier. The state of a submodule enters the cache
-   before its manifest names the repository, so its identifier is unknown at the fetch. Its objects
-   are addressed by their hashes, so the states of several repositories share one store safely. A
-   reference below `refs/anagraphe/states/` keeps each fetched commit, so that a garbage collection
-   of the cache keeps it.
+   before its manifest names the repository (since 2026-11-19, before the identity of its state
+   names it, as amended in [ADR 0009](0009-record-resolver.md)), so its identifier is unknown at the
+   fetch. Its objects are addressed by their hashes, so the states of several repositories share one
+   store safely. A reference below `refs/anagraphe/states/` keeps each fetched commit, so that a
+   garbage collection of the cache keeps it.
 2. **Verification by the provider**. The provider hashes the commit, each tree along the path and
    the file, and compares each hash with the identifier that named the object. Git hashes an
    object when it writes it, not when `git cat-file` reads it, so a store whose files changed after
