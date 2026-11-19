@@ -134,3 +134,9 @@ headed by hand:
 2. Run the workflow `release.yml` once the workflow `ci.yml` passes on the last commit.
 3. Pull the release commit, and move the entries of `## [Unreleased]` under a heading
    `## [<version>] - <date>`, the version and the date of that commit.
+
+The read distribution `packages/read-python` keeps a version of its own, which the workflow does
+not stamp. A commit that changes the interface or the behaviour of `anagraphe_read` raises that
+version in `packages/read-python/pyproject.toml`, and the pin `anagraphe-read==<version>` of the
+root `pyproject.toml` with it; the test `tests/test_distributions.py` fails while the two differ.
+Each release attaches the wheel and the sdist of both distributions.

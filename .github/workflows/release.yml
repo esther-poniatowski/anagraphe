@@ -5,7 +5,9 @@
 #
 # Automates version bumping, distribution publishing, and GitHub release creation
 # based on conventional commit messages, and attaches the tarball of the TypeScript read package
-# `packages/read` to the release.
+# `packages/read` to the release. The distributions attached by the publish step hold the wheel and
+# the sdist of the command line, stamped with the version of the release, and those of the Python
+# read distribution `packages/read-python`, which keep the version of its pyproject.toml.
 #
 # Trigger: Manual only (workflow_dispatch) for safety.
 #
@@ -61,7 +63,7 @@ jobs:
 
       - name: Publish Distributions
         # The version command creates the release; the publish command attaches the distributions
-        # built by build_command, matched by dist_glob_patterns.
+        # of both Python distributions, built by build_command, matched by dist_glob_patterns.
         run: semantic-release --config config/tools/releaserc.toml publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

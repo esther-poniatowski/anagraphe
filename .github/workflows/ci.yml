@@ -38,6 +38,30 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
+  read-distribution:
+    # The Python read distribution alone, without the command line, so that a dependency of
+    # anagraphe_read on anagraphe fails at its import.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the read distribution
+        run: |
+          python -m pip install --upgrade pip
+          pip install ./packages/read-python
+          pip install pytest
+      - name: Run tests
+        # The suite reads the conformance cases of specs/conformance/ from the checkout.
+        run: pytest packages/read-python/tests
+      - name: Run doctests
+        run: pytest --doctest-modules packages/read-python/src/anagraphe_read
+      - name: Build the distributions
+        run: |
+          pip install build
+          python -m build packages/read-python --outdir dist
   read-package:
     # The TypeScript read package, which runs the conformance cases of specs/conformance/.
     runs-on: ubuntu-latest

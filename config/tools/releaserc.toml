@@ -41,8 +41,10 @@ version_variables = ["CITATION.cff:version", "packages/read/package.json:version
 
 # Distributions: built on the runner after the version is stamped, and uploaded to the release by
 # `dist_glob_patterns`. The key `assets` would instead stage files in the release commit, so it
-# names none: a built distribution never enters the repository.
-build_command = "python -m pip install build && python -m build"
+# names none: a built distribution never enters the repository. The second build writes the wheel
+# and the sdist of the read distribution `packages/read-python` into the same folder. Its version is
+# its own, raised by hand with its interface, so no version source above names it.
+build_command = "python -m pip install build && python -m build && python -m build packages/read-python --outdir dist"
 
 # --- Branch Groups --------------------------------------------------------------------------------
 
