@@ -394,3 +394,17 @@ def test_a_pointer_states_the_path_that_it_names(tmp_path: Path) -> None:
     assert named["../b.md"] == ("b.md", "b.md")
     assert named["https://example.org"] == (None, None)
     assert named["/root/missing.md"] == (None, "root/missing.md")
+
+
+def test_a_target_below_an_unreadable_folder_names_no_file(tmp_path: Path) -> None:
+    """A target that the process may not examine is a broken link, not an error."""
+    repository = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n")
+    locked = tmp_path / "locked"
+    (locked / "inner").mkdir(parents=True)
+    (tmp_path / "notes/e.md").write_text("[x](../locked/inner/x.md)\n", encoding="utf-8")
+    locked.chmod(0)
+    try:
+        (pointer,) = repository.references("notes/e.md")
+    finally:
+        locked.chmod(0o755)
+    assert (pointer.target, pointer.named) == (None, "locked/inner/x.md")

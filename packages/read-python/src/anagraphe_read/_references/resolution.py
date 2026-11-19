@@ -163,11 +163,18 @@ class Resolver:
 
     @staticmethod
     def _file(path: Path, omit: tuple[str, ...]) -> Path | None:
-        """Return a path naming a file, trying each suffix that the syntax may omit."""
-        if path.is_file():
-            return path
-        for suffix in omit:
-            completed = path.with_name(path.name + suffix)
-            if completed.is_file():
-                return completed
+        """Return a path naming a file, trying each suffix that the syntax may omit.
+
+        A path that the process may not examine, such as a file below a folder of another user
+        named by an absolute target, names no file.
+        """
+        try:
+            if path.is_file():
+                return path
+            for suffix in omit:
+                completed = path.with_name(path.name + suffix)
+                if completed.is_file():
+                    return completed
+        except OSError:
+            return None
         return None

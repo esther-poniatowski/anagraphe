@@ -130,6 +130,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   provider and returns a `RepositoryConfig`, whose attribute `reading` holds the `Composition`.
 - The distribution `anagraphe` no longer declares `pathspec`; the read distribution requires it.
 
+### Fixed
+
+- A target that the process may not examine, such as a path below a folder of another user named
+  by a target opening on `/`, names no file. `anagraphe refs check` reported it as broken on
+  macOS, and stopped with a `PermissionError` on Linux.
+
 ### Removed
 
 - The key `indexes.vocabulary`, with `load_vocabulary`, `validate_vocabulary` and
