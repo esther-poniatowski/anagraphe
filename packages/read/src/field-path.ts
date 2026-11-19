@@ -1,7 +1,7 @@
 /**
  * Field paths: the text naming one node of a document, its parsing and its canonical printing, its
  * conversions to and from a JSON Pointer, and the expansion of a field-path pattern, as the Python
- * read side reads them in `anagraphe.targets.field_paths`.
+ * read side reads them in `anagraphe_read._targets.field_paths`.
  *
  * A key follows a dot, except at the start of the path; a position in a sequence stands between
  * brackets, counted from zero; a key that a bare key cannot hold stands between brackets as a JSON

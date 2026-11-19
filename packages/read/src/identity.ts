@@ -1,6 +1,6 @@
 /**
  * The identity of a repository: the identifier that a logical target names, and its former
- * identifiers, derived as the Python read side derives them in `anagraphe.targets.identity`.
+ * identifiers, derived as the Python read side derives them in `anagraphe_read._targets.identity`.
  *
  * The identifier is the override `repository.id` of `anagraphe.yml` when the configuration
  * declares it, else the name of the remote `origin`, else the name of the folder of the root, each

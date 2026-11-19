@@ -31,9 +31,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.filters import scalar
-from anagraphe.core.schemas import Items, Property, SchemaNode, SchemaReader
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.filters import scalar
+from anagraphe_read._core.schemas import Items, Property, SchemaNode, SchemaReader
 
 #: The key of an index stating relations between its members, and the field of each relation.
 RELATIONS_KEY = "context_relations"

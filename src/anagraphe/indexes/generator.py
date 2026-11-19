@@ -24,15 +24,16 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
-from anagraphe.indexes.blocks import Block, parse_blocks, replace_bodies
-from anagraphe.indexes.fields import FieldRules
-from anagraphe.core.issues import Issue, pointer
-from anagraphe.indexes.membership import Membership, assign
-from anagraphe.core.metadata import MetadataReader
-from anagraphe.indexes.notes import Note, NoteReader
-from anagraphe.indexes.order import Collation, Ordering, order_registry, order_sequence
+from anagraphe_read._core.issues import Issue, pointer
+from anagraphe_read._core.metadata import MetadataReader
+
 from anagraphe.core.links import link_target, value_link
 from anagraphe.core.paths import normalize
+from anagraphe.indexes.blocks import Block, parse_blocks, replace_bodies
+from anagraphe.indexes.fields import FieldRules
+from anagraphe.indexes.membership import Membership, assign
+from anagraphe.indexes.notes import Note, NoteReader
+from anagraphe.indexes.order import Collation, Ordering, order_registry, order_sequence
 from anagraphe.indexes.render import render_body, title_of
 from anagraphe.indexes.retired import MigrationClass, Scope, migration_of, retired_keys
 from anagraphe.indexes.slots import SORT_KEYS, GroupSpec, prose_units

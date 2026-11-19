@@ -18,13 +18,14 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
 from anagraphe.indexes.service import run
 from anagraphe.references.service import ReferenceChecker
-from anagraphe.targets import TargetChecker
-from anagraphe.targets.registry import RegistryService
+from anagraphe.targets.registry.service import RegistryService
+from anagraphe.targets.service import TargetChecker
 
 #: A rendered entry of an index, capturing the path of its link.
 ENTRY = re.compile(r"^\s*- \[[^\]]*\]\(([^)]+)\)", re.MULTILINE)

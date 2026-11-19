@@ -35,9 +35,15 @@ from typing import Any, Callable, Iterator, Mapping, Protocol
 
 import yaml
 
-from anagraphe.core.conditions import Condition, parse_condition
-from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings_in_order
-from anagraphe.core.json_text import load_json
+from anagraphe_read._core.conditions import Condition, parse_condition
+from anagraphe_read._core.configuration import (
+    ConfigurationError,
+    known_keys,
+    mapping,
+    strings_in_order,
+)
+from anagraphe_read._core.json_text import load_json
+
 from anagraphe.core.links import VALUE_LINK, VALUE_WIKILINK
 from anagraphe.core.regions import CODE_KIND, markdown_regions
 from anagraphe.references.model import (

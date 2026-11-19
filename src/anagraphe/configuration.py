@@ -11,15 +11,15 @@ each subpackage that the repository uses:
 
 - ``indexes``, parsed by :mod:`anagraphe.indexes.configuration`;
 - ``references``, parsed by :mod:`anagraphe.references.configuration`;
-- ``bindings``, parsed by :mod:`anagraphe.bindings.configuration`;
-- ``targets``, parsed by :mod:`anagraphe.targets.configuration`;
-- ``records``, parsed by :mod:`anagraphe.targets.registry.configuration`, which names the record
+- ``bindings``, parsed by :mod:`anagraphe_read._bindings.configuration`;
+- ``targets``, parsed by :mod:`anagraphe_read._targets.configuration`;
+- ``records``, parsed by :mod:`anagraphe_read._targets.registry.configuration`, which names the record
   registry. Its records are those of the walk of the section ``targets``, so it requires that
   section.
 
-The section ``resolution``, parsed by :mod:`anagraphe.resolution.configuration`, declares the
+The section ``resolution``, parsed by :mod:`anagraphe_read._resolution.configuration`, declares the
 repositories that the targets name besides the submodules, and the machine file of their local
-clones. The section ``repository``, parsed by :mod:`anagraphe.targets.identity`, declares the
+clones. The section ``repository``, parsed by :mod:`anagraphe_read._targets.identity`, declares the
 override of the identifier of the repository and its former identifiers. Both serve the check of
 the targets and the record registry, and enable no command of their own.
 
@@ -34,7 +34,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping
 
-from anagraphe.core.configuration import (
+from anagraphe_read._bindings import configuration as bindings
+from anagraphe_read._core.configuration import (
     CONFIG_FILE,
     CONFIG_LOCATIONS,
     ConfigurationError,
@@ -42,16 +43,16 @@ from anagraphe.core.configuration import (
     load_yaml,
     mapping,
 )
-from anagraphe.core.exclusions import exemptions
-from anagraphe.core.metadata import MetadataReader, parse_metadata
-from anagraphe.bindings import configuration as bindings
+from anagraphe_read._core.exclusions import exemptions
+from anagraphe_read._core.metadata import MetadataReader, parse_metadata
+from anagraphe_read._resolution import configuration as resolution
+from anagraphe_read._targets import configuration as targets
+from anagraphe_read._targets import identity
+from anagraphe_read._targets.registry import configuration as records
+from anagraphe_read._targets.walk import RecordWalk
+
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
-from anagraphe.resolution import configuration as resolution
-from anagraphe.targets import configuration as targets
-from anagraphe.targets import identity
-from anagraphe.targets.registry import configuration as records
-from anagraphe.targets.walk import RecordWalk
 
 #: The environment variable naming the root, read when the command line gives none.
 ROOT_VARIABLE = "ANAGRAPHE_ROOT"

@@ -30,13 +30,7 @@ from anagraphe.references.model import (
     StyleKind,
 )
 from anagraphe.references.resolution import FileIndex
-from anagraphe.references.syntaxes import (
-    BUILT_IN,
-    ExtractionError,
-    Syntaxes,
-    references_of,
-    shaped,
-)
+from anagraphe.references.syntaxes import BUILT_IN, ExtractionError, Syntaxes, references_of, shaped
 
 #: A bare path, opening on no character of a path or of a URL, with an optional fragment. Each
 #: segment closes on no period, so that a path closing a sentence leaves its period out.

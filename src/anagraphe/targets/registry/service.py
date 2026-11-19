@@ -22,22 +22,21 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
-from anagraphe.core.files import write_atomically
-from anagraphe.core.issues import Issue, Report, pointer
-from anagraphe.targets.configuration import TargetConfig
-from anagraphe.targets.kinds import (
-    INVALID_RECORD_REGISTRY,
-    UNIDENTIFIED_REPOSITORY,
-    UNREADABLE_RECORD,
-)
-from anagraphe.targets.identity import (
+from anagraphe_read._core.issues import Issue, Report, pointer
+from anagraphe_read._targets.configuration import TargetConfig
+from anagraphe_read._targets.identity import (
     DeclaredIdentity,
     Identity,
     configuration_rel,
     repository_identity,
 )
-from anagraphe.targets.registry.configuration import RecordsConfig
-from anagraphe.targets.registry.contract import (
+from anagraphe_read._targets.kinds import (
+    INVALID_RECORD_REGISTRY,
+    UNIDENTIFIED_REPOSITORY,
+    UNREADABLE_RECORD,
+)
+from anagraphe_read._targets.registry.configuration import RecordsConfig
+from anagraphe_read._targets.registry.contract import (
     Entry,
     RecordRegistry,
     RegistryReading,
@@ -45,13 +44,16 @@ from anagraphe.targets.registry.contract import (
     format_of,
     read_registry,
 )
+from anagraphe_read._targets.walk import RecordWalk, identifier_issues
+
+from anagraphe.core.writes import write_atomically
 from anagraphe.targets.registry.kinds import (
     REUSED_IDENTIFIER,
     STALE_REGISTRY,
     UNKNOWN_SUCCESSOR,
     VANISHED_IDENTIFIER,
 )
-from anagraphe.targets.walk import RecordWalk, identifier_issues
+from anagraphe.targets.registry.rendering import render
 
 #: The command that regenerates the registry, named by the findings that it repairs.
 WRITE = "anagraphe records write"
@@ -187,7 +189,7 @@ class RegistryService:
         if issues or repository is None:
             return WriteResult(_located(issues))
         registry = RecordRegistry(repository, self.generation(), dict(retired))
-        text = registry.render()
+        text = render(registry)
         changed = reading.text != text
         if changed:
             self._save(text)
@@ -235,7 +237,7 @@ class RegistryService:
             *self._entry_issues(registry),
             *self._successor_issues(registry),
         ]
-        if not issues and reading.text != registry.render():
+        if not issues and reading.text != render(registry):
             issues.append(
                 self._issue(
                     STALE_REGISTRY,
@@ -432,7 +434,7 @@ class RegistryService:
         }
         records = {key: entry for key, entry in registry.records.items() if key != identifier}
         updated = RecordRegistry(registry.repository, records, retired)
-        self._save(updated.render())
+        self._save(render(updated))
         return updated
 
     def _check_successor(self, registry: RecordRegistry, identifier: str, successor: str) -> None:

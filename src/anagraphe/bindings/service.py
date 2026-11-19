@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from anagraphe.bindings.configuration import BindingConfig
-from anagraphe.bindings.kinds import INVALID, KINDS, UNBOUND, UNREADABLE_SOURCE
-from anagraphe.bindings.model import Role
-from anagraphe.bindings.resolution import BindingResolver
-from anagraphe.core.files import select
-from anagraphe.core.issues import Issue, Report, distinct
-from anagraphe.core.metadata import SourceKind
+from anagraphe_read._bindings.configuration import BindingConfig
+from anagraphe_read._bindings.kinds import INVALID, KINDS, UNBOUND, UNREADABLE_SOURCE
+from anagraphe_read._bindings.model import Role
+from anagraphe_read._bindings.resolution import BindingResolver
+from anagraphe_read._core.files import select
+from anagraphe_read._core.issues import Issue, Report, distinct
+from anagraphe_read._core.metadata import SourceKind
 
 __all__ = ["KINDS", "BindingChecker"]
 

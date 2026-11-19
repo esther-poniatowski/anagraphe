@@ -17,8 +17,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from anagraphe_read._core.metadata import MetadataReader, SourceKind, split_frontmatter
+
 from anagraphe.core.links import value_link
-from anagraphe.core.metadata import MetadataReader, SourceKind, split_frontmatter
 from anagraphe.indexes.slots import (
     ContextRelation,
     ExternalSpec,

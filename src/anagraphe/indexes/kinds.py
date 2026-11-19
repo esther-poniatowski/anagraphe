@@ -7,7 +7,7 @@ issue joins the catalogue; the tests compare the catalogue with the kinds writte
 
 from __future__ import annotations
 
-from anagraphe.core.issues import IssueKind
+from anagraphe_read._core.issues import IssueKind
 
 #: The kind of a file whose metadata cannot be parsed, whose fields are therefore left unchecked.
 UNREADABLE_METADATA = "unreadable-metadata"

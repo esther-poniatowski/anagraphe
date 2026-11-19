@@ -18,12 +18,23 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._resolution.context import build_context
+from anagraphe_read._resolution.git import GitProvider
+from anagraphe_read._resolution.provider import (
+    Availability,
+    Blob,
+    Escaping,
+    MemoryProvider,
+    Missing,
+    Mode,
+    State,
+    Unavailable,
+)
+from anagraphe_read._targets.identity import Identity, IdentitySource
+from anagraphe_read._targets.resource import TARGET_REFERENCE
+
 from anagraphe.cli import app
-from anagraphe.resolution import Availability, Blob, Escaping, Missing, Mode, State, Unavailable
-from anagraphe.resolution import MemoryProvider, build_context
-from anagraphe.resolution.git import STATE_REFERENCES, FetchStatus, GitProvider, fetch_states
-from anagraphe.targets.identity import Identity, IdentitySource
-from anagraphe.targets.resource import TARGET_REFERENCE
+from anagraphe.states import STATE_REFERENCES, FetchStatus, fetch_states
 
 #: A commit that no repository of the tests holds.
 ABSENT = "3" * 40

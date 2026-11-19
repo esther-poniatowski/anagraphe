@@ -12,12 +12,15 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from anagraphe.bindings import BindingChecker, BindingResolver, Merge, Role
-from anagraphe.bindings import kinds as binding_kinds
-from anagraphe.bindings.kinds import KINDS
+from anagraphe_read._bindings import kinds as binding_kinds
+from anagraphe_read._bindings.kinds import KINDS
+from anagraphe_read._bindings.model import Merge, Role
+from anagraphe_read._bindings.resolution import BindingResolver
+from anagraphe_read._core.configuration import ConfigurationError
+
+from anagraphe.bindings.service import BindingChecker
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
 
 SECTION: dict[str, Any] = {
     "index": "_index.md",

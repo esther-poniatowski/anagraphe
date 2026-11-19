@@ -42,14 +42,28 @@ from typing import Annotated, NoReturn
 
 import typer
 
+from anagraphe_read._bindings.configuration import BindingConfig
+from anagraphe_read._bindings.contract import CONTRACT as BINDINGS_CONTRACT
+from anagraphe_read._bindings.kinds import KINDS as BINDING_KINDS
+from anagraphe_read._bindings.kinds import UNANALYZED as BINDING_UNANALYZED
+from anagraphe_read._bindings.model import Merge, Role
+from anagraphe_read._bindings.resolution import BindingResolver
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.exclusions import KINDS as EXCLUSION_KINDS
+from anagraphe_read._core.exclusions import local_issues
+from anagraphe_read._core.files import TargetError
+from anagraphe_read._core.issues import IssueKind, Report
+from anagraphe_read._resolution.configuration import ResolutionConfig
+from anagraphe_read._resolution.context import build_context
+from anagraphe_read._resolution.git import GitProvider, default_cache
+from anagraphe_read._targets.configuration import TargetConfig
+from anagraphe_read._targets.identity import DeclaredIdentity, repository_identity
+from anagraphe_read._targets.kinds import KINDS as TARGET_KINDS
+from anagraphe_read._targets.kinds import UNANALYZED as TARGET_UNANALYZED
+from anagraphe_read._targets.registry.configuration import RecordsConfig
+
 from anagraphe import __version__
-from anagraphe.bindings.configuration import BindingConfig
-from anagraphe.bindings.model import Merge, Role
-from anagraphe.bindings.resolution import BindingResolver
-from anagraphe.bindings.kinds import KINDS as BINDING_KINDS
-from anagraphe.bindings.kinds import UNANALYZED as BINDING_UNANALYZED
 from anagraphe.bindings.service import BindingChecker
-from anagraphe.bindings.contract import CONTRACT as BINDINGS_CONTRACT
 from anagraphe.configuration import (
     ROOT_VARIABLE,
     RepositoryConfig,
@@ -57,33 +71,22 @@ from anagraphe.configuration import (
     load_config,
     locate_config,
 )
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.exclusions import KINDS as EXCLUSION_KINDS
-from anagraphe.core.exclusions import local_issues
-from anagraphe.core.files import TargetError
-from anagraphe.core.issues import IssueKind, Report
 from anagraphe.core.sarif import Section, sarif_log
 from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.kinds import KINDS as INDEX_KINDS
 from anagraphe.indexes.kinds import UNREADABLE_METADATA
 from anagraphe.indexes.service import Mode, run
+from anagraphe.refactor import MovePlan, MoveService
 from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.service import KINDS as REFERENCE_KINDS
 from anagraphe.references.service import UNREADABLE, ReferenceChecker
-from anagraphe.refactor import MovePlan, MoveService
-from anagraphe.targets.configuration import TargetConfig
-from anagraphe.targets.kinds import KINDS as TARGET_KINDS
+from anagraphe.states import fetch_states
 from anagraphe.targets.migration import KINDS as MIGRATION_KINDS
 from anagraphe.targets.migration import UNANALYZED as MIGRATION_UNANALYZED
 from anagraphe.targets.migration import Migration, MigrationService, read_plan
-from anagraphe.targets.kinds import UNANALYZED as TARGET_UNANALYZED
-from anagraphe.targets.registry import RecordsConfig, RegistryService, RetireRefused
 from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
 from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
-from anagraphe.resolution.configuration import ResolutionConfig
-from anagraphe.resolution.context import build_context
-from anagraphe.resolution.git import GitProvider, default_cache, fetch_states
-from anagraphe.targets.identity import DeclaredIdentity, repository_identity
+from anagraphe.targets.registry.service import RegistryService, RetireRefused
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)

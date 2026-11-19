@@ -14,10 +14,11 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.issues import Report
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.issues import Report
 from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.service import ReferenceChecker
 from anagraphe.references.syntaxes import references_of

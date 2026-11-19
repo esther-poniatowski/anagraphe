@@ -1,14 +1,14 @@
 """
 The check of the logical targets of a repository, within that repository.
 
-The check derives the identity of the repository, as :mod:`anagraphe.targets.identity` states,
+The check derives the identity of the repository, as :mod:`anagraphe_read._targets.identity` states,
 then reads the identifier of every record of the repository, so that a target resolves whichever files the command selects. A file of a nested
 repository, such as a submodule, belongs to that repository, so the check reads none of them. For
 each selected record, the check reports its identifier, then each value of its target fields:
 
 1. a value that is not a logical target is reported as ``invalid-target``;
 2. a target into another repository is resolved and read by the record resolver of
-   :mod:`anagraphe.resolution`, at the state that the resolution context of the root selects, and
+   :mod:`anagraphe_read._resolution`, at the state that the resolution context of the root selects, and
    each finding of the resolver is reported. Until a provider reads the states of other
    repositories, each such target receives the warning ``unreadable-target-state``. A target naming
    a former identifier of the root is reported as ``renamed-repository``, then checked as a target
@@ -27,7 +27,7 @@ reports it.
 A target naming a duplicated identifier receives no finding of its own, since
 ``duplicate-identifier`` reports its cause. Whatever the selected files, the check also compares
 the versions declared by the read sides of the key ``read_sides`` with those of Anagraphe, as
-:mod:`anagraphe.targets.read_sides` states. The check writes no file.
+:mod:`anagraphe_read._targets.read_sides` states. The check writes no file.
 """
 
 from __future__ import annotations
@@ -37,16 +37,17 @@ from functools import cached_property
 from pathlib import Path
 from typing import Mapping
 
-from anagraphe.core.files import select
-from anagraphe.core.issues import Issue, Report, distinct, pointer
-from anagraphe.core.schemas import values_at
-from anagraphe.resolution.configuration import ResolutionConfig
-from anagraphe.resolution.context import build_context
-from anagraphe.resolution.provider import EmptyProvider, StateProvider
-from anagraphe.resolution.resolver import Outcome, RecordResolver
-from anagraphe.targets.configuration import TargetConfig
-from anagraphe.targets.declarations import Declarations, TargetField
-from anagraphe.targets.kinds import (
+from anagraphe_read._core.files import select
+from anagraphe_read._core.issues import Issue, Report, distinct, pointer
+from anagraphe_read._core.schemas import values_at
+from anagraphe_read._resolution.configuration import ResolutionConfig
+from anagraphe_read._resolution.context import build_context
+from anagraphe_read._resolution.provider import EmptyProvider, StateProvider
+from anagraphe_read._resolution.resolver import Outcome, RecordResolver
+from anagraphe_read._targets.configuration import TargetConfig
+from anagraphe_read._targets.declarations import Declarations, TargetField
+from anagraphe_read._targets.identity import DeclaredIdentity, Identity, repository_identity
+from anagraphe_read._targets.kinds import (
     INVALID_TARGET,
     KINDS,
     RENAMED_TARGET,
@@ -54,14 +55,13 @@ from anagraphe.targets.kinds import (
     UNKNOWN_RECORD,
     UNREADABLE_RECORD,
 )
-from anagraphe.targets.identity import DeclaredIdentity, Identity, repository_identity
-from anagraphe.targets.model import InvalidTarget, Target
-from anagraphe.targets.read_sides import check_read_sides
-from anagraphe.targets.records import Record
-from anagraphe.targets.registry.configuration import RecordsConfig
-from anagraphe.targets.registry.contract import Retirement, follow, read_registry
-from anagraphe.targets.verification import Finding, held_findings
-from anagraphe.targets.walk import RecordWalk, identifier_issues, unit_issues
+from anagraphe_read._targets.model import InvalidTarget, Target
+from anagraphe_read._targets.read_sides import check_read_sides
+from anagraphe_read._targets.records import Record
+from anagraphe_read._targets.registry.configuration import RecordsConfig
+from anagraphe_read._targets.registry.contract import Retirement, follow, read_registry
+from anagraphe_read._targets.verification import Finding, held_findings
+from anagraphe_read._targets.walk import RecordWalk, identifier_issues, unit_issues
 
 __all__ = ["KINDS", "TargetChecker"]
 

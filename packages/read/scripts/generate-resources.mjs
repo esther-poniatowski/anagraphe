@@ -17,7 +17,15 @@ import { parse } from "yaml";
 
 const PACKAGE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPOSITORY = join(PACKAGE, "..", "..");
-const SCHEMAS = join(REPOSITORY, "src", "anagraphe", "data", "schemas");
+const SCHEMAS = join(
+  REPOSITORY,
+  "packages",
+  "read-python",
+  "src",
+  "anagraphe_read",
+  "data",
+  "schemas",
+);
 const OUTPUT = join(PACKAGE, "src", "generated", "resources.ts");
 
 /** The packaged schemas, each with the name of its constant. */

@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from anagraphe.core.files import TargetError, write_atomically
-from anagraphe.core.git_state import committed_files
-from anagraphe.core.issues import Issue, Report
+from anagraphe_read._core.files import TargetError
+from anagraphe_read._core.git_state import committed_files
+from anagraphe_read._core.issues import Issue, Report
+
+from anagraphe.core.writes import write_atomically
 from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.fields import FieldRules
 from anagraphe.indexes.generator import IndexGenerator, Settings

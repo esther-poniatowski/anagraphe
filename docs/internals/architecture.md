@@ -17,8 +17,8 @@ composition layer also hands the indexes the identifier of a file as the targets
 nested group honours `x-identifier` without importing the capability.
 
 Each capability also declares the kinds of issue that it can report, in
-`anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe.bindings.kinds`,
-`anagraphe.targets.kinds` and `anagraphe.targets.registry.kinds`. The writer of the findings log,
+`anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe_read._bindings.kinds`,
+`anagraphe_read._targets.kinds` and `anagraphe.targets.registry.kinds`. The writer of the findings log,
 `anagraphe.core.sarif`, receives these catalogues and the issues from the command line, so it
 imports no capability. An issue carries its locus from the code that creates it, since only that
 code holds the key or the target that it tested.
@@ -41,7 +41,7 @@ Within `anagraphe.references`, the check runs as a pipeline of three stages. A s
 declaring one more syntax, or by registering one more rule:
 
 1. each syntax of `anagraphe.references.syntaxes` covering a file finds its candidates, each with
-   its line, its column, and its region, from the metadata source declared in `anagraphe.core.metadata`.
+   its line, its column, and its region, from the metadata source declared in `anagraphe_read._core.metadata`.
    The syntaxes of Markdown take the link destinations and the code spans of a file from Merismos;
 2. the resolver resolves the path of each reference under every path style, and the conventions
    of `anagraphe.references.conventions` state the formats and the styles that it admits;
@@ -59,7 +59,7 @@ declares in its frontmatter, through the metadata reader of the core. A record d
 fields marked by `x-binds` in its schema, found once per contract through the schema registry. The
 check selects the texts read through their frontmatter, the records when the repository declares
 records, and the files that a condition `required` selects, then reports the kinds of
-`anagraphe.bindings.kinds`.
+`anagraphe_read._bindings.kinds`.
 
 ## Targets
 
@@ -68,9 +68,9 @@ Within `anagraphe.targets`, the model reads a target and matches the entries of
 declarations of each contract, its identifier field, its units, its target fields and its
 `x-implements`, are read once from the walk of the schemas of the core, which leaves the URI of the
 resource unresolved. The check first derives the identity of the repository, in
-`anagraphe.targets.identity`, then reads the identifier of every record of the
+`anagraphe_read._targets.identity`, then reads the identifier of every record of the
 repository into one table, and then reports the identifiers and the targets of the selected
-records against that table. The module `anagraphe.targets.walk` defines the walk, and the record
+records against that table. The module `anagraphe_read._targets.walk` defines the walk, and the record
 registry of `anagraphe.targets.registry` shares it. The registry maps the identifiers of the walk
 to their files, and the check of the targets reads its retired identifiers. The committed registry
 is the source for a resolver of another repository, a task still open, whereas the check within one

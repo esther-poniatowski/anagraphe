@@ -1,6 +1,6 @@
 /**
  * The metadata source of a file, and the default identifier read through it, as the Python read
- * side reads them in `anagraphe.core.metadata`.
+ * side reads them in `anagraphe_read._core.metadata`.
  *
  * A source names where the fields of a file are written: the frontmatter of a text, a structured
  * document at declared key paths, the path `.` naming its top level, or none. The host selects

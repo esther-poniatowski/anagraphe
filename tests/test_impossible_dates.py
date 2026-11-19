@@ -11,12 +11,14 @@ from pathlib import Path
 
 import pytest
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.metadata import frontmatter_problem, split_frontmatter
+from anagraphe_read._core.schemas import SchemaReader
+from anagraphe_read._targets.identity import repository_identity
+
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.metadata import frontmatter_problem, split_frontmatter
-from anagraphe.core.schemas import SchemaReader
 from anagraphe.core.structured import _plain
-from anagraphe.targets import TargetChecker, repository_identity
+from anagraphe.targets.service import TargetChecker
 
 IMPOSSIBLE = "2026-02-30"
 NOTE = f"---\nid: note-a\ncreated: {IMPOSSIBLE}\n---\nBody\n"

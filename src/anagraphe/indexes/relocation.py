@@ -23,8 +23,9 @@ from typing import Callable, Iterable
 
 import yaml
 
+from anagraphe_read._core.metadata import TOP, MetadataReader, Source, SourceKind
+
 from anagraphe.core.links import link_target, value_link
-from anagraphe.core.metadata import TOP, MetadataReader, Source, SourceKind
 from anagraphe.core.structured import Edit, compose, node_at, remove_item, replace_scalar
 
 #: The keys of a group holding an explicit list of links to its members.

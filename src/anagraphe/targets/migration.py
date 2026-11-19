@@ -35,16 +35,17 @@ import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from kleisis.contracts import is_contract_identifier
 
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.files import write_atomically
-from anagraphe.core.issues import Issue, IssueKind, pointer
-from anagraphe.core.published import schema
-from anagraphe.core.schemas import SchemaReader
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.issues import Issue, IssueKind, pointer
+from anagraphe_read._core.published import schema
+from anagraphe_read._core.schemas import SchemaReader
+from anagraphe_read._targets.configuration import TargetConfig
+from anagraphe_read._targets.kinds import UNREADABLE_RECORD
+from anagraphe_read._targets.records import NOTE_SUFFIX, TOML_SUFFIX, Record, parse_record
+from anagraphe_read._targets.walk import RecordWalk
+
 from anagraphe.core.structured import apply_edits, compose, node_at, replace_scalar
-from anagraphe.targets.configuration import TargetConfig
-from anagraphe.targets.kinds import UNREADABLE_RECORD
-from anagraphe.targets.records import NOTE_SUFFIX, TOML_SUFFIX, Record, parse_record
-from anagraphe.targets.walk import RecordWalk
+from anagraphe.core.writes import write_atomically
 
 #: The contract of a migration plan.
 PLAN_CONTRACT = "anagraphe:migration-plan@1"

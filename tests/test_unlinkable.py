@@ -15,10 +15,11 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.issues import Issue
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.issues import Issue
 from anagraphe.references.service import ReferenceChecker
 
 #: Superseded notes block, unfiled notes warn, and an index may cite a superseded note.

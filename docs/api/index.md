@@ -32,23 +32,23 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.filters
+.. automodule:: anagraphe_read._core.filters
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.conditions
+.. automodule:: anagraphe_read._core.conditions
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.exclusions
+.. automodule:: anagraphe_read._core.exclusions
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.metadata
+.. automodule:: anagraphe_read._core.metadata
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.issues
+.. automodule:: anagraphe_read._core.issues
    :members:
    :undoc-members:
    :show-inheritance:
@@ -57,12 +57,12 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.configuration
+.. automodule:: anagraphe_read._core.configuration
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: anagraphe.core.files
+.. automodule:: anagraphe_read._core.files
    :members:
    :undoc-members:
 
@@ -70,7 +70,7 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.anchors
+.. automodule:: anagraphe_read._core.anchors
    :members:
    :undoc-members:
 
@@ -82,15 +82,15 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.json_text
+.. automodule:: anagraphe_read._core.json_text
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.schemas
+.. automodule:: anagraphe_read._core.schemas
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.core.git_state
+.. automodule:: anagraphe_read._core.git_state
    :members:
    :undoc-members:
 ```
@@ -201,27 +201,27 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.configuration
+.. automodule:: anagraphe_read._bindings.configuration
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.model
+.. automodule:: anagraphe_read._bindings.model
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.contract
+.. automodule:: anagraphe_read._bindings.contract
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.resolution
+.. automodule:: anagraphe_read._bindings.resolution
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.schemas
+.. automodule:: anagraphe_read._bindings.schemas
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.bindings.kinds
+.. automodule:: anagraphe_read._bindings.kinds
    :members:
    :undoc-members:
 ```
@@ -233,51 +233,51 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.configuration
+.. automodule:: anagraphe_read._targets.configuration
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.model
+.. automodule:: anagraphe_read._targets.model
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.identity
+.. automodule:: anagraphe_read._targets.identity
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.records
+.. automodule:: anagraphe_read._targets.records
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.declarations
+.. automodule:: anagraphe_read._targets.declarations
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.verification
+.. automodule:: anagraphe_read._targets.verification
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.walk
+.. automodule:: anagraphe_read._targets.walk
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.field_paths
+.. automodule:: anagraphe_read._targets.field_paths
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.read_sides
+.. automodule:: anagraphe_read._targets.read_sides
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.resource
+.. automodule:: anagraphe_read._targets.resource
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.specification
+.. automodule:: anagraphe_read._targets.specification
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.kinds
+.. automodule:: anagraphe_read._targets.kinds
    :members:
    :undoc-members:
 ```
@@ -289,11 +289,11 @@
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.registry.configuration
+.. automodule:: anagraphe_read._targets.registry.configuration
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.targets.registry.contract
+.. automodule:: anagraphe_read._targets.registry.contract
    :members:
    :undoc-members:
 
@@ -305,23 +305,23 @@
 ## Resolution
 
 ```{eval-rst}
-.. automodule:: anagraphe.resolution.resolver
+.. automodule:: anagraphe_read._resolution.resolver
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.resolution.context
+.. automodule:: anagraphe_read._resolution.context
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.resolution.provider
+.. automodule:: anagraphe_read._resolution.provider
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.resolution.git
+.. automodule:: anagraphe_read._resolution.git
    :members:
    :undoc-members:
 
-.. automodule:: anagraphe.resolution.configuration
+.. automodule:: anagraphe_read._resolution.configuration
    :members:
    :undoc-members:
 ```

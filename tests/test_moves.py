@@ -9,9 +9,10 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.files import TargetError
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.files import TargetError
 from anagraphe.refactor import MoveService
 
 SCHEMA = {

@@ -28,7 +28,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from anagraphe.core.filters import Filter, parse_filter, scalar, scalars
+from anagraphe_read._core.filters import Filter, parse_filter, scalar, scalars
+
 from anagraphe.core.links import Target, link_target, value_link
 from anagraphe.core.regions import fenced_blocks
 from anagraphe.indexes.retired import RETIRED_MODES, retired_keys, retired_mode

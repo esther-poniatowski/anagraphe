@@ -19,9 +19,10 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.issues import Issue, IssueKind, Report
+
 from anagraphe import __version__
 from anagraphe.cli import CATALOGUES, app
-from anagraphe.core.issues import Issue, IssueKind, Report
 from anagraphe.core.sarif import Section, logical_name, sarif_log
 from anagraphe.references.rules import RULES
 

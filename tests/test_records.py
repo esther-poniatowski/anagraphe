@@ -19,25 +19,27 @@ import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from typer.testing import CliRunner
 
-from anagraphe.cli import CATALOGUES, app
-from anagraphe.configuration import RepositoryConfig, load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.targets import TargetChecker
-from anagraphe.targets.kinds import KINDS as TARGET_KINDS
-from anagraphe.targets.registry import (
-    REGISTRY_CONTRACT,
-    REGISTRY_ID,
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._targets.kinds import KINDS as TARGET_KINDS
+from anagraphe_read._targets.registry.contract import (
     Entry,
     Format,
+    REGISTRY_CONTRACT,
+    REGISTRY_FILE,
+    REGISTRY_ID,
     RecordRegistry,
-    RegistryService,
     Retirement,
-    RetireRefused,
+    read_registry,
 )
+from anagraphe_read._targets.resource import schema
+
+from anagraphe.cli import CATALOGUES, app
+from anagraphe.configuration import RepositoryConfig, load_config
 from anagraphe.targets.registry import kinds as registry_kinds
-from anagraphe.targets.registry.contract import REGISTRY_FILE, read_registry
 from anagraphe.targets.registry.kinds import KINDS
-from anagraphe.targets.resource import schema
+from anagraphe.targets.registry.rendering import render
+from anagraphe.targets.registry.service import RegistryService, RetireRefused
+from anagraphe.targets.service import TargetChecker
 
 PROJECT = Path(__file__).resolve().parent.parent
 CASES_FILE = PROJECT / "specs" / "conformance" / "record-registry.yml"
@@ -91,7 +93,7 @@ def test_the_written_form_of_the_decision_is_the_rendering(tmp_path: Path) -> No
     (tmp_path / REGISTRY).write_text(text, encoding="utf-8")
     registry = read_registry(tmp_path / REGISTRY, REGISTRY).registry
     assert registry is not None
-    assert registry.render() == text
+    assert render(registry) == text
 
 
 def test_rendering_sorts_by_characters_and_quotes_ambiguous_scalars() -> None:
@@ -99,7 +101,7 @@ def test_rendering_sorts_by_characters_and_quotes_ambiguous_scalars() -> None:
         identifier: Entry(f"notes/{identifier}.md", Format.MARKDOWN)
         for identifier in ("ab", "a_b", "a1", "a.b", "a-b", "2024", "true")
     }
-    text = RecordRegistry("lab", entries, {}).render()
+    text = render(RecordRegistry("lab", entries, {}))
     keys = [line.split(":")[0].strip() for line in text.splitlines() if line.startswith("  ")]
     assert keys == ["'2024'", "a-b", "a.b", "a1", "a_b", "ab", "'true'"]
     data = yaml.safe_load(text)

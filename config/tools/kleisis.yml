@@ -2,7 +2,7 @@
 _schema: kleisis:configuration@1
 
 paths:
-  owned_schemas: src/anagraphe/data/schemas
+  owned_schemas: packages/read-python/src/anagraphe_read/data/schemas
   registry: specs/schema-registry.yml
 
 exports:

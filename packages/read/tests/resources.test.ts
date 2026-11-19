@@ -10,7 +10,7 @@ import { readYaml } from "../src/documents/yaml.js";
 import { IMPLEMENTED_SPECIFICATION, matches, UNIT_NAME } from "../src/resources.js";
 
 const PACKAGE = fileURLToPath(new URL("..", import.meta.url));
-const SCHEMAS = new URL("../../../src/anagraphe/data/schemas/", import.meta.url);
+const SCHEMAS = new URL("../../read-python/src/anagraphe_read/data/schemas/", import.meta.url);
 
 /** Reads a packaged schema as the Python read side reads it. */
 function packaged(name: string): Record<string, unknown> {

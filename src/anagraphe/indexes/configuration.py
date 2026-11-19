@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from anagraphe.core.configuration import (
+from anagraphe_read._core.conditions import FILE_KEYS, Condition, parse_condition
+from anagraphe_read._core.configuration import (
     ConfigurationError,
     known_keys,
     load_yaml,
@@ -25,10 +26,10 @@ from anagraphe.core.configuration import (
     strings,
     strings_in_order,
 )
-from anagraphe.core.conditions import FILE_KEYS, Condition, parse_condition
-from anagraphe.core.exclusions import Exemptions, exemptions
-from anagraphe.core.filters import scalar
-from anagraphe.core.metadata import MetadataReader
+from anagraphe_read._core.exclusions import Exemptions, exemptions
+from anagraphe_read._core.filters import scalar
+from anagraphe_read._core.metadata import MetadataReader
+
 from anagraphe.indexes.retired import MIGRATABLE_KEYS, MigrationClass
 from anagraphe.indexes.value_sets import ValueSets, read_value_sets
 

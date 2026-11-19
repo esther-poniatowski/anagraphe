@@ -19,16 +19,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # The command line requires anagraphe-read by name; the read distribution of the same
+          # commit satisfies it.
+          pip install -e packages/read-python
           pip install -e .
           pip install black pylint mypy pytest pytest-cov types-PyYAML
       - name: Check formatting (black)
-        run: black --check --config config/tools/black.toml src/ tests/
+        run: black --check --config config/tools/black.toml src/ tests/ packages/read-python/src/ packages/read-python/tests/
       - name: Run linter (pylint)
-        run: pylint --rcfile=config/tools/pylintrc.ini src/
+        run: pylint --rcfile=config/tools/pylintrc.ini src/ packages/read-python/src/
       - name: Run type checker (mypy)
-        run: mypy --config-file config/tools/mypy.ini src/
+        run: mypy --config-file config/tools/mypy.ini src/ packages/read-python/src/
       - name: Run tests
-        run: pytest tests/ -v --cov --cov-report=xml
+        # The test paths of pyproject.toml hold the suites of both distributions.
+        run: pytest -v --cov --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -74,6 +78,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -e packages/read-python
           pip install -e .
           pip install sphinx myst-parser sphinx-rtd-theme
       - name: Build documentation

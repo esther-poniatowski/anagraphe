@@ -35,7 +35,9 @@ steps to set up a development environment:
    By default, the environment will be named `anagraphe`, as specified in the `environment.yml`
    file. This name can be modified by passing the `-n` option.
 
-3. Register the packages in "editable mode":
+3. Register the packages in "editable mode". The environment file already installs the read
+   distribution `packages/read-python`, which the command line requires by name; the command below
+   installs the command line:
 
    ```sh
    conda activate anagraphe

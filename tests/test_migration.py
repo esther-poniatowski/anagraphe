@@ -16,9 +16,11 @@ import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._targets.resource import schema
+
 from anagraphe.cli import CATALOGUES, app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
 from anagraphe.targets.migration import (
     KINDS,
     PLAN_CONTRACT,
@@ -29,7 +31,6 @@ from anagraphe.targets.migration import (
     check_plan,
     read_plan,
 )
-from anagraphe.targets.resource import schema
 
 PROJECT = Path(__file__).resolve().parent.parent
 REGISTRY = (

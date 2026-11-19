@@ -16,10 +16,12 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._targets.specification import IMPLEMENTED_SPECIFICATION
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.targets import IMPLEMENTED_SPECIFICATION, TargetChecker
+from anagraphe.targets.service import TargetChecker
 
 MANIFEST = ".obsidian/plugins/ekphrasis/manifest.json"
 POINTER = "/anagrapheRead"

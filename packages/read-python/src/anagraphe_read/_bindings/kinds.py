@@ -1,0 +1,41 @@
+"""
+The kinds of issue that the check of the bindings can report, with their descriptions.
+"""
+
+from __future__ import annotations
+
+from anagraphe_read._core.issues import IssueKind
+from anagraphe_read._core.schemas import UNREADABLE_SCHEMA, UNRESOLVED_REFERENCE
+
+#: A text that a condition requires to be bound, bound to no value.
+UNBOUND = "unbound-text"
+#: A declaration naming no value, or a value that is not a non-empty string.
+INVALID = "invalid-binding"
+#: A file whose frontmatter or record cannot be parsed, which leaves its own declaration unread.
+UNREADABLE_SOURCE = "unreadable-binding-source"
+#: A mark ``x-binds`` that names no role, marks a whole record, or sits where a field has no key path.
+INVALID_MARK = "invalid-schema-binding"
+# The kinds UNRESOLVED_REFERENCE, a $ref naming no readable schema node inside the repository, and
+# UNREADABLE_SCHEMA, a schema of the registry that cannot be read, belong to the reader of schemas
+# of the core, which records them.
+
+#: Every kind of issue that the check can report.
+KINDS: tuple[IssueKind, ...] = (
+    IssueKind(
+        UNBOUND, "A text that the repository requires to be bound for a role is bound to no value."
+    ),
+    IssueKind(INVALID, "A binding names no value, or a value that is not a non-empty string."),
+    IssueKind(
+        UNREADABLE_SOURCE, "The frontmatter or the record holding a binding cannot be parsed."
+    ),
+    IssueKind(
+        INVALID_MARK, "A schema mark x-binds names no role, or sits where a field has no key path."
+    ),
+    IssueKind(
+        UNRESOLVED_REFERENCE, "A $ref of a schema names no readable schema node in the repository."
+    ),
+    IssueKind(UNREADABLE_SCHEMA, "A schema named by the registry cannot be read."),
+)
+
+#: The kinds reporting a file left unanalyzed, which makes a run incomplete.
+UNANALYZED = frozenset({UNREADABLE_SOURCE, UNREADABLE_SCHEMA})

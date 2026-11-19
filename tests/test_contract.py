@@ -8,7 +8,11 @@ from typing import Any
 import pytest
 import yaml
 
-from anagraphe.bindings import CONTRACT, BindingChecker, BindingResolver, Merge, Role
+from anagraphe_read._bindings.contract import CONTRACT
+from anagraphe_read._bindings.model import Merge, Role
+from anagraphe_read._bindings.resolution import BindingResolver
+
+from anagraphe.bindings.service import BindingChecker
 from anagraphe.configuration import load_config
 
 CASES_FILE = Path(__file__).resolve().parent.parent / "specs" / "conformance" / "bindings.yml"

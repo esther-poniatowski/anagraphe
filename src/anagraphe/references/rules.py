@@ -14,10 +14,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from anagraphe.core.conditions import Condition
-from anagraphe.core.filters import scalars
+from anagraphe_read._core.anchors import has_block_anchor
+from anagraphe_read._core.conditions import Condition
+from anagraphe_read._core.filters import scalars
+
 from anagraphe.core.links import Target
-from anagraphe.core.anchors import has_block_anchor
 from anagraphe.references.conventions import Convention
 from anagraphe.references.model import MARKDOWN, WIKILINK, Fragments, Reference
 from anagraphe.references.resolution import Resolution
@@ -50,7 +51,7 @@ class Unlinkable:
 
         Examples
         --------
-        >>> from anagraphe.core.filters import Filter
+        >>> from anagraphe_read._core.filters import Filter
         >>> rule = Unlinkable(Condition(filters=(Filter((("status", ("inbox",)),)),)))
         >>> rule.reason({"status": "inbox"})
         'has status inbox'

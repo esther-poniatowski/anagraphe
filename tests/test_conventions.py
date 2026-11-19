@@ -8,8 +8,8 @@ from typing import Any
 import yaml
 
 from anagraphe.configuration import load_config
-from anagraphe.references.service import ReferenceChecker
 from anagraphe.refactor import MoveService
+from anagraphe.references.service import ReferenceChecker
 
 #: The files cited by every case.
 TARGETS = {

@@ -11,11 +11,12 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from anagraphe.core.exclusions import Exemptions
-from anagraphe.core.files import TextCache, select, walk
-from anagraphe.core.issues import Issue, IssueKind, Report, link
+from anagraphe_read._core.exclusions import Exemptions
+from anagraphe_read._core.files import TextCache, select, walk
+from anagraphe_read._core.issues import Issue, IssueKind, Report, link
+from anagraphe_read._core.metadata import MetadataReader
+
 from anagraphe.core.links import Target
-from anagraphe.core.metadata import MetadataReader
 from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.model import SHORTEST, WIKILINK, Reference
 from anagraphe.references.resolution import FileIndex, Resolver
@@ -71,7 +72,7 @@ class ReferenceChecker:
         """Check the files below the given targets, the whole repository without a target.
 
         When ``strict``, a named target holding no file read by a syntax raises a
-        :class:`~anagraphe.core.files.TargetError`.
+        :class:`~anagraphe_read._core.files.TargetError`.
         """
         files = select(self.root, paths, self.config.exemptions, self.covers, strict)
         issues = [issue for rel in files for issue in self.check_file(rel)]

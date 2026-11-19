@@ -35,8 +35,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Mapping
 
-from anagraphe.core.conditions import FILE_KEYS, Condition, parse_condition
-from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings
+from anagraphe_read._core.conditions import FILE_KEYS, Condition, parse_condition
+from anagraphe_read._core.configuration import ConfigurationError, known_keys, mapping, strings
+
 from anagraphe.references.model import CODE, RELATIVE, ROOT, Region, Style, StyleKind
 
 #: The keys of a rule, and of its condition.

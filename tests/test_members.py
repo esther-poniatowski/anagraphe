@@ -11,9 +11,10 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
 from anagraphe.indexes.service import RunResult, run
 from anagraphe.refactor import MoveService
 

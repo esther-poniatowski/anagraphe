@@ -18,10 +18,11 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Mapping
 
-from anagraphe.core.conditions import parse_condition
-from anagraphe.core.configuration import ConfigurationError, known_keys, mapping, strings
-from anagraphe.core.exclusions import Exemptions, exemptions
-from anagraphe.core.metadata import MetadataReader
+from anagraphe_read._core.conditions import parse_condition
+from anagraphe_read._core.configuration import ConfigurationError, known_keys, mapping, strings
+from anagraphe_read._core.exclusions import Exemptions, exemptions
+from anagraphe_read._core.metadata import MetadataReader
+
 from anagraphe.references.conventions import Conventions, parse_conventions
 from anagraphe.references.model import Fragments
 from anagraphe.references.rules import RULES, Unlinkable

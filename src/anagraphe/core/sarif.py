@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
-from anagraphe.core.issues import Issue, IssueKind
+from anagraphe_read._core.issues import Issue, IssueKind
 
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = (

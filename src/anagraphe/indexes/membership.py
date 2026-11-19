@@ -28,7 +28,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Mapping, Sequence
 
-from anagraphe.core.issues import Issue, pointer
+from anagraphe_read._core.issues import Issue, pointer
+
 from anagraphe.indexes.notes import Note
 from anagraphe.indexes.slots import GroupSpec
 

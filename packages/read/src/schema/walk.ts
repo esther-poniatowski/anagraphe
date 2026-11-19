@@ -5,7 +5,7 @@
  * the subschemas of `allOf`, `anyOf` and `oneOf`, which describe the same value as their schema,
  * and every `$ref`, resolved through the schema loader. Under any other applicator, such as `not`
  * or `patternProperties`, a node describes no value of a single key path, so the walk visits it
- * without a path. The walk mirrors `anagraphe.core.schemas.SchemaReader.walk` of the Python read
+ * without a path. The walk mirrors `anagraphe_read._core.schemas.SchemaReader.walk` of the Python read
  * side, node for node and in the same order.
  */
 import { isMapping } from "../documents/text.js";

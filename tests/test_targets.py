@@ -18,22 +18,23 @@ import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from typer.testing import CliRunner
 
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._targets import kinds as target_kinds
+from anagraphe_read._targets.kinds import KINDS
+from anagraphe_read._targets.model import InvalidTarget, Target, admits
+from anagraphe_read._targets.registry.contract import REGISTRY_FILE
+from anagraphe_read._targets.resource import (
+    ADDRESSING_FILE,
+    ADDRESSING_ID,
+    REPOSITORY_CONTRACT,
+    REPOSITORY_FILE,
+    schema,
+)
+from anagraphe_read._targets.specification import IMPLEMENTED_SPECIFICATION
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.targets import (
-    ADDRESSING_ID,
-    IMPLEMENTED_SPECIFICATION,
-    REPOSITORY_CONTRACT,
-    InvalidTarget,
-    Target,
-    TargetChecker,
-    admits,
-)
-from anagraphe.targets import kinds as target_kinds
-from anagraphe.targets.kinds import KINDS
-from anagraphe.targets.registry.contract import REGISTRY_FILE
-from anagraphe.targets.resource import ADDRESSING_FILE, REPOSITORY_FILE, schema
+from anagraphe.targets.service import TargetChecker
 
 PROJECT = Path(__file__).resolve().parent.parent
 CASES_FILE = PROJECT / "specs" / "conformance" / "targets.yml"

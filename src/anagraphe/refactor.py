@@ -23,12 +23,14 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
+from anagraphe_read._core.exclusions import Exemptions
+from anagraphe_read._core.files import TargetError, is_text, walk
+from anagraphe_read._core.issues import Report
+from anagraphe_read._core.metadata import MetadataReader
+
 from anagraphe.configuration import RepositoryConfig
-from anagraphe.core.exclusions import Exemptions
-from anagraphe.core.files import TargetError, is_text, walk, write_atomically
-from anagraphe.core.issues import Report
-from anagraphe.core.metadata import MetadataReader
 from anagraphe.core.structured import apply_edits
+from anagraphe.core.writes import write_atomically
 from anagraphe.indexes.relocation import IndexEdit, IndexRelocator
 from anagraphe.indexes.service import RunResult, run
 from anagraphe.references.configuration import ReferenceConfig

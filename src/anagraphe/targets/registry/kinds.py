@@ -8,11 +8,11 @@ its entry as its locus. The defects of the identifiers in the walk, ``missing-id
 
 from __future__ import annotations
 
-from anagraphe.core.issues import IssueKind
+from anagraphe_read._core.issues import IssueKind
 
 # A registry that cannot be parsed, or that violates ``anagraphe:record-registry@1``: the kind is
 # defined beside the kinds of the targets, whose resolver reports it in another repository.
-from anagraphe.targets.kinds import INVALID_RECORD_REGISTRY
+from anagraphe_read._targets.kinds import INVALID_RECORD_REGISTRY
 
 #: A registry that is absent, or whose entries, repository or form differ from the generation.
 STALE_REGISTRY = "stale-registry"

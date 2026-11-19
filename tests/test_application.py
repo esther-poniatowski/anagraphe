@@ -8,10 +8,11 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-import anagraphe.core.files as files
+from anagraphe_read._core.configuration import ConfigurationError
+
 from anagraphe.cli import app
 from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
+import anagraphe.core.writes as writes
 from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.service import run
 
@@ -137,7 +138,7 @@ def test_atomic_write_restores_replaced_indexes(
     )
     indexes = [tmp_path / "notes" / "_index.md", tmp_path / "other" / "_index.md"]
     before = {index: index.read_bytes() for index in indexes}
-    replace = files.os.replace
+    replace = writes.os.replace
     calls = 0
 
     def fail_second_replacement(source: Path, target: Path) -> None:
@@ -147,7 +148,7 @@ def test_atomic_write_restores_replaced_indexes(
             raise OSError("injected replacement failure")
         replace(source, target)
 
-    monkeypatch.setattr(files.os, "replace", fail_second_replacement)
+    monkeypatch.setattr(writes.os, "replace", fail_second_replacement)
     with pytest.raises(OSError, match="injected replacement failure"):
         run(tmp_path, _indexes(tmp_path), "write")
     assert {index: index.read_bytes() for index in indexes} == before
@@ -157,11 +158,11 @@ def test_atomic_write_creates_a_file_and_removes_it_on_rollback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A created file takes the mode granted by the umask, and a later failure removes it."""
-    files.write_atomically(tmp_path, {"new.yml": "a: 1\n"})
+    writes.write_atomically(tmp_path, {"new.yml": "a: 1\n"})
     assert (tmp_path / "new.yml").read_text(encoding="utf-8") == "a: 1\n"
-    assert (tmp_path / "new.yml").stat().st_mode & 0o777 == 0o666 & ~files._umask()
+    assert (tmp_path / "new.yml").stat().st_mode & 0o777 == 0o666 & ~writes._umask()
     (tmp_path / "kept.yml").write_text("b: 1\n", encoding="utf-8")
-    replace = files.os.replace
+    replace = writes.os.replace
     calls = 0
 
     def fail_second_replacement(source: Path, target: Path) -> None:
@@ -171,9 +172,9 @@ def test_atomic_write_creates_a_file_and_removes_it_on_rollback(
             raise OSError("injected replacement failure")
         replace(source, target)
 
-    monkeypatch.setattr(files.os, "replace", fail_second_replacement)
+    monkeypatch.setattr(writes.os, "replace", fail_second_replacement)
     with pytest.raises(OSError, match="injected replacement failure"):
-        files.write_atomically(tmp_path, {"created.yml": "c: 1\n", "kept.yml": "b: 2\n"})
+        writes.write_atomically(tmp_path, {"created.yml": "c: 1\n", "kept.yml": "b: 2\n"})
     assert not (tmp_path / "created.yml").exists()
     assert (tmp_path / "kept.yml").read_text(encoding="utf-8") == "b: 1\n"
     assert sorted(path.name for path in tmp_path.iterdir()) == ["kept.yml", "new.yml"]

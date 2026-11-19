@@ -1,0 +1,265 @@
+"""
+The contract ``anagraphe:record-registry@1``: the model of a record registry, its reading and its
+validation.
+
+A registry maps the identifier of each record of a repository to its path and its format, and keeps
+the permanent list of the retired identifiers, each with its date and its optional successor. A
+YAML date is read as the string that it writes, so the reading of a registry does not depend on the
+timestamps of a YAML reader. The written form of a registry belongs to the command line of
+Anagraphe, which writes the registry.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+from functools import cache
+from pathlib import Path, PurePosixPath
+from typing import Any, Callable, Mapping
+
+import yaml
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from referencing import Registry, Resource
+
+from anagraphe_read._core.issues import pointer
+from anagraphe_read._targets.resource import ADDRESSING_FILE, ADDRESSING_ID, schema
+
+#: The absolute ``$id`` of the schema of the contract, which carries its major version.
+REGISTRY_ID = (
+    "https://github.com/esther-poniatowski/anagraphe/schemas/record-registry.v1.schema.yml"
+)
+#: The contract of the record registry.
+REGISTRY_CONTRACT = "anagraphe:record-registry@1"
+#: The package file of the schema of the contract.
+REGISTRY_FILE = "record-registry.v1.schema.yml"
+
+
+class Format(StrEnum):
+    """The format of the file of a record, read from its suffix."""
+
+    MARKDOWN = "markdown"
+    YAML = "yaml"
+    JSON = "json"
+    TOML = "toml"
+
+
+#: The format of each suffix of a record.
+SUFFIX_FORMATS = {
+    ".md": Format.MARKDOWN,
+    ".yml": Format.YAML,
+    ".yaml": Format.YAML,
+    ".json": Format.JSON,
+    ".toml": Format.TOML,
+}
+
+
+def format_of(rel: str) -> Format:
+    """Return the format of the file of a record.
+
+    Raises
+    ------
+    KeyError
+        If the suffix of the file names no format of a record.
+
+    Examples
+    --------
+    >>> format_of("notes/a.md"), format_of("contacts/b.yaml"), format_of("data/c.json")
+    (<Format.MARKDOWN: 'markdown'>, <Format.YAML: 'yaml'>, <Format.JSON: 'json'>)
+    """
+    return SUFFIX_FORMATS[PurePosixPath(rel).suffix]
+
+
+@dataclass(frozen=True)
+class Entry:
+    """The file of one record: its path relative to the root, and its format."""
+
+    path: str
+    format: Format
+
+
+@dataclass(frozen=True)
+class Retirement:
+    """A retired identifier: the day of its retirement, and its successor after a rename."""
+
+    #: The day of the retirement, ``YYYY-MM-DD``.
+    date: str
+    #: The identifier replacing the retired one, None when the record was removed.
+    replaced_by: str | None = None
+
+
+@dataclass(frozen=True)
+class RecordRegistry:
+    """The content of a record registry."""
+
+    repository: str
+    records: Mapping[str, Entry]
+    retired: Mapping[str, Retirement]
+
+
+@dataclass(frozen=True)
+class RegistryProblem:
+    """A defect of a registry: the JSON Pointer of its value, and why."""
+
+    pointer: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class RegistryReading:
+    """The registry read from a file, None when the file is absent or invalid, and its defects."""
+
+    registry: RecordRegistry | None
+    problems: tuple[RegistryProblem, ...] = ()
+    #: The text of the file, None when the file is absent.
+    text: str | None = None
+
+    @property
+    def exists(self) -> bool:
+        """Whether the file of the registry exists."""
+        return self.text is not None
+
+
+class _Loader(yaml.SafeLoader):  # pylint: disable=too-many-ancestors
+    """A safe YAML loader reading each timestamp as the string that it writes."""
+
+
+def _timestamp(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> str:
+    """Return a YAML timestamp as the string that it writes, such as ``2026-11-20``."""
+    return str(loader.construct_scalar(node))
+
+
+_Loader.add_constructor("tag:yaml.org,2002:timestamp", _timestamp)
+
+
+@cache
+def _validator() -> Draft202012Validator:
+    """Return the validator of the contract, which resolves the addressing from the package data."""
+    registry: Registry[Any] = Registry().with_resource(
+        ADDRESSING_ID, Resource.from_contents(schema(ADDRESSING_FILE))
+    )
+    return Draft202012Validator(
+        schema(REGISTRY_FILE),
+        registry=registry,
+        format_checker=Draft202012Validator.FORMAT_CHECKER,
+    )
+
+
+def read_registry(path: Path, rel: str) -> RegistryReading:
+    """Read the registry at ``path``, which the findings name ``rel``.
+
+    An absent file holds no registry and no defect. A file that cannot be parsed, or that
+    violates the contract, holds no registry and its defects.
+    """
+    if not path.is_file():
+        return RegistryReading(None)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return RegistryReading(None, (RegistryProblem("", f"{rel} cannot be read: {error}"),), "")
+    return parse_registry(text, rel)
+
+
+def parse_registry(text: str, rel: str) -> RegistryReading:
+    """Read the text of a registry, which the findings name ``rel``, as a file of the repository or
+    a file of a selected state."""
+    try:
+        # The loader derives from SafeLoader, so it constructs no Python object.
+        data = yaml.load(text, Loader=_Loader)
+    except yaml.YAMLError as error:
+        first = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+        return RegistryReading(
+            None, (RegistryProblem("", f"{rel} cannot be parsed: {first}"),), text
+        )
+    registry, problems = check_registry(data, rel)
+    return RegistryReading(registry, problems, text)
+
+
+def check_registry(
+    data: Any, rel: str
+) -> tuple[RecordRegistry | None, tuple[RegistryProblem, ...]]:
+    """Check the content of a registry against ``anagraphe:record-registry@1``.
+
+    The schema is checked first, then the rule that no chain of ``replaced_by`` returns to an
+    identifier that it has left. Each defect is reported once per JSON Pointer.
+
+    Examples
+    --------
+    >>> data = {"_schema": REGISTRY_CONTRACT, "repository": "lab", "records": {}, "retired": {
+    ...     "a": {"date": "2026-11-20", "replaced_by": "b"},
+    ...     "b": {"date": "2026-11-21", "replaced_by": "a"}}}
+    >>> [problem.pointer for problem in check_registry(data, "r.yml")[1]]
+    ['/retired/a/replaced_by', '/retired/b/replaced_by']
+    """
+    invalid: dict[str, RegistryProblem] = {}
+    for error in _validator().iter_errors(data):
+        at = pointer(*error.absolute_path)
+        invalid.setdefault(
+            at, RegistryProblem(at, f"{rel} violates {REGISTRY_CONTRACT}: {error.message}")
+        )
+    if invalid:
+        return None, tuple(invalid[at] for at in sorted(invalid))
+    registry = RecordRegistry(
+        data["repository"],
+        {
+            identifier: Entry(value["path"], Format(value["format"]))
+            for identifier, value in data["records"].items()
+        },
+        {
+            identifier: Retirement(value["date"], value.get("replaced_by"))
+            for identifier, value in data["retired"].items()
+        },
+    )
+    cycles = tuple(
+        RegistryProblem(
+            pointer("retired", identifier, "replaced_by"),
+            f"{rel} violates {REGISTRY_CONTRACT}: the successors of {identifier} return to an "
+            "identifier that they have left, so no chain of renames ends",
+        )
+        for identifier in sorted(registry.retired)
+        if _cycles(registry.retired, identifier)
+    )
+    return (None, cycles) if cycles else (registry, ())
+
+
+def _cycles(retired: Mapping[str, Retirement], identifier: str) -> bool:
+    """Whether the chain of successors from a retired identifier never ends."""
+    seen = {identifier}
+    current = retired[identifier].replaced_by
+    while current is not None and current in retired:
+        if current in seen:
+            return True
+        seen.add(current)
+        current = retired[current].replaced_by
+    return False
+
+
+def follow(
+    retired: Mapping[str, Retirement], identifier: str, live: Callable[[str], bool]
+) -> tuple[str, ...] | None:
+    """Return the successors of a retired identifier up to the first one that ``live`` accepts.
+
+    The chain follows ``replaced_by`` through the retired identifiers. It returns None when it
+    ends without a live identifier: at an identifier retired without a successor, at a successor
+    neither live nor retired, or on a cycle.
+
+    Examples
+    --------
+    >>> retired = {"a": Retirement("2026-11-20", "b"), "b": Retirement("2026-11-21", "c")}
+    >>> follow(retired, "a", {"c"}.__contains__)
+    ('b', 'c')
+    >>> follow(retired, "a", set().__contains__) is None
+    True
+    """
+    chain: list[str] = []
+    seen = {identifier}
+    current = identifier
+    while current in retired:
+        successor = retired[current].replaced_by
+        if successor is None or successor in seen:
+            return None
+        chain.append(successor)
+        seen.add(successor)
+        if live(successor):
+            return tuple(chain)
+        current = successor
+    return None

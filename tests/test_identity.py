@@ -16,19 +16,20 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from anagraphe.cli import app
-from anagraphe.configuration import load_config
-from anagraphe.core.configuration import ConfigurationError
-from anagraphe.core.git_state import origin_url
-from anagraphe.targets import TargetChecker
-from anagraphe.targets.identity import (
+from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.git_state import origin_url
+from anagraphe_read._targets.identity import (
     DeclaredIdentity,
     IdentitySource,
     derive_identity,
     parse_section,
     repository_identity,
 )
-from anagraphe.targets.resource import schema
+from anagraphe_read._targets.resource import schema
+
+from anagraphe.cli import app
+from anagraphe.configuration import load_config
+from anagraphe.targets.service import TargetChecker
 
 PROJECT = Path(__file__).resolve().parent.parent
 CASES_FILE = PROJECT / "specs" / "conformance" / "identity.yml"
