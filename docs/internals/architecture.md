@@ -6,13 +6,15 @@ listed before it:
 
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
-| core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, block anchors, the regions of a Markdown file read from Merismos, the schemas of record contracts read through the schema registry, configuration primitives, file walks, cached reads, atomic writes, Git state |
+| core | `anagraphe.core` | issues and reports, the findings log, paths and patterns, Markdown links, block anchors, the regions of a Markdown file read from Merismos, the schemas of record contracts read through the schema registry, the patterns of the schemas published by the package, the default identifier of a file read through its metadata source, configuration primitives, file walks, cached reads, atomic writes, Git state |
 | capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings`, `anagraphe.targets` | generating the indexes, checking the references between files, resolving the bindings of texts, and checking the logical targets between records |
 | composition | `anagraphe.refactor`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the sections of `anagraphe.yml`, and the command line |
 
 No capability imports another. Each capability parses its own sections of `anagraphe.yml`
 with the primitives of the core, and the composition layer joins the sections into one
-configuration. The capability `anagraphe.targets` owns two sections, `targets` and `records`.
+configuration. The capability `anagraphe.targets` owns two sections, `targets` and `records`. The
+composition layer also hands the indexes the identifier of a file as the targets resolve it, so a
+nested group honours `x-identifier` without importing the capability.
 
 Each capability also declares the kinds of issue that it can report, in
 `anagraphe.indexes.kinds`, `anagraphe.references.service`, `anagraphe.bindings.kinds`,

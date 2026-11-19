@@ -107,13 +107,15 @@ def _check(
     root: Path,
     section: dict[str, Any] | None = None,
     repository: dict[str, Any] | None = None,
+    metadata: list[dict[str, Any]] | None = None,
 ) -> list[list[str]]:
-    """Check a repository under the section targets, and the section repository when one is given,
-    and return its sorted issues."""
+    """Check a repository under the section targets, and the sections repository and metadata when
+    they are given, and return its sorted issues."""
     declared = {
         "_schema": "anagraphe:configuration@2",
         "targets": SUITE["section"] if section is None else section,
         **({"repository": repository} if repository is not None else {}),
+        **({"metadata": metadata} if metadata is not None else {}),
     }
     (root / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
     config = load_config(root, root / "anagraphe.yml")
@@ -130,7 +132,8 @@ def test_case_conforms(tmp_path: Path, case_id: str) -> None:
         rel: text for rel, text in SUITE["files"].items() if rel not in case.get("remove", [])
     }
     _write(root, {**shared, **case["files"]})
-    assert _check(root, repository=case.get("repository", SUITE["repository"])) == case["issues"]
+    repository = case.get("repository", SUITE["repository"])
+    assert _check(root, repository=repository, metadata=case.get("metadata")) == case["issues"]
 
 
 def test_every_first_version_finding_has_a_planted_case() -> None:
@@ -221,10 +224,10 @@ def test_packaged_schemas_are_valid_and_identified() -> None:
 
 
 def test_implemented_specification_names_the_packaged_versions() -> None:
-    """The declared versions are the $id of the resource and the contracts of the two schemas."""
+    """The declared versions are the $id of the resource and the contract of the registry; the
+    contract of the retired manifest is no longer read, so it is not declared."""
     assert dict(IMPLEMENTED_SPECIFICATION) == {
         "addressing": schema(ADDRESSING_FILE)["$id"],
-        "repository": schema(REPOSITORY_FILE)["properties"]["_schema"]["const"],
         "registry": schema(REGISTRY_FILE)["properties"]["_schema"]["const"],
     }
 

@@ -50,7 +50,7 @@ $defs:
         not:
           pattern: '(^|/)\.{1,2}(/|$(?!\n))|//'
       format:
-        enum: [markdown, yaml, json]
+        enum: [markdown, yaml, json, toml]
         description: The format of the file, read from its suffix.
   retirement:
     title: Retired identifier

@@ -124,9 +124,12 @@ def _configure(root: Path, sections: dict[str, Any] | None = None) -> Repository
     return load_config(root, root / "anagraphe.yml")
 
 
-def _service(root: Path, clock: datetime.date = TODAY) -> RegistryService:
-    """Return the registry service of a repository whose sections are those of the cases."""
-    config = _configure(root)
+def _service(
+    root: Path, clock: datetime.date = TODAY, sections: dict[str, Any] | None = None
+) -> RegistryService:
+    """Return the registry service of a repository whose sections are those of the cases, unless
+    others are given."""
+    config = _configure(root, sections)
     assert config.targets is not None and config.records is not None
     return RegistryService(
         root, config.targets, config.records, clock=lambda: clock, declared=config.repository
@@ -207,17 +210,29 @@ def _bytes(path: Path) -> bytes | None:
 
 
 def test_write_generates_the_registry_and_carries_the_retired_identifiers(tmp_path: Path) -> None:
+    """A JSON and a TOML document are records identified through the metadata sources that the
+    configuration declares for them; a JSON document has no built-in source."""
     _repository(
         tmp_path,
-        {"notes/new.md": "---\nid: new\n---\n", "data/z.json": '{"metadata": {"id": "z"}}'},
+        {
+            "notes/new.md": "---\nid: new\n---\n",
+            "data/z.json": '{"metadata": {"id": "z"}}',
+            "data/t.toml": '[record]\nid = "t"\n',
+            "data/plain.json": '{"metadata": {"id": "plain"}}',
+        },
     )
-    result = _service(tmp_path).write()
+    sources = [
+        {"when": {"paths": ["data/z.json"]}, "from": {"json": ["metadata"]}},
+        {"when": {"types": ["toml"]}, "from": {"toml": ["record"]}},
+    ]
+    result = _service(tmp_path, sections={**SUITE["sections"], "metadata": sources}).write()
     assert result.issues == () and result.changed
     written = (tmp_path / REGISTRY).read_text(encoding="utf-8")
     expected = SUITE["files"][REGISTRY].replace(
         "  note-n: {path: notes/n.md, format: markdown}\n",
         "  new: {path: notes/new.md, format: markdown}\n"
         "  note-n: {path: notes/n.md, format: markdown}\n"
+        "  t: {path: data/t.toml, format: toml}\n"
         "  z: {path: data/z.json, format: json}\n",
     )
     assert written == expected

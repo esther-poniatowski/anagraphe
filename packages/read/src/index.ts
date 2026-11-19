@@ -76,10 +76,25 @@ export {
   parseRecord,
   readRecord,
   type IdentifierReading,
+  type LocatedValue,
+  type ParseOptions,
   type RecordFormat,
   type RecordReading,
   type RecordSource,
+  type TomlParser,
 } from "./records.js";
+export {
+  IDENTIFIER_KEY,
+  NO_SOURCE,
+  TOP,
+  builtInSource,
+  defaultIdentifier,
+  holders,
+  type DefaultIdentifier,
+  type Holder,
+  type MetadataKind,
+  type MetadataSource,
+} from "./metadata.js";
 export {
   IDENTITY_DISAGREEMENT,
   IdentityError,

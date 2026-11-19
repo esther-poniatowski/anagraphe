@@ -76,7 +76,22 @@ properties:
 ```
 
 A record whose schema declares no `x-identifier`, and a note without a schema, take the key `id`
-of their metadata: the frontmatter of a note, or the block `metadata` of a YAML document.
+of the metadata source that the section `metadata` of `anagraphe.yml` declares for the file, as
+the [configuration guide](configuration.md) states. The built-in sources read the frontmatter of a
+note, and the top level of a YAML document, then its block `metadata`. A JSON document has no
+built-in source, so it holds an identifier only when a rule declares one, such as
+`{when: {types: [json]}, from: {json: [metadata]}}`. A TOML document is a record when a rule
+declares a `toml` source for it.
+
+When several key paths of the source hold `id`, the first path in the declared order gives the
+identifier. A later path holding another value is reported as `invalid-identifier` at that path,
+and the record keeps the identifier of the first path:
+
+```yaml
+# a YAML record under the built-in source: its identifier is first, and /metadata/id is reported
+id: first
+metadata: {id: second}
+```
 
 ## Declare the units
 
@@ -87,7 +102,9 @@ A unit is a place inside a record that a target can name:
 - in a Markdown note, a block anchor, named without its caret: `{id: mixture-input, unit:
   definition}` names the block `^definition` of the note declaring `id: mixture-input`.
 
-A heading is not a unit. The units of one record share one namespace.
+A heading is not a unit. The units of one record share one namespace. An item identifier outside
+the pattern of a unit identifier, such as `eta.rep`, is no unit, and the check reports it as
+`invalid-identifier` at the field of the item.
 
 ```yaml
 properties:
@@ -142,7 +159,8 @@ targets:
 | `read_sides` | the places where other read sides declare their implemented versions, each `{path, pointer}`, as the section "Compare the read sides" below states | none |
 
 The command `anagraphe targets check`, and `anagraphe check` with every declared section, read every
-Markdown note and every YAML or JSON document of the repository for its identifier. A file of a
+Markdown note, every YAML or JSON document, and every TOML document with a `toml` source of the
+repository for its identifier. A file of a
 nested repository, such as a submodule, belongs to that repository and is not read. The check then
 reports the identifiers and the targets of the selected files:
 
@@ -152,7 +170,7 @@ reports the identifiers and the targets of the selected files:
 | `invalid-identifier-declaration` | error | `x-identifier` is not a dotted path of property names, or names no property of its schema |
 | `invalid-target-contract` | error | `x-target-contract` is not a non-empty list of contract identifiers |
 | `missing-identifier` | error | a record of a contract whose schema declares `x-identifier` holds no value there |
-| `invalid-identifier` | error | an identifier lies outside the pattern of a record identifier |
+| `invalid-identifier` | error | an identifier lies outside the pattern of a record identifier, an item identifier lies outside the pattern of a unit identifier, or a later key path of the metadata source holds another identifier; reported at the field |
 | `duplicate-identifier` | error | two records of the repository hold one identifier; reported at each record |
 | `identity-disagreement` | warning | no override is declared, and the remote and the folder name two different identifiers; reported at the configuration file |
 | `retired-repository-manifest` | warning | a `repository.yml` is left at the root |
@@ -211,7 +229,7 @@ targets:
 | `path` | the JSON or YAML file holding the declaration, relative to the root; a suffix `.json` selects JSON |
 | `pointer` | the JSON Pointer of the declaration in the file, the empty pointer for the whole file |
 
-The declaration maps the keys `addressing`, `repository` and `registry` to strings, as the
+The declaration maps the keys `addressing` and `registry` to strings, as the
 [logical targets specification](../specification/logical-targets.md) defines them under
 "Versioning". In the manifest of such a plugin, the
 declaration stands beside the keys of the manifest:
@@ -220,11 +238,14 @@ declaration stands beside the keys of the manifest:
 {
   "anagrapheRead": {
     "addressing": "https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml",
-    "repository": "anagraphe:repository@1",
     "registry": "anagraphe:record-registry@1"
   }
 }
 ```
+
+Until the release that follows 0.10.0, the declaration also held the key `repository`, the contract
+of the retired manifest. A read side of 0.10.0 therefore differs on that key, and the comparison
+reports it until both read sides take the same release.
 
 The command `anagraphe targets check`, and `anagraphe check`, compare each declaration, key by key,
 with the `IMPLEMENTED_SPECIFICATION` of Anagraphe, even when the command selects only some files.
@@ -288,7 +309,7 @@ retired:
 The key `repository` holds the identifier of the repository. When that identifier changes, such as
 after a renamed remote, the check reports the registry as stale, so an identity never changes
 silently. Each entry of `records`
-holds the path of its record and its format, `markdown`, `yaml` or `json`. An entry holds no digest
+holds the path of its record and its format, `markdown`, `yaml`, `json` or `toml`. An entry holds no digest
 of the bytes of its record, so it changes only when its record appears, disappears, moves or
 changes its identifier. A second write yields the same bytes. Beyond its schema, the contract
 requires that no chain of `replaced_by` returns to an identifier that it has left.

@@ -18,6 +18,7 @@ import type {
   SchemaLoading,
 } from "../../src/ports.js";
 import { RepositoryIndex } from "../../src/live-index.js";
+import { parseToml, ruleSources } from "./host-metadata.js";
 
 /** The files of a repository, each read counted. */
 export class MemoryFiles implements FileSource {
@@ -127,12 +128,16 @@ function references(value: unknown): string[] {
   return [...own.filter((address) => address !== ""), ...Object.values(value).flatMap(references)];
 }
 
-/** Returns an index over in-memory files, its schema registry at `registry`. */
+/**
+ * Returns an index over in-memory files, its schema registry at `registry`, and the metadata
+ * source of each file selected by the rules of a section `metadata`.
+ */
 export function memoryIndex(
   files: FileSource,
   registry: string,
   records: string | null,
   repository: string | null = null,
+  metadata: readonly unknown[] = [],
 ): RepositoryIndex {
   return new RepositoryIndex(
     {
@@ -140,6 +145,6 @@ export function memoryIndex(
       bindings: new RegistryBinding(files, registry),
       schemas: new RegistrySchemas(files, registry),
     },
-    { registry: records, repository },
+    { registry: records, repository, metadata: ruleSources(metadata), toml: parseToml },
   );
 }

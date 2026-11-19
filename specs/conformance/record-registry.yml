@@ -56,13 +56,13 @@ documents:
   invalid: [/repository]
 - id: entry-defects
   note: >-
-    A format outside markdown, yaml and json, an entry without path, a key of its own, a path
+    A format outside markdown, yaml, json and toml, an entry without path, a key of its own, a path
     leaving the root, and an absolute path.
   text: |
     _schema: anagraphe:record-registry@1
     repository: lab
     records:
-      a: {path: a.toml, format: toml}
+      a: {path: a.xml, format: xml}
       b: {format: yaml}
       c: {path: c.yml, format: yaml, digest: x}
       d: {path: ../d.md, format: markdown}
@@ -77,7 +77,7 @@ documents:
     _schema: anagraphe:record-registry@1
     repository: lab
     records:
-      a/b: {path: a.md, format: toml}
+      a/b: {path: a.md, format: xml}
     retired:
       c~d: {date: 2026-11-20, replaced_by: Ghost}
   invalid: [/records, /records/a~1b/format, /retired, /retired/c~0d/replaced_by]
@@ -191,7 +191,7 @@ cases:
       _schema: anagraphe:record-registry@1
       repository: lab
       records:
-        ada: {path: people/ada.yml, format: toml}
+        ada: {path: people/ada.yml, format: xml}
         note-n: {path: notes/n.md, format: markdown}
       retired: {}
   issues:

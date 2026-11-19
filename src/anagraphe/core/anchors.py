@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import re
 
-#: A block anchor closing a line, after a space or a line break, with its name as its group.
-BLOCK_ANCHOR = re.compile(r"(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9_-]*)\s*$", re.MULTILINE)
+from anagraphe.core.published import body
+
+#: A block anchor closing a line, after a space or a line break, with its name as its group. The
+#: name is a unit identifier, so its characters are those of the pattern ``unit-id`` of the
+#: resource of the addressing.
+BLOCK_ANCHOR = re.compile(rf"(?:^|\s)\^({body('unit-id')})\s*$", re.MULTILINE)
 
 
 def has_block_anchor(text: str, name: str) -> bool:

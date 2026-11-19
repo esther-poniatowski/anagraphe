@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A TOML document is a record of the check of the targets and of the record registry when the
+  section `metadata` declares a `toml` source for it, and the registry admits the format `toml`.
+- The finding `invalid-identifier` also reports a declared item identifier outside the pattern
+  `unit-id`, which is no longer kept as a unit, and a later key path of the metadata source holding
+  another identifier than the first.
+- `@anagraphe/read` takes the metadata source of each file from the host, through the options
+  `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
+  the type `MetadataSource`.
+
 ### Changed
+
+- The default identifier of a record whose schema declares no `x-identifier` is the key `id` read
+  through the metadata source that `anagraphe.yml` declares for its file, as ADR 0006 states since
+  its amendment of 2026-11-19. The first key path holding `id` gives the identifier. Under the
+  built-in sources, a key `id` at the top level of a YAML document is now its identifier, read
+  before its block `metadata`, and a JSON document holds a default identifier only under a declared
+  source, such as `{when: {types: [json]}, from: {json: [metadata]}}`.
+- A nested group of an index designates a parent by the identifier that the check of the targets
+  resolves, through `x-identifier` when the section `targets` is declared, instead of the key `id`
+  of the merged metadata.
+- The record resolver reads the default identifier of a record through the metadata source that the
+  configuration of its state declares.
+- `IMPLEMENTED_SPECIFICATION`, in Python and in TypeScript, no longer names `repository`, since no
+  read side reads the contract `anagraphe:repository@1`. A read side of 0.10.0 therefore differs
+  from this release on that key.
+- The block anchor of `anagraphe.core.anchors` derives its name from the pattern `unit-id` of the
+  resource, read by the new module `anagraphe.core.published`, which `anagraphe.targets.resource`
+  now imports.
 
 - The schema registry is read through `kleisis.registry`, the public reader of Kleisis, now a
   dependency. A registry of the legacy form `schema_version: 1` holding `resources` is rejected, as

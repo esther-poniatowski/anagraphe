@@ -65,15 +65,17 @@ export function sorted(issues: readonly Finding[]): Finding[] {
  * @param registry The schema registry of Kleisis.
  * @param records The record registry, `null` when the repository declares none.
  * @param repository The identifier of the repository, `null` when it has no identity.
+ * @param metadata The rules of the section `metadata`, which select the source of each file.
  */
 export async function findings(
   files: Record<string, string>,
   registry: string,
   records: string | null,
   repository: string | null,
+  metadata: readonly unknown[] = [],
 ): Promise<{ readonly index: RepositoryIndex; readonly issues: Finding[] }> {
   const memory = new MemoryFiles(files);
-  const index = memoryIndex(memory, registry, records, repository);
+  const index = memoryIndex(memory, registry, records, repository, metadata);
   await index.rebuild(Object.keys(files));
   const issues: Finding[] = [];
   for (const path of Object.keys(files).sort()) {
@@ -113,6 +115,9 @@ function recordFindings(index: RepositoryIndex, record: RecordReading): Finding[
     issues.push([record.path, `${identifier.status}-identifier`, identifier.pointer]);
   } else if (identifier.status === "valid" && index.pathsOf(identifier.value).length > 1) {
     issues.push([record.path, "duplicate-identifier", identifier.pointer]);
+  }
+  for (const { pointer: at } of [...record.conflicts, ...record.invalidUnits]) {
+    issues.push([record.path, "invalid-identifier", at]);
   }
   for (const field of record.declarations?.targets ?? []) {
     for (const { keys, value } of valuesAt(record.data, field.path)) {

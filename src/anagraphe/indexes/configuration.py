@@ -75,6 +75,9 @@ class IndexConfig:
     members: tuple[MemberRule, ...] = DEFAULT_MEMBERS
     #: The metadata of each file, read from its declared source.
     metadata: MetadataReader | None = None
+    #: The identifier of a file, as the check of the targets resolves it; None for the key ``id``
+    #: of the metadata source of the file.
+    identifiers: Callable[[str], Any] | None = None
 
     def is_member(self, rel: str) -> bool:
         """Whether an index lists a file of its folder, by the type, path, metadata or declared

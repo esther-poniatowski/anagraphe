@@ -36,10 +36,9 @@ describe("the generated module", () => {
 });
 
 describe("the declared versions", () => {
-  it("name the $id of the addressing and the contracts of the manifest and the registry", () => {
+  it("name the $id of the addressing and the contract of the registry", () => {
     expect(IMPLEMENTED_SPECIFICATION).toEqual({
       addressing: at(packaged("addressing.v1.schema.yml"), "$id"),
-      repository: at(packaged("repository.schema.yml"), "properties", "_schema", "const"),
       registry: at(packaged("record-registry.v1.schema.yml"), "properties", "_schema", "const"),
     });
   });

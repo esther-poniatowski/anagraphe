@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import posixpath
 import re
+import tomllib
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -67,7 +68,8 @@ UNREADABLE_SCHEMA = "unreadable-schema"
 
 
 def parse_document(rel: str, text: str) -> Any:
-    """Parse a document as JSON for a suffix ``.json``, and as YAML otherwise.
+    """Parse a document as JSON for a suffix ``.json``, as TOML for a suffix ``.toml``, and as YAML
+    otherwise.
 
     Raises
     ------
@@ -76,6 +78,8 @@ def parse_document(rel: str, text: str) -> Any:
     """
     if rel.endswith(".json"):
         return load_json(text)
+    if rel.endswith(".toml"):
+        return tomllib.loads(text)
     try:
         return yaml.safe_load(text)
     except yaml.YAMLError as error:

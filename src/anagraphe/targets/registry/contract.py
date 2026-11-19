@@ -45,6 +45,7 @@ class Format(StrEnum):
     MARKDOWN = "markdown"
     YAML = "yaml"
     JSON = "json"
+    TOML = "toml"
 
 
 #: The format of each suffix of a record.
@@ -53,6 +54,7 @@ SUFFIX_FORMATS = {
     ".yml": Format.YAML,
     ".yaml": Format.YAML,
     ".json": Format.JSON,
+    ".toml": Format.TOML,
 }
 
 

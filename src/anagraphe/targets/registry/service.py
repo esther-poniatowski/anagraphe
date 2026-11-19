@@ -26,10 +26,7 @@ from anagraphe.core.files import write_atomically
 from anagraphe.core.issues import Issue, Report, pointer
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.kinds import (
-    DUPLICATE_IDENTIFIER,
-    INVALID_IDENTIFIER,
     INVALID_RECORD_REGISTRY,
-    MISSING_IDENTIFIER,
     UNIDENTIFIED_REPOSITORY,
     UNREADABLE_RECORD,
 )
@@ -39,7 +36,6 @@ from anagraphe.targets.identity import (
     configuration_rel,
     repository_identity,
 )
-from anagraphe.targets.records import Record
 from anagraphe.targets.registry.configuration import RecordsConfig
 from anagraphe.targets.registry.contract import (
     Entry,
@@ -55,8 +51,7 @@ from anagraphe.targets.registry.kinds import (
     UNKNOWN_SUCCESSOR,
     VANISHED_IDENTIFIER,
 )
-from anagraphe.targets.resource import matches
-from anagraphe.targets.walk import RecordWalk
+from anagraphe.targets.walk import RecordWalk, identifier_issues
 
 #: The command that regenerates the registry, named by the findings that it repairs.
 WRITE = "anagraphe records write"
@@ -200,50 +195,15 @@ class RegistryService:
 
     def _walk_issues(self) -> list[Issue]:
         """Return the records of the walk that block a write: unreadable, or holding a missing,
-        invalid or duplicate identifier."""
+        invalid, conflicting or duplicate identifier."""
         issues: list[Issue] = []
         table = self.walk.table
         for record in self.walk.records():
-            issue = self._walk_issue(record, table)
-            if issue is not None:
-                issues.append(issue)
+            if record.problem is not None:
+                issues.append(Issue(record.rel, None, UNREADABLE_RECORD, record.problem))
+            else:
+                issues.extend(identifier_issues(record, table))
         return issues
-
-    @staticmethod
-    def _walk_issue(record: Record, table: dict[str, list[Record]]) -> Issue | None:
-        """Return the issue of one record of the walk that blocks a write, None when it has none."""
-        at = record.identifier_pointer
-        if record.problem is not None:
-            return Issue(record.rel, None, UNREADABLE_RECORD, record.problem)
-        if record.identifier is None:
-            if not record.declared:
-                return None
-            return Issue(
-                record.rel,
-                None,
-                MISSING_IDENTIFIER,
-                f"the contract {record.contract} declares its identifier at {at}, which the "
-                "record leaves empty",
-                locus=at,
-            )
-        if not matches("record-id", record.identifier):
-            return Issue(
-                record.rel,
-                None,
-                INVALID_IDENTIFIER,
-                f"the identifier {record.identifier!r} lies outside the pattern of record-id",
-                locus=at,
-            )
-        others = [other.rel for other in table[record.identifier] if other.rel != record.rel]
-        if others:
-            return Issue(
-                record.rel,
-                None,
-                DUPLICATE_IDENTIFIER,
-                f"the identifier {record.identifier} is also held by {', '.join(others)}",
-                locus=at,
-            )
-        return None
 
     def _save(self, text: str) -> None:
         """Replace the file of the registry, creating its folders."""

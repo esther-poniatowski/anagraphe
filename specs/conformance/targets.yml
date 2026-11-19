@@ -15,8 +15,10 @@
 # section targets and the section repository of anagraphe.yml, then states the issues of the check.
 # The root is the folder case_root, whose name lies outside the pattern repository-id, and it has no
 # remote, so its identity comes from the section repository alone. The key repository of a case
-# replaces the shared section, and null leaves the section out. The key remove lists shared files
-# that a case leaves out. An issue is
+# replaces the shared section, and null leaves the section out. The key metadata of a case declares
+# the section metadata of anagraphe.yml, the rules {when, from} that name the metadata source of a
+# file after the built-in ones; a case without it reads the built-in sources alone. The key remove
+# lists shared files that a case leaves out. An issue is
 # [file, kind, locus]; the issues of a case are listed in sorted order. The root of a case holds no
 # submodule and declares no section resolution, so its resolution context selects no state of
 # another repository; specs/conformance/resolution.yml holds the cases of the record resolver.
@@ -365,6 +367,125 @@ cases:
   - [data/number.yml, invalid-identifier, /metadata/id]
   - [notes/bad.md, invalid-identifier, /id]
   - [people/cy.yml, invalid-identifier, /identity/id]
+- id: invalid-unit-identifier
+  note: >-
+    A declared item identifier outside the pattern unit-id is reported at the item, as a record
+    identifier is, and is no unit; an item without identifier is no unit and no finding.
+  files:
+    args/bad.yml: |
+      _schema: test:argument@1
+      metadata: {id: arg.bad}
+      ideas:
+        - {id: claim}
+        - {id: eta.rep}
+        - {id: 3}
+        - {label: unnamed}
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: arg.bad, unit: claim}
+  issues:
+  - [args/bad.yml, invalid-identifier, /ideas/1/id]
+  - [args/bad.yml, invalid-identifier, /ideas/2/id]
+- id: default-identifier-in-frontmatter
+  note: >-
+    The default identifier of a note is the key id of its frontmatter; a block metadata inside the
+    frontmatter is no key path of the source, so its id names no record.
+  files:
+    notes/front.md: "---\nid: front\nmetadata: {id: inner}\n---\n"
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {id: front}
+        - {id: inner}
+  issues:
+  - [cite.yml, unknown-record, /cites/1]
+- id: default-identifier-in-a-yaml-root
+  note: The built-in source of a YAML document reads the key id at its top level first.
+  files:
+    data/root.yml: "title: Root\nid: root\n"
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: root}
+  issues: []
+- id: default-identifier-in-a-metadata-block
+  note: >-
+    The built-in source of a YAML document reads its block metadata after its top level; a top
+    level whose id is null holds no id.
+  files:
+    data/block.yml: "metadata: {id: block}\n"
+    data/null-root.yml: "id: null\nmetadata: {id: below-null}\n"
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {id: block}
+        - {id: below-null}
+  issues: []
+- id: default-identifier-in-a-toml-source
+  note: >-
+    A TOML document is a record when a rule of the section metadata declares a toml source for it,
+    and its default identifier is the key id at the declared key path.
+  metadata:
+    - when: {types: [toml]}
+      from: {toml: [tool.record]}
+  files:
+    data/record.toml: "[tool.record]\nid = \"from-toml\"\n"
+    data/top.toml: "id = \"top-level\"\n"
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {id: from-toml}
+        - {id: top-level}
+  issues:
+  - [cite.yml, unknown-record, /cites/1]
+- id: toml-without-a-toml-source
+  note: Without a toml source, a TOML document is no record.
+  files:
+    data/record.toml: "[tool.record]\nid = \"from-toml\"\n"
+    cite.yml: |
+      _schema: test:citing@1
+      source: {id: from-toml}
+  issues:
+  - [cite.yml, unknown-record, /source]
+- id: default-identifier-precedence
+  note: >-
+    When several key paths of the source hold one id, the first path in the declared order gives
+    the identifier and its pointer, here the top level of a YAML document; a declared order
+    metadata, . reads the block first.
+  metadata:
+    - when: {paths: [data/reversed.yml]}
+      from: {yaml: [metadata, .]}
+  files:
+    data/both.yml: "id: twin\nmetadata: {id: twin}\n"
+    data/reversed.yml: "id: pair\nmetadata: {id: pair}\n"
+    notes/twin.md: "---\nid: twin\n---\n"
+    notes/pair.md: "---\nid: pair\n---\n"
+  issues:
+  - [data/both.yml, duplicate-identifier, /id]
+  - [data/reversed.yml, duplicate-identifier, /metadata/id]
+  - [notes/pair.md, duplicate-identifier, /id]
+  - [notes/twin.md, duplicate-identifier, /id]
+- id: default-identifier-conflict
+  note: >-
+    Two key paths of the source holding two values are reported as invalid-identifier at the
+    later path, in the declared order; the record keeps the identifier of the first path.
+  metadata:
+    - when: {paths: [data/reversed.yml]}
+      from: {yaml: [metadata, .]}
+  files:
+    data/conflict.yml: "id: first\nmetadata: {id: second}\n"
+    data/reversed.yml: "id: later\nmetadata: {id: earlier}\n"
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {id: first}
+        - {id: second}
+        - {id: earlier}
+        - {id: later}
+  issues:
+  - [cite.yml, unknown-record, /cites/1]
+  - [cite.yml, unknown-record, /cites/3]
+  - [data/conflict.yml, invalid-identifier, /metadata/id]
+  - [data/reversed.yml, invalid-identifier, /id]
 - id: duplicate-identifier
   note: Reported at each record; a target naming the identifier receives no finding of its own.
   files:

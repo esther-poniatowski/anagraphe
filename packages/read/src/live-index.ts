@@ -16,7 +16,8 @@
  */
 import { RETIRED_MANIFEST_FILE } from "./identity.js";
 import type { BindingResolver, FileSource, SchemaLoader } from "./ports.js";
-import { parseRecord, readRecord, type RecordReading } from "./records.js";
+import { builtInSource, type MetadataSource } from "./metadata.js";
+import { parseRecord, readRecord, type RecordReading, type TomlParser } from "./records.js";
 import { follow, readRegistry, type RegistryReading } from "./registry.js";
 import { readDeclarations, type Declarations } from "./schema/declarations.js";
 import type { SchemaProblem } from "./schema/walk.js";
@@ -32,7 +33,10 @@ export interface IndexPorts {
   readonly schemas: SchemaLoader;
 }
 
-/** The identity of the repository, and where the index finds its record registry. */
+/**
+ * The identity of the repository, where the index finds its record registry, and how it reads the
+ * metadata of a file.
+ */
 export interface IndexOptions {
   /** The path of the record registry; `null` when the repository declares none. */
   readonly registry: string | null;
@@ -41,6 +45,14 @@ export interface IndexOptions {
    * when the repository has no identity.
    */
   readonly repository: string | null;
+  /**
+   * The metadata source of a file, which the host selects from the section `metadata` of its
+   * configuration; the built-in source of the file when absent. The source gives the default
+   * identifier of a record, and makes a TOML document with a source `toml` a record.
+   */
+  readonly metadata?: (path: string) => MetadataSource;
+  /** The TOML parser of the host; without it, a TOML record cannot be read. */
+  readonly toml?: TomlParser;
 }
 
 /** How the record of a target holds the unit that the target names. */
@@ -250,7 +262,9 @@ export class RepositoryIndex {
   }
 
   private async indexRecord(path: string, text: string | null, generation: number): Promise<void> {
-    const source = text === null ? null : parseRecord(path, text);
+    const metadata = this.options.metadata?.(path) ?? builtInSource(path);
+    const source =
+      text === null ? null : parseRecord(path, text, { source: metadata, toml: this.options.toml });
     if (source === null) {
       if (this.generations.get(path) === generation) this.forget(path);
       return;

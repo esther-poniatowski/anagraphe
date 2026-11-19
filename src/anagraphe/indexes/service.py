@@ -98,6 +98,7 @@ def run(
         lambda folder: config.sequence_for(root, folder),
         config.migrations,
         config.metadata,
+        config.identifiers,
     )
 
     issues: list[Issue] = []

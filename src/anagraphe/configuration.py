@@ -23,12 +23,14 @@ clones. The section ``repository``, parsed by :mod:`anagraphe.targets.identity`,
 override of the identifier of the repository and its former identifiers. Both serve the check of
 the targets and the record registry, and enable no command of their own.
 
-A section left out disables its subpackage, so a repository adopts each one apart.
+A section left out disables its subpackage, so a repository adopts each one apart. When the
+sections ``indexes`` and ``targets`` are both declared, a nested group of an index designates a
+parent by the identifier that the targets resolve, so ``x-identifier`` applies there too.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -49,6 +51,7 @@ from anagraphe.resolution import configuration as resolution
 from anagraphe.targets import configuration as targets
 from anagraphe.targets import identity
 from anagraphe.targets.registry import configuration as records
+from anagraphe.targets.walk import RecordWalk
 
 #: The environment variable naming the root, read when the command line gives none.
 ROOT_VARIABLE = "ANAGRAPHE_ROOT"
@@ -208,4 +211,8 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
             "the section records reads its records through the walk of the section targets; "
             "declare targets"
         )
+    if config.indexes is not None and config.targets is not None:
+        # A nested group designates a parent by the identifier that the targets resolve.
+        walk = RecordWalk(root, config.targets)
+        config = replace(config, indexes=replace(config.indexes, identifiers=walk.identifier))
     return config

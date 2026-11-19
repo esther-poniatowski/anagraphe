@@ -63,8 +63,12 @@ def test_a_declaration_in_yaml_is_read(tmp_path: Path) -> None:
 
 
 def test_a_differing_declaration_names_each_key_with_both_values(tmp_path: Path) -> None:
-    declared = {**IMPLEMENTED_SPECIFICATION, "registry": "anagraphe:record-registry@2"}
-    del declared["repository"]
+    # A read side of 0.10.0 still declares the contract of the retired manifest.
+    declared = {
+        **IMPLEMENTED_SPECIFICATION,
+        "registry": "anagraphe:record-registry@2",
+        "repository": "anagraphe:repository@1",
+    }
     _repository(tmp_path, {MANIFEST: _plugin(declared)}, [{"path": MANIFEST, "pointer": POINTER}])
     config = load_config(tmp_path, tmp_path / "anagraphe.yml").targets
     assert config is not None
@@ -77,7 +81,7 @@ def test_a_differing_declaration_names_each_key_with_both_values(tmp_path: Path)
     )
     assert "registry: declared anagraphe:record-registry@2, implemented " in issue.detail
     assert "anagraphe:record-registry@1" in issue.detail
-    assert "repository: declared absent, implemented anagraphe:repository@1" in issue.detail
+    assert "repository: declared anagraphe:repository@1, implemented absent" in issue.detail
     assert "addressing" not in issue.detail
 
 

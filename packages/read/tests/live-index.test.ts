@@ -6,7 +6,9 @@
 import { describe, expect, it } from "vitest";
 import { RepositoryIndex } from "../src/live-index.js";
 import type { BindingResolver, FileSource } from "../src/ports.js";
-import { MemoryFiles, RegistrySchemas, memoryIndex } from "./support/memory.js";
+import type { MetadataSource } from "../src/metadata.js";
+import { parseToml } from "./support/host-metadata.js";
+import { MemoryFiles, RegistryBinding, RegistrySchemas, memoryIndex } from "./support/memory.js";
 
 const REGISTRY = "specs/schema-registry.yml";
 
@@ -24,7 +26,7 @@ const registry = (
     "",
   ].join("\n");
 
-const RECORD_SCHEMA = "x-identifier: id\nproperties:\n  id: {type: string}\n";
+const RECORD_SCHEMA = "x-identifier: code\nproperties:\n  code: {type: string}\n";
 const NESTED_SCHEMA =
   "x-identifier: identity.id\nproperties:\n  identity:\n    properties:\n      id: {type: string}\n";
 
@@ -46,7 +48,7 @@ describe("the indexing of identifiers", () => {
       [REGISTRY]: registry({ "t:quest@1": "s/record.yml", "t:project@1": "s/project.yml" }),
       "s/record.yml": RECORD_SCHEMA,
       "s/project.yml": NESTED_SCHEMA,
-      "q/a.yml": "_schema: t:quest@1\nid: quest.a\n",
+      "q/a.yml": "_schema: t:quest@1\ncode: quest.a\n",
       "p/b.yml": "_schema: t:project@1\nidentity:\n  id: project-b\n",
     };
     const index = service(vault);
@@ -63,14 +65,51 @@ describe("the indexing of identifiers", () => {
       "broken.yml": "_schema: t:plain@1\nmetadata: {id: [quest.broken\n",
       "undeclaring.yml": "_schema: t:plain@1\nid: quest.plain\n",
       "missing.yml": "_schema: t:absent@1\nmetadata: {id: quest.missing}\n",
+      "data.json": '{"metadata": {"id": "quest.json"}}',
     };
     const index = service(vault);
     await index.rebuild(Object.keys(vault));
-    expect(index.identifierOf("unbound.yml")).toBe("meta.unbound");
-    expect(index.pathsOf("quest.unbound")).toEqual([]);
+    // The top level of a YAML document is read before its block metadata, which conflicts.
+    expect(index.identifierOf("unbound.yml")).toBe("quest.unbound");
+    expect(index.pathsOf("meta.unbound")).toEqual([]);
+    expect(index.record("unbound.yml")?.conflicts).toEqual([
+      { pointer: "/metadata/id", value: "meta.unbound" },
+    ]);
     expect(index.record("broken.yml")?.problem).toMatch(/^the document cannot be parsed/);
-    expect(index.identifierOf("undeclaring.yml")).toBeNull();
+    expect(index.identifierOf("undeclaring.yml")).toBe("quest.plain");
     expect(index.identifierOf("missing.yml")).toBe("quest.missing");
+    // A JSON document has no built-in metadata source.
+    expect(index.identifierOf("data.json")).toBeNull();
+  });
+
+  it("reads a TOML record through the source and the parser that the host supplies", async () => {
+    const files = new MemoryFiles({ "a.toml": '[tool.record]\nid = "from-toml"\n' });
+    const ports = {
+      files,
+      bindings: new RegistryBinding(files, REGISTRY),
+      schemas: new RegistrySchemas(files, REGISTRY),
+    };
+    const source = (): MetadataSource => ({ kind: "toml", at: ["tool.record"] });
+    const unsourced = new RepositoryIndex(ports, { registry: null, repository: null });
+    await unsourced.rebuild(["a.toml"]);
+    expect(unsourced.record("a.toml")).toBeUndefined();
+    const unparsed = new RepositoryIndex(ports, {
+      registry: null,
+      repository: null,
+      metadata: source,
+    });
+    await unparsed.rebuild(["a.toml"]);
+    expect(unparsed.record("a.toml")?.problem).toBe(
+      "the document cannot be parsed: the host supplies no TOML parser",
+    );
+    const parsed = new RepositoryIndex(ports, {
+      registry: null,
+      repository: null,
+      metadata: source,
+      toml: parseToml,
+    });
+    await parsed.rebuild(["a.toml"]);
+    expect(parsed.identifierOf("a.toml")).toBe("from-toml");
   });
 
   it("resolves an identifier held by two records, even of two contracts, as a duplicate", async () => {
@@ -78,7 +117,7 @@ describe("the indexing of identifiers", () => {
       [REGISTRY]: registry({ "t:quest@1": "record.yml", "t:project@1": "project.yml" }),
       "record.yml": RECORD_SCHEMA,
       "project.yml": NESTED_SCHEMA,
-      "a.yml": "_schema: t:quest@1\nid: core\n",
+      "a.yml": "_schema: t:quest@1\ncode: core\n",
       "b.yml": "_schema: t:project@1\nidentity: {id: core}\n",
     };
     const index = service(vault);
@@ -98,11 +137,11 @@ describe("the indexing of identifiers", () => {
     const index = service(vault);
     await index.rebuild([]);
 
-    vault["records/a.yml"] = "_schema: t:quest@1\nid: quest.a\n";
+    vault["records/a.yml"] = "_schema: t:quest@1\ncode: quest.a\n";
     await index.indexFile("records/a.yml");
     expect(index.pathsOf("quest.a")).toEqual(["records/a.yml"]);
 
-    vault["records/a.yml"] = "_schema: t:quest@1\nid: quest.renamed\n";
+    vault["records/a.yml"] = "_schema: t:quest@1\ncode: quest.renamed\n";
     await index.indexFile("records/a.yml");
     expect(index.pathsOf("quest.a")).toEqual([]);
     expect(index.identifierOf("records/a.yml")).toBe("quest.renamed");
@@ -122,7 +161,7 @@ describe("the indexing of identifiers", () => {
   });
 
   it("binds again after a rebuild, when the binding of the host changes", async () => {
-    const vault = { "record.yml": RECORD_SCHEMA, "q/a.yml": "id: quest.a\n" };
+    const vault = { "record.yml": RECORD_SCHEMA, "q/a.yml": "code: quest.a\n" };
     let rules: Record<string, string> = {};
     const files = new MemoryFiles(vault);
     const bindings: BindingResolver = {
@@ -145,20 +184,20 @@ describe("the changes of schemas", () => {
   it("indexes again the records of a schema when one of its files changes", async () => {
     const vault: Record<string, string> = {
       [REGISTRY]: registry({ "t:quest@1": "record.yml" }),
-      "record.yml": "properties:\n  id: {$ref: common.yml}\n",
+      "record.yml": "properties:\n  code: {$ref: common.yml}\n",
       "common.yml": "type: string\n",
-      "a.yml": "_schema: t:quest@1\nid: quest.a\nkey: other\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\nkey: other\n",
     };
     const index = service(vault);
     await index.rebuild(["a.yml"]);
     expect(index.identifierOf("a.yml")).toBeNull();
 
-    vault["record.yml"] = `x-identifier: id\n${vault["record.yml"] ?? ""}`;
+    vault["record.yml"] = `x-identifier: code\n${vault["record.yml"] ?? ""}`;
     await index.dependencyChanged("record.yml");
     expect(index.identifierOf("a.yml")).toBe("quest.a");
 
     vault["record.yml"] =
-      "x-identifier: key\nproperties:\n  id: {$ref: common.yml}\n  key: {type: string}\n";
+      "x-identifier: key\nproperties:\n  code: {$ref: common.yml}\n  key: {type: string}\n";
     // A change reported for a referenced file loads the whole schema again.
     await index.dependencyChanged("common.yml");
     expect(index.identifierOf("a.yml")).toBe("other");
@@ -167,7 +206,7 @@ describe("the changes of schemas", () => {
   it("indexes a record again once its missing schema is created", async () => {
     const vault: Record<string, string> = {
       [REGISTRY]: registry({ "t:quest@1": "record.yml" }),
-      "a.yml": "_schema: t:quest@1\nid: quest.a\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\n",
     };
     const index = service(vault);
     await index.rebuild(["a.yml"]);
@@ -186,7 +225,7 @@ describe("the changes of schemas", () => {
     const vault: Record<string, string> = {
       [REGISTRY]: registry({}),
       "record.yml": RECORD_SCHEMA,
-      "a.yml": "_schema: t:quest@1\nid: quest.a\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\n",
     };
     const index = service(vault);
     await index.rebuild(["a.yml"]);
@@ -203,7 +242,7 @@ describe("the changes of schemas", () => {
       [REGISTRY]: registry({ "t:quest@1": "consumer.yml" }),
       "consumer.yml": `allOf:\n  - $ref: '${uri}'\n`,
       "tool/base.yml": `$id: '${uri}'\n${RECORD_SCHEMA}`,
-      "a.yml": "_schema: t:quest@1\nid: quest.a\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\n",
     };
     const index = service(vault);
     await index.rebuild(["a.yml"]);
@@ -221,8 +260,8 @@ describe("the changes of schemas", () => {
     const vault = {
       [REGISTRY]: registry({ "t:quest@1": "record.yml" }),
       "record.yml": RECORD_SCHEMA,
-      "a.yml": "_schema: t:quest@1\nid: quest.a\n",
-      "b.yml": "_schema: t:quest@1\nid: quest.b\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\n",
+      "b.yml": "_schema: t:quest@1\ncode: quest.b\n",
     };
     const files = new MemoryFiles(vault);
     const index = service(vault, files);
@@ -258,12 +297,12 @@ describe("the races between indexings", () => {
     const vault: Record<string, string> = {
       [REGISTRY]: registry({ "t:quest@1": "record.yml" }),
       "record.yml": RECORD_SCHEMA,
-      "a.yml": "_schema: t:quest@1\nid: quest.first\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.first\n",
     };
     const { files, release } = held(vault, "a.yml");
     const index = memoryIndex(files, REGISTRY, null);
     const first = index.indexFile("a.yml");
-    vault["a.yml"] = "_schema: t:quest@1\nid: quest.second\n";
+    vault["a.yml"] = "_schema: t:quest@1\ncode: quest.second\n";
     await index.indexFile("a.yml");
     release();
     await first;
@@ -284,8 +323,8 @@ describe("the races between indexings", () => {
   it("indexes again a record whose first indexing runs while its schema changes", async () => {
     const vault: Record<string, string> = {
       [REGISTRY]: registry({ "t:quest@1": "record.yml" }),
-      "record.yml": "properties:\n  id: {type: string}\n",
-      "a.yml": "_schema: t:quest@1\nid: quest.a\n",
+      "record.yml": "properties:\n  code: {type: string}\n",
+      "a.yml": "_schema: t:quest@1\ncode: quest.a\n",
     };
     const { files, release } = held(vault, "a.yml");
     const index = memoryIndex(files, REGISTRY, null);

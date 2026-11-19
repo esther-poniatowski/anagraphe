@@ -139,9 +139,15 @@ class IndexGenerator:
         The build manifest of each folder, which prevails over the sequence of a group.
     migrations
         The files tolerating a retired key until a declared migration.
+    metadata
+        The metadata of each file, read from its declared source.
+    identifiers
+        The identifier of a file, by which the key of a nested group designates a parent: the
+        identifier that the check of the targets resolves, when the composition supplies it, else
+        the key ``id`` of the metadata source of the file.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         root: Path,
         settings: Settings,
@@ -150,6 +156,7 @@ class IndexGenerator:
         sequence_provider: SequenceProvider | None = None,
         migrations: Sequence[MigrationClass] = (),
         metadata: MetadataReader | None = None,
+        identifiers: Callable[[str], Any] | None = None,
     ) -> None:
         self.root = root
         self.settings = settings
@@ -158,6 +165,7 @@ class IndexGenerator:
         self.sequence_provider = sequence_provider or (lambda _folder: None)
         self.migrations = tuple(migrations)
         self.reader = NoteReader(root, metadata)
+        self.identifiers = identifiers or self.reader.metadata.identifier
 
     def members(self, index_rel: str) -> list[Note]:
         """Return the files that an index lists: the files of its declared types, and child indexes."""
@@ -452,7 +460,7 @@ class IndexGenerator:
         collection.listed.extend((note, spec) for note in ordering.members)
         show = tuple(dict.fromkeys(spec.show))
         if spec.nest:
-            nested, depths, cycle = nest_members(ordering.members, spec.nest)
+            nested, depths, cycle = nest_members(ordering.members, spec.nest, self.identifiers)
             issues.extend(
                 Issue(
                     index_rel,
@@ -896,11 +904,14 @@ def unreadable(note: Note) -> Issue:
     return Issue(note.rel, None, "unreadable-metadata", note.metadata_problem or "")
 
 
-def nest_members(members: list[Note], path: str) -> tuple[list[Note], list[int], list[Note]]:
+def nest_members(
+    members: list[Note], path: str, identifiers: Callable[[str], Any] = lambda _rel: None
+) -> tuple[list[Note], list[int], list[Note]]:
     """Place each member beneath the member that its key names, keeping the order of siblings.
 
     The key is a dotted path into the data of a member; its value, or the first of its values
-    naming a member of the group, designates the parent by file stem, by ``id``, or by link. A
+    naming a member of the group, designates the parent by file stem, by the identifier that
+    ``identifiers`` returns for the path of the parent, or by link. A
     member whose parent lies outside the group stands at the first level. A member that no chain
     of parents connects to the first level, being on a cycle or beneath one, is returned apart so
     that the cycle can be reported. Taken in the order of the group, each of those members not
@@ -925,8 +936,9 @@ def nest_members(members: list[Note], path: str) -> tuple[list[Note], list[int],
     for note in members:
         names[PurePosixPath(note.rel).stem] = note
         names[note.rel] = note
-        if note.data.get("id") is not None:
-            names[str(note.data["id"])] = note
+        identifier = identifiers(note.rel)
+        if identifier is not None:
+            names[str(identifier)] = note
     parent: dict[str, Note] = {}
     for note in members:
         for value in key(note):

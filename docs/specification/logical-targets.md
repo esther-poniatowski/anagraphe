@@ -99,14 +99,28 @@ read on two kinds of node, outside `anyOf` and `oneOf`:
 - on a definition reached as the items of an array, it names the field of the identifier of each
   item, and makes each item a unit of the record.
 
-Without a declaration at the root, the identifier of a record is the key `id` of its metadata
-source: the frontmatter of a Markdown note, or the block `metadata` of a YAML or JSON document.
+Without a declaration at the root, the identifier of a record is the key `id` of the metadata
+source that the section `metadata` of `anagraphe.yml` declares for its file, the same source from
+which the indexes read the fields of the file. The built-in sources read the frontmatter of a
+Markdown note, and the key paths `.` then `metadata` of a YAML document. A JSON document has no
+built-in source, so it holds a default identifier only under a declared source. A TOML document is
+a record when its declared source is `toml`.
 
-The units of a record are the string identifiers of its declared items, and, in a Markdown record,
-the names of its block anchors, each a caret token `^name` closing a line of the body after a space
-or a line break, whose name is a `unit-id`. A heading is not a unit. The units of one record share one namespace, so a unit
-declared twice is ambiguous. The items of a mapping keyed by identifier are not units in this
-version.
+A key path of the source holds the identifier when the mapping found at that path holds the key `id`
+with a value other than null. The path `.` names the top level, without the key naming the first
+segment of a deeper declared path. When several key paths hold `id`, the identifier and its pointer
+are those of the first path in the declared order. A later path holding another value is a finding
+`invalid-identifier`, located at that later path, and the record keeps the identifier of the first
+path. Under the built-in source, a YAML document holding `id: a` and `metadata: {id: b}` is thus
+identified as `a`, with a finding at `/metadata/id`.
+
+The units of a record are the identifiers of its declared items, each a `unit-id`, and, in a
+Markdown record, the names of its block anchors, each a caret token `^name` closing a line of the
+body after a space or a line break, whose name is a `unit-id`. A declared item identifier other
+than null that lies outside the pattern `unit-id` is no unit; it is a finding `invalid-identifier`,
+located at the field of the item, as for a record identifier. A heading is not a unit. The units of
+one record share one namespace, so a unit declared twice is ambiguous. The items of a mapping keyed
+by identifier are not units in this version.
 
 ## Identity
 
@@ -157,8 +171,12 @@ implemented versions as a mapping with the keys below:
 | Key | Version |
 | --- | --- |
 | `addressing` | the `$id` of the resource of the addressing |
-| `repository` | the contract of the retired manifest, `anagraphe:repository@1` |
 | `registry` | the contract of the [record registry](record-registry.md), `anagraphe:record-registry@1` |
+
+Until the amendment of [ADR 0006](../adr/0006-logical-targets.md) on 2026-11-19, the mapping also
+held the key `repository`, the contract `anagraphe:repository@1` of the retired manifest. Neither
+read side reads that contract since the identity of a repository is derived, so the key is
+removed.
 
 The Python read side exports the mapping as `anagraphe.targets.IMPLEMENTED_SPECIFICATION`, and the
 TypeScript package `@anagraphe/read` exports it as `IMPLEMENTED_SPECIFICATION`. A host bundling the

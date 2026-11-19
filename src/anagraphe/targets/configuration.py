@@ -10,6 +10,9 @@ The section declares three optional keys:
 - ``exclude``, the files left unread by the check, after the shared exclusions;
 - ``read_sides``, the declarations of the versions implemented by the other read sides of the
   repository, each a JSON or YAML file and the JSON Pointer of the mapping in it.
+
+The section also keeps the metadata reader of the configuration, whose sources give the default
+identifier of each record and make a TOML document with a ``toml`` source a record.
 """
 
 from __future__ import annotations
@@ -48,6 +51,9 @@ class TargetConfig:
     records: RecordSchemas | None = None
     exemptions: Exemptions = Exemptions()
     read_sides: tuple[ReadSide, ...] = ()
+    #: The metadata of each file, read from the source that the repository declares for it; None
+    #: for the built-in sources.
+    metadata: MetadataReader | None = None
 
 
 def parse_section(
@@ -65,6 +71,7 @@ def parse_section(
             exemptions(raw.get("exclude"), f"{field_name}.exclude", root, metadata)
         ),
         read_sides=parse_read_sides(root, raw.get("read_sides"), f"{field_name}.read_sides"),
+        metadata=metadata,
     )
 
 

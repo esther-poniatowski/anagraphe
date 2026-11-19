@@ -15,6 +15,10 @@ source. The built-in rules read the frontmatter of a Markdown note, and the top 
 document overridden by its block ``metadata``. The metadata region of a file, where its fields are
 written, tells a pointer of the metadata from a pointer of the content.
 
+The default identifier of a file is the key ``id`` of its source, as :class:`Identifier` states:
+the first declared key path holding the key gives the identifier, and a later path holding another
+value is a conflict.
+
 Examples
 --------
 >>> reader = MetadataReader(Path("."), parse_metadata([
@@ -41,6 +45,8 @@ from anagraphe.core.json_text import load_json
 YAML_SUFFIXES = (".yml", ".yaml")
 #: The key path naming the top level of a document.
 TOP = "."
+#: The key holding the default identifier of a file in its metadata source.
+IDENTIFIER_KEY = "id"
 
 
 class SourceKind(StrEnum):
@@ -227,6 +233,37 @@ class Source:
             return [(0, len(text))]
         return []
 
+    def holders(self, document: Any, key: str) -> list[tuple[tuple[str, ...], Any]]:
+        """Return the keys and the value of each declared mapping of a parsed document that holds a
+        key with a value other than null, in the declared order of the key paths.
+
+        The document is the frontmatter of a note, or the top-level value of a structured document.
+        As in :meth:`parse`, the path ``.`` holds no key naming the first segment of a deeper
+        declared path.
+
+        Examples
+        --------
+        >>> source = Source(SourceKind.YAML, (".", "metadata"))
+        >>> source.holders({"id": "a", "metadata": {"id": "b"}}, "id")
+        [(('id',), 'a'), (('metadata', 'id'), 'b')]
+        >>> source.holders({"id": None, "metadata": {"id": "b"}}, "id")
+        [(('metadata', 'id'), 'b')]
+        >>> Source(SourceKind.NONE).holders({"id": "a"}, "id")
+        []
+        """
+        if self.kind is SourceKind.NONE:
+            return []
+        nested = {path.split(".")[0] for path in self.at if path != TOP}
+        found: list[tuple[tuple[str, ...], Any]] = []
+        for path in self.at:
+            if path == TOP and key in nested:
+                continue
+            node = _at(document, path)
+            if isinstance(node, dict) and node.get(key) is not None:
+                keys = () if path == TOP else tuple(path.split("."))
+                found.append(((*keys, key), node[key]))
+        return found
+
     def _parse(self, text: str) -> tuple[Any, str | None]:
         """Return the parsed document and None, or None and why the document does not parse."""
         try:
@@ -237,6 +274,50 @@ class Source:
             return tomllib.loads(text), None
         except (yaml.YAMLError, ValueError) as error:
             return None, f"the document is not valid {self.kind.name}: {_first_line(error)}"
+
+
+@dataclass(frozen=True)
+class Identifier:
+    """The default identifier of a file: the key ``id`` of its metadata source.
+
+    The first key path of the source, in its declared order, whose mapping holds ``id`` with a
+    value other than null gives the identifier. Each later path holding another value is a
+    conflict, which the check of the targets reports as ``invalid-identifier``. A source naming no
+    path, or the kind ``none``, gives no identifier.
+
+    Examples
+    --------
+    >>> source = Source(SourceKind.YAML, (".", "metadata"))
+    >>> found = Identifier.of(source, {"id": "a", "metadata": {"id": "b"}})
+    >>> found.value, found.keys, found.conflicts
+    ('a', ('id',), ((('metadata', 'id'), 'b'),))
+    >>> Identifier.of(source, {"metadata": {"id": "b"}}).keys
+    ('metadata', 'id')
+    >>> absent = Identifier.of(source, {"title": "T"})
+    >>> absent.value, absent.keys
+    (None, ('id',))
+    """
+
+    #: The value of the identifier, None when no declared path holds the key.
+    value: Any
+    #: The keys of the field holding the identifier; the field of the first declared path when no
+    #: path holds the key, and no key for a source of the kind ``none``.
+    keys: tuple[str, ...]
+    #: The keys and the value of each later path holding another value.
+    conflicts: tuple[tuple[tuple[str, ...], Any], ...] = ()
+
+    @classmethod
+    def of(cls, source: Source, document: Any) -> Identifier:
+        """Return the default identifier of a parsed document read through its source."""
+        found = source.holders(document, IDENTIFIER_KEY)
+        if not found:
+            if source.kind is SourceKind.NONE or not source.at:
+                return cls(None, ())
+            first = source.at[0]
+            keys = () if first == TOP else tuple(first.split("."))
+            return cls(None, (*keys, IDENTIFIER_KEY))
+        (keys, value), later = found[0], found[1:]
+        return cls(value, keys, tuple((other, held) for other, held in later if held != value))
 
 
 @dataclass(frozen=True)
@@ -266,6 +347,7 @@ class MetadataReader:
         self.rules = (*BUILT_IN, *rules)
         self._cache: dict[str, dict[str, Any]] = {}
         self._keys: dict[str, frozenset[str]] = {}
+        self._identifiers: dict[str, Any] = {}
 
     def source_of(self, rel: str) -> Source:
         """Return the source named by the last rule whose condition holds for a file."""
@@ -301,6 +383,25 @@ class MetadataReader:
                     text = ""
             self._keys[rel] = frozenset(source.top_level(text)) if text else frozenset()
         return self._keys[rel]
+
+    def identifier(self, rel: str) -> Any:
+        """Return the default identifier of a file, None when its source holds none.
+
+        The identifier is read from the top level of the file, through the key paths of its
+        source, as :class:`Identifier` states.
+        """
+        if rel not in self._identifiers:
+            path = self.root / rel
+            source = self.source_of(rel)
+            text = ""
+            if source.kind is not SourceKind.NONE and path.is_file():
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    text = ""
+            document = source.top_level(text) if text else {}
+            self._identifiers[rel] = Identifier.of(source, document).value
+        return self._identifiers[rel]
 
     def region(self, rel: str, text: str) -> list[tuple[int, int]]:
         """Return the spans of the text of a file where its metadata is written."""

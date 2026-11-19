@@ -174,7 +174,10 @@ retired:
 ```
 
 The key `repository` holds the identifier of the manifest; since the amendment of 2026-11-19, the
-derived identifier of the repository. The format is `markdown`, `yaml` or `json`. A nested
+derived identifier of the repository. The format is `markdown`, `yaml` or `json`; since the
+amendment of ADR 0006 on 2026-11-19, which makes a TOML document with a `toml` metadata source a
+record, the format may also be `toml`. The contract keeps `anagraphe:record-registry@1`, since every
+registry valid before stays valid. A nested
 repository, such as a submodule, is a repository of its own, and its records belong to its own
 registry. The walk is the walk of `anagraphe targets check`, with its exclusions and its reading of
 `x-identifier`.

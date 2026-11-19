@@ -47,11 +47,8 @@ from anagraphe.resolution.resolver import Outcome, RecordResolver
 from anagraphe.targets.configuration import TargetConfig
 from anagraphe.targets.declarations import Declarations, TargetField
 from anagraphe.targets.kinds import (
-    DUPLICATE_IDENTIFIER,
-    INVALID_IDENTIFIER,
     INVALID_TARGET,
     KINDS,
-    MISSING_IDENTIFIER,
     RENAMED_TARGET,
     RETIRED_TARGET,
     UNKNOWN_RECORD,
@@ -63,9 +60,8 @@ from anagraphe.targets.read_sides import check_read_sides
 from anagraphe.targets.records import Record
 from anagraphe.targets.registry.configuration import RecordsConfig
 from anagraphe.targets.registry.contract import Retirement, follow, read_registry
-from anagraphe.targets.resource import matches
 from anagraphe.targets.verification import Finding, held_findings
-from anagraphe.targets.walk import RecordWalk
+from anagraphe.targets.walk import RecordWalk, identifier_issues, unit_issues
 
 __all__ = ["KINDS", "TargetChecker"]
 
@@ -173,51 +169,11 @@ class TargetChecker:
         """Return the issues of one record: its identifier, then its targets."""
         if record.problem is not None:
             return [Issue(record.rel, None, UNREADABLE_RECORD, record.problem)]
-        issues = self._identifier_issues(record)
+        issues = [*identifier_issues(record, self.walk.table), *unit_issues(record)]
         for target_field in record.schema.targets if record.schema is not None else ():
             for keys, value in values_at(record.data, target_field.path):
                 issues.extend(self._target_issues(record, target_field, pointer(*keys), value))
         return issues
-
-    def _identifier_issues(self, record: Record) -> list[Issue]:
-        """Return the issues of the identifier of a record."""
-        at = record.identifier_pointer
-        if record.identifier is None:
-            if not record.declared:
-                return []
-            return [
-                Issue(
-                    record.rel,
-                    None,
-                    MISSING_IDENTIFIER,
-                    f"the contract {record.contract} declares its identifier at {at}, which the "
-                    "record leaves empty",
-                    locus=at,
-                )
-            ]
-        if not matches("record-id", record.identifier):
-            return [
-                Issue(
-                    record.rel,
-                    None,
-                    INVALID_IDENTIFIER,
-                    f"the identifier {record.identifier!r} lies outside the pattern of record-id",
-                    locus=at,
-                )
-            ]
-        holders = self.walk.table.get(record.identifier, [])
-        if len(holders) > 1:
-            others = ", ".join(other.rel for other in holders if other.rel != record.rel)
-            return [
-                Issue(
-                    record.rel,
-                    None,
-                    DUPLICATE_IDENTIFIER,
-                    f"the identifier {record.identifier} is also held by {others}",
-                    locus=at,
-                )
-            ]
-        return []
 
     def _target_issues(
         self, record: Record, target_field: TargetField, at: str, value: object

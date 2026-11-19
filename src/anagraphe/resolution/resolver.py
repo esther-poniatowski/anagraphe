@@ -17,7 +17,9 @@ The record resolver: the operations ``resolve`` and ``read`` on the targets of o
 ``read`` reads the registered path through the provider, never through a symbolic link, then
 verifies that the record parses, holds the identifier of the target and the unit that it names,
 and follows a contract that the citing field admits. The schemas of a contract come from the schema
-registry of the consumer, since a selected state holds no schema closure.
+registry of the consumer, since a selected state holds no schema closure. The default identifier of
+the record is read through the metadata source that the configuration of the state declares for
+its file under ``metadata``.
 
 Each failure is a finding whose kind names it, as the table of outcomes of ADR 0009 lists them.
 A finding opens on the written target, so a report places it without its locus.
@@ -27,10 +29,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 from anagraphe.core.configuration import ConfigurationError
+from anagraphe.core.metadata import MetadataReader, Source, parse_metadata
 from anagraphe.resolution.context import Entry, ResolutionContext, Unreadable, read_configuration
 from anagraphe.resolution.provider import (
     Availability,
@@ -161,6 +164,7 @@ class RecordResolver:
     binding: str = "_schema"
     _identities: dict[str, Identity | Finding] = field(default_factory=dict, init=False)
     _registries: dict[str, RecordRegistry | Finding] = field(default_factory=dict, init=False)
+    _metadata: dict[str, MetadataReader | Finding] = field(default_factory=dict, init=False)
 
     def resolve(self, target: Target) -> Resolution:
         """Return the state, and the registered record, of a target."""
@@ -255,7 +259,11 @@ class RecordResolver:
                 UNREADABLE_RECORD, f"{written}: {entry.repository}:{path} is not UTF-8 text"
             )
             return RecordRead(provenance, reading.data, (finding,))
-        record = parse_record(path, text, self.binding, self.declarations)
+        metadata = self._metadata_of(entry)
+        if isinstance(metadata, Finding):
+            return RecordRead(provenance, reading.data, (_prefixed(written, metadata),))
+        source: Source = metadata.source_of(path)
+        record = parse_record(path, text, self.binding, self.declarations, source)
         if record.problem is not None:
             finding = Finding(
                 UNREADABLE_RECORD, f"{written}: {entry.repository}:{path}: {record.problem}"
@@ -365,6 +373,28 @@ class RecordResolver:
             INVALID_TARGET_REPOSITORY,
             f"the state {entry.state.commit} of {entry.repository}: {configuration.detail}",
         )
+
+    def _metadata_of(self, entry: Entry) -> MetadataReader | Finding:
+        """Return the reader of the metadata sources that the configuration of a state declares,
+        read once per commit; the built-in sources for a state without configuration."""
+        commit = entry.state.commit
+        if commit not in self._metadata:
+            configuration = self._configuration(entry)
+            if isinstance(configuration, Finding):
+                self._metadata[commit] = configuration
+            else:
+                name, data = configuration if configuration is not None else ("", {})
+                try:
+                    rules = parse_metadata(data.get("metadata"), "metadata")
+                except ConfigurationError as error:
+                    self._metadata[commit] = Finding(
+                        INVALID_TARGET_REPOSITORY,
+                        f"the state {commit} of {entry.repository}: {name}: {error}",
+                    )
+                else:
+                    # The reader only selects the source of a path, so it reads no file of a root.
+                    self._metadata[commit] = MetadataReader(Path("."), rules)
+        return self._metadata[commit]
 
     def _registry(self, entry: Entry, identity: Identity) -> RecordRegistry | Finding:
         """Return the record registry of the state of an entry, read once per commit."""

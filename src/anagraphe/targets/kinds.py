@@ -27,7 +27,8 @@ INVALID_IDENTIFIER_DECLARATION = "invalid-identifier-declaration"
 INVALID_TARGET_CONTRACT = "invalid-target-contract"
 #: A record of a contract declaring ``x-identifier``, holding no value there.
 MISSING_IDENTIFIER = "missing-identifier"
-#: An identifier outside the pattern of ``record-id``.
+#: An identifier outside the pattern of ``record-id``, a unit identifier outside the pattern of
+#: ``unit-id``, or a later key path of the metadata source holding another identifier.
 INVALID_IDENTIFIER = "invalid-identifier"
 #: An identifier held by two records of the repository.
 DUPLICATE_IDENTIFIER = "duplicate-identifier"
@@ -95,7 +96,11 @@ KINDS: tuple[IssueKind, ...] = (
     IssueKind(
         MISSING_IDENTIFIER, "A record holds no value at the identifier field of its contract."
     ),
-    IssueKind(INVALID_IDENTIFIER, "An identifier lies outside the pattern of record-id."),
+    IssueKind(
+        INVALID_IDENTIFIER,
+        "An identifier lies outside the pattern of record-id, a unit identifier outside the "
+        "pattern of unit-id, or two key paths of a metadata source hold two identifiers.",
+    ),
     IssueKind(DUPLICATE_IDENTIFIER, "Two records of the repository hold one identifier."),
     IssueKind(
         IDENTITY_DISAGREEMENT,

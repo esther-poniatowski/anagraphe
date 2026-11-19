@@ -117,6 +117,14 @@ section `repository`, and throws `IdentityError` for an invalid one. `deriveIden
 host passes the new identifier to `setRepository`. The index never reads `repository.yml`, the
 retired manifest, as a record.
 
+The option `metadata` returns the metadata source of a file, which the host selects from the rules
+of the section `metadata` of `anagraphe.yml`. A record whose schema declares no `x-identifier`
+takes the key `id` of that source, as `defaultIdentifier` reads it, and a TOML document is a record
+when its source is `toml`. Without the option, the index reads the built-in source of each file,
+`builtInSource`: the frontmatter of a note, and the top level then the block `metadata` of a YAML
+document. The package holds no TOML parser, so a host that declares a `toml` source supplies one
+under the option `toml`; without it, a TOML record cannot be read.
+
 When an indexing of a file completes after a later indexing or a removal of that file, or after a
 rebuild of the index, the index discards the result of that indexing. The method `resolve` returns a
 resolution in one of these statuses:
@@ -141,6 +149,7 @@ The functions, the class and the constants are grouped by reading:
 | contracts of a target field | `readContracts`, `admits`, `contractVerdict` |
 | declarations of a schema | `readDeclarations` |
 | records | `parseRecord`, `readRecord`, `formatOf` |
+| metadata sources | `builtInSource`, `defaultIdentifier`, `holders`, `IDENTIFIER_KEY`, `NO_SOURCE`, `TOP` |
 | identity of a repository | `deriveIdentity`, `readDeclaredIdentity`, `remoteName`, `IdentityError`, `RETIRED_MANIFEST_FILE` |
 | record registry | `readRegistry`, `checkRegistry`, `lookup`, `follow`, `REGISTRY_FILE` |
 | live index | `RepositoryIndex` |

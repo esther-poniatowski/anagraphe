@@ -487,6 +487,38 @@ def test_cycle_among_nested_parents_is_a_violation(tmp_path: Path) -> None:
     }
 
 
+def test_a_parent_is_named_by_the_identifier_that_the_targets_resolve(tmp_path: Path) -> None:
+    """A nested group designates a parent by the identifier that its schema declares by
+    x-identifier, else by the key id of its metadata source, as the check of the targets reads it.
+    """
+    _repository(tmp_path)
+    with (tmp_path / "anagraphe.yml").open("a", encoding="utf-8") as config:
+        config.write("targets:\n  records: {registry: specs/schema-registry.yml}\n")
+    _write(
+        tmp_path / "specs" / "schema-registry.yml",
+        "_schema: kleisis:schema-registry@2\nschemas:\n  test:node@1: specs/schemas/node.schema.yml\n"
+        "exports: []\nresources: {}\n",
+    )
+    _write(
+        tmp_path / "specs" / "schemas" / "node.schema.yml",
+        "x-identifier: node.key\nproperties:\n  _schema: {const: 'test:node@1'}\n"
+        "  node:\n    properties:\n      key: {type: string}\n",
+    )
+    _index(tmp_path, [{"id": "*", "nest": "parent"}])
+    _note(tmp_path, "a.md", _schema="test:node@1", node={"key": "alpha"}, id="decoy")
+    _note(tmp_path, "b.md", parent="alpha")
+    _note(tmp_path, "c.md", id="gamma")
+    _note(tmp_path, "d.md", parent="gamma")
+    _note(tmp_path, "e.md", parent="decoy")
+    _entries(tmp_path)
+    text = (tmp_path / "m" / "_index.md").read_text(encoding="utf-8")
+    depths = [
+        (match.group(2), len(match.group(1)))
+        for match in re.finditer(r"^( *)- \[[^\]]*\]\(([^)]+)\)", text, re.MULTILINE)
+    ]
+    assert depths == [("a.md", 0), ("b.md", 2), ("c.md", 0), ("d.md", 2), ("e.md", 0)]
+
+
 def test_cycle_places_its_first_member_at_the_first_level() -> None:
     """The first member of a cycle must stand at the first level, and the others beneath it."""
     members = [

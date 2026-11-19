@@ -22,6 +22,15 @@ remote `origin`, else from the name of the folder of the root. The former identi
 former text beside it. The schema of `anagraphe:repository@1` stays in the package and in its
 registry until the files bound to it migrate.
 
+**Amended** again on 2026-11-19, in a change ratified by the researcher: the default identifier of
+a record is the key `id` read through the metadata source that `anagraphe.yml` declares for its
+file, the reader of the indexes, and no longer a fixed field. The first key path holding `id`, in
+the declared order, gives the identifier, and a later path holding another value is the finding
+`invalid-identifier`. A TOML document is a record when its declared source is `toml`. A declared
+unit identifier outside `unit-id` is the finding `invalid-identifier`. The mapping of implemented
+versions no longer names `anagraphe:repository@1`, which no read side reads since the identity is
+derived. Each amended passage below carries the date and keeps the former text beside it.
+
 ---
 
 ## Problem Statement
@@ -313,6 +322,21 @@ syntax, which this record leaves to its own decision.
   by identifier, such as the entries of an Onomasia notation, are not units in this version, since
   no consumer in scope targets them.
 
+*Amended on 2026-11-19*: the second item above fixed the default field by the kind of the file,
+whereas option 5 of the resolved questions takes "the key `id` of the metadata source of the file".
+The default now follows that option. The metadata source of a file is the one that the section
+`metadata` of `anagraphe.yml` declares for it, the source from which the indexes read its fields.
+The built-in sources read the frontmatter of a note, and the key paths `.` then `metadata` of a
+YAML document, so a key `id` at the root of a YAML document is now its identifier. A JSON document
+has no built-in source, so it holds a default identifier only under a declared source. A TOML
+document is a record when its declared source is `toml`, and the record registry admits the format
+`toml`. When several key paths of the source hold `id` with a value other than null, the first
+path in the declared order gives the identifier and its pointer. A later path holding another
+value is the finding `invalid-identifier` at that path, and the record keeps the identifier of
+the first path. A declared item identifier other than null outside `unit-id` is no unit, and is
+the finding `invalid-identifier` at the field of the item. On 2026-11-19, the identifiers of the
+1110 records of the vault, and the findings of its check, were the same under both readings.
+
 A repository derives its identifier, as amended on 2026-11-19, in this order:
 
 1. the override `repository.id` of `anagraphe.yml`, when the configuration declares it;
@@ -373,7 +397,7 @@ Pointer of the target, or of the declaring field, as its locus, under
 | `invalid-identifier-declaration` | error | `x-identifier` is not a dotted path of property names, or names no property of its schema | yes |
 | `invalid-target-contract` | error | `x-target-contract` is not a non-empty list of contract identifiers | yes |
 | `missing-identifier` | error | a record of a contract whose schema declares `x-identifier` holds no value there | yes |
-| `invalid-identifier` | error | an identifier lies outside the pattern of `record-id` | yes |
+| `invalid-identifier` | error | an identifier lies outside the pattern of `record-id`; amended on 2026-11-19: also a unit identifier outside `unit-id`, and a later key path of the metadata source holding another identifier | yes |
 | `duplicate-identifier` | error | two records of the repository hold one identifier; reported at each record | yes |
 | `invalid-repository-manifest` | error | `repository.yml` violates `anagraphe:repository@1` | yes; removed on 2026-11-19, with the manifest |
 | `legacy-repository-manifest` | warning | `repository.yml` writes `schema_version: 1` | yes; removed on 2026-11-19, with the manifest |

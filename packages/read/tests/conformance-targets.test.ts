@@ -29,7 +29,10 @@ interface ContractCase {
 
 const READINGS = SUITE["readings"] as ReadingCase[];
 const CONTRACTS = SUITE["contracts"] as ContractCase[];
-const CASES = SUITE["cases"] as (CheckCase & { readonly repository?: unknown })[];
+const CASES = SUITE["cases"] as (CheckCase & {
+  readonly repository?: unknown;
+  readonly metadata?: readonly unknown[];
+})[];
 const FILES = SUITE["files"] as Record<string, string>;
 const FOLDER = SUITE["folder"] as string;
 
@@ -102,6 +105,7 @@ describe.each(CASES.filter((check) => !(check.id in LEFT_OUT)))("the check case 
       "specs/schema-registry.yml",
       null,
       identifier(check),
+      check.metadata ?? [],
     );
     expect(issues).toEqual(check.issues);
   });

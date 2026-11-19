@@ -14,6 +14,8 @@ from typing import Any, Iterator
 import pytest
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
+from anagraphe.core.anchors import BLOCK_ANCHOR, block_anchors
+from anagraphe.core.published import body, pattern
 from anagraphe.targets.resource import ADDRESSING_FILE, REPOSITORY_FILE, schema
 from anagraphe.targets.registry.contract import REGISTRY_FILE
 
@@ -69,3 +71,13 @@ def test_the_validator_refuses_an_identifier_closed_by_a_line_break() -> None:
     validator = Draft202012Validator({**resource, "$ref": "#/$defs/record-id"})
     assert validator.is_valid("ada")
     assert not validator.is_valid("ada\n")
+
+
+def test_a_block_anchor_names_exactly_a_unit_identifier() -> None:
+    """The name of a block anchor is read by the pattern unit-id of the resource, so a name that
+    the pattern refuses is no anchor."""
+    probes = [probe for probe in PROBES if probe and " " not in probe]
+    for probe in probes:
+        found = block_anchors(f"A line. ^{probe}\n")
+        assert (found == [probe]) == bool(pattern("unit-id").fullmatch(probe)), probe
+    assert body("unit-id") in BLOCK_ANCHOR.pattern

@@ -407,6 +407,53 @@ cases:
   outcome: record
   provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
   findings: [unreadable-record]
+- id: record-identified-through-the-metadata-of-the-state
+  note: >-
+    The default identifier of a record is read through the metadata source that the configuration
+    of its state declares; a JSON document has no built-in source.
+  context: {repository: lab, commits: {other-lab: c1}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: |
+          _schema: anagraphe:configuration@2
+          repository: {id: other-lab, retired: [old-lab]}
+          metadata:
+            - when: {paths: [data/m.json]}
+              from: {json: [meta]}
+          targets:
+            records: {registry: specs/schema-registry.yml}
+          records: {}
+        record-registry.yml: |
+          _schema: anagraphe:record-registry@1
+          repository: other-lab
+          records:
+            mid: {path: data/m.json, format: json}
+          retired: {}
+        data/m.json: '{"meta": {"id": "mid"}}'
+  target: {repository: other-lab, id: mid}
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: data/m.json}
+  findings: []
+- id: invalid-metadata-section-of-the-state
+  note: A section metadata that the configuration of the state cannot parse stops the reading.
+  context: {repository: lab, commits: {other-lab: c1}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        config/tools/anagraphe.yml: |
+          _schema: anagraphe:configuration@2
+          repository: {id: other-lab, retired: [old-lab]}
+          metadata: {from: frontmatter}
+          targets:
+            records: {registry: specs/schema-registry.yml}
+          records: {}
+  target: {repository: other-lab, id: ada}
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: [invalid-target-repository]
 # --- The record.
 - id: unknown-unit
   context: {repository: lab, commits: {other-lab: c1}}

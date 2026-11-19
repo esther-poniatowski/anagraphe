@@ -77,6 +77,11 @@ overridden by its block `metadata`, as `{yaml: [., metadata]}` writes it. The so
 the block of a frontmatter, each YAML node at a declared path, or the whole of a JSON or TOML
 document whose top level is declared.
 
+The source also gives the **default identifier** of a record whose schema declares no
+`x-identifier`: the key `id` at the first declared key path that holds it, as the
+[targets guide](targets.md) states. A TOML document is a record of the check of the targets only
+when its source is `toml`.
+
 ## Exclusions
 
 An exclusion keeps files out of a capability: tool state, generated output, archived notes or
