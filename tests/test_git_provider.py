@@ -167,7 +167,7 @@ def test_a_state_without_remote_is_reported(tmp_path: Path) -> None:
 
 def _configuration_text(identifier: str, sections: str = "") -> str:
     """Return a configuration overriding the identifier of a repository, with further sections."""
-    return f"_schema: anagraphe:configuration@2\nrepository: {{id: {identifier}}}\n{sections}"
+    return f"_schema: anagraphe:configuration@3\nrepository: {{id: {identifier}}}\n{sections}"
 
 
 def test_a_relative_submodule_address_resolves_against_the_remote_of_the_root(
@@ -218,7 +218,7 @@ def _workspace(tmp_path: Path) -> Path:
         "cite.yml": "_schema: test:citing@1\nprofile: {repository: x-lab, id: ada}\n",
         "anagraphe.yml": yaml.safe_dump(
             {
-                "_schema": "anagraphe:configuration@2",
+                "_schema": "anagraphe:configuration@3",
                 "repository": {"id": "lab"},
                 "targets": {"records": {"registry": "specs/schema-registry.yml"}},
             }

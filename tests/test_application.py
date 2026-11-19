@@ -31,10 +31,6 @@ def _write(path: Path, text: str) -> None:
 
 def _repository(root: Path) -> None:
     """Create the smallest repository that exercises registry rendering."""
-    vocabulary = {
-        "schema": {"entry_point": "_index.md"},
-        "roles": {"index": {}, "note": {}},
-    }
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "module.schema.yaml",
@@ -46,11 +42,10 @@ def _repository(root: Path) -> None:
             "groups": {"type": "array"},
         },
     }
-    _write(root / "config" / "vocabulary.yml", yaml.safe_dump(vocabulary))
     _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
     _write(
         root / "anagraphe.yml",
-        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "_schema: anagraphe:configuration@3\nindexes:\n  entry_point: _index.md\n"
         "  index_types: config/index-types\n  inspect_git: false\n",
     )
     _write(
@@ -189,23 +184,23 @@ def test_atomic_write_creates_a_file_and_removes_it_on_rollback(
     [
         (
             "indexes: {}\n",
-            "anagraphe.yml declares no _schema: write _schema: anagraphe:configuration@2",
+            "anagraphe.yml declares no _schema: write _schema: anagraphe:configuration@3",
         ),
         (
-            "_schema: anagraphe:configuration@3\nindexes: {}\n",
-            "_schema must equal anagraphe:configuration@2, not anagraphe:configuration@3",
+            "_schema: anagraphe:configuration@4\nindexes: {}\n",
+            "_schema must equal anagraphe:configuration@3, not anagraphe:configuration@4",
         ),
-        ("_schema: 2\nindexes: {}\n", "_schema must equal anagraphe:configuration@2, not 2"),
+        ("_schema: 2\nindexes: {}\n", "_schema must equal anagraphe:configuration@3, not 2"),
         (
             "schema_version: 2\nindexes: {}\n",
-            "schema_version is retired: write _schema: anagraphe:configuration@2",
+            "schema_version is retired: write _schema: anagraphe:configuration@3",
         ),
         (
             "schema_version: 1\nindexes: {}\n",
-            "write _schema: anagraphe:configuration@2 .*index keys under the section indexes",
+            "write _schema: anagraphe:configuration@3 .*index keys under the section indexes",
         ),
         (
-            "_schema: anagraphe:configuration@2\nschema_version: 2\nindexes: {}\n",
+            "_schema: anagraphe:configuration@3\nschema_version: 2\nindexes: {}\n",
             "schema_version is retired",
         ),
     ],
@@ -219,7 +214,7 @@ def test_configuration_requires_its_format(tmp_path: Path, text: str, message: s
 
 def test_configuration_accepts_its_format(tmp_path: Path) -> None:
     """The identifier of the format, as a plain YAML scalar, must load."""
-    _write(tmp_path / "anagraphe.yml", "_schema: anagraphe:configuration@2\nreferences: {}\n")
+    _write(tmp_path / "anagraphe.yml", "_schema: anagraphe:configuration@3\nreferences: {}\n")
     assert load_config(tmp_path, tmp_path / "anagraphe.yml").references is not None
 
 
@@ -244,13 +239,16 @@ def test_cli_rejects_nonexistent_explicit_target(tmp_path: Path) -> None:
     assert "target does not exist" in result.stderr
 
 
-def test_cli_rejects_incomplete_vocabulary(tmp_path: Path) -> None:
+def test_cli_rejects_a_section_without_entry_point(tmp_path: Path) -> None:
     """A missing renderer invariant must produce a configuration diagnostic."""
     _repository(tmp_path)
-    _write(tmp_path / "config" / "vocabulary.yml", "roles: {}\n")
+    config = tmp_path / "anagraphe.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace("  entry_point: _index.md\n", ""), "utf-8"
+    )
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
-    assert "must declare schema as a mapping" in result.stderr
+    assert "indexes.entry_point must name the file of an index" in result.stderr
 
 
 def test_cli_rejects_empty_index_type_directory(tmp_path: Path) -> None:
@@ -287,9 +285,10 @@ def test_configuration_rejects_path_outside_repository(tmp_path: Path) -> None:
     """A repository-owned input must not resolve outside the repository root."""
     _write(
         tmp_path / "anagraphe.yml",
-        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: ../outside.yml\n  index_types: config/index-types\n",
+        "_schema: anagraphe:configuration@3\nindexes:\n  entry_point: _index.md\n"
+        "  metadata_schema: ../outside.yml\n  index_types: config/index-types\n",
     )
     with pytest.raises(
-        ConfigurationError, match="indexes.vocabulary must stay inside the repository"
+        ConfigurationError, match="indexes.metadata_schema must stay inside the repository"
     ):
         load_config(tmp_path, tmp_path / "anagraphe.yml")

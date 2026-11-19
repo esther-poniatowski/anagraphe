@@ -155,7 +155,7 @@ def _configure(root: Path, section: object) -> Path:
     path = root / "anagraphe.yml"
     path.write_text(
         yaml.safe_dump(
-            {"_schema": "anagraphe:configuration@2", "targets": {}, "repository": section}
+            {"_schema": "anagraphe:configuration@3", "targets": {}, "repository": section}
         ),
         encoding="utf-8",
     )

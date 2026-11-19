@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The configuration format is `anagraphe:configuration@3`, and the section `indexes` no longer
+  reads a vocabulary. The closed value sets of `key_values` become the enumerations of the metadata
+  schema named by `indexes.metadata_schema`: the `enum` of `properties.K`, or of
+  `properties.K.items`, in its order, which also orders a group sorted by the key. Its `$ref`
+  resolve within the repository, and an absolute one through the `resources` of the schema
+  registry of the records. The relations of `context_relations` become the enumeration of
+  `properties.context_relations.items.properties.relation`; without it, every relation is
+  admitted. The settings become keys of the section: `entry_point`, required, `generated_areas`,
+  `archived_statuses`, checked against the enumeration of `status`, and `unlisted_roles`, for the
+  roles that declared `listed: false`. A configuration in `anagraphe:configuration@2` stops with
+  a message naming each change to write.
 - The default identifier of a record whose schema declares no `x-identifier` is the key `id` read
   through the metadata source that `anagraphe.yml` declares for its file, as ADR 0006 states since
   its amendment of 2026-11-19. The first key path holding `id` gives the identifier. Under the
@@ -71,6 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   method `setRepository`.
 
 ### Removed
+
+- The key `indexes.vocabulary`, with `load_vocabulary`, `validate_vocabulary` and
+  `RETIRED_VOCABULARY`, `Settings.from_vocabulary`, `FieldRules.from_vocabulary`,
+  `declared_values`, and the frames of the prose fields: `Frame`, `frame_of`,
+  `FieldRules.check_purpose` and `FieldRules.check_contribution`. Hermeneia checks the form of a
+  prose field, and the section `roles` of a vocabulary is no longer read.
 
 - The manifest reader `anagraphe.targets.manifest`, with `Manifest`, `ManifestReading`,
   `read_manifest` and `check_manifest`, and the kinds `invalid-repository-manifest` and

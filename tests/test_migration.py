@@ -69,7 +69,7 @@ def _write(root: Path, files: dict[str, str]) -> None:
 def _repository(root: Path, files: dict[str, str] | None = None, records: bool = True) -> None:
     """Write a repository whose section targets declares the schema registry and a toml source."""
     declared: dict[str, Any] = {
-        "_schema": "anagraphe:configuration@2",
+        "_schema": "anagraphe:configuration@3",
         "metadata": [{"when": {"types": ["toml"]}, "from": {"toml": ["record"]}}],
         "targets": {"records": {"registry": "specs/schema-registry.yml"}} if records else {},
         "records": {},

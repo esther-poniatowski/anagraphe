@@ -1,14 +1,18 @@
 """
-The section ``indexes`` of ``anagraphe.yml``, and the vocabulary that it names.
+The section ``indexes`` of ``anagraphe.yml``.
 
-The section names the vocabulary and the index-type schemas of the repository, and declares the
-types of the files that an index lists, the task states, the build manifests and the migration
-classes. Its paths are exempted in addition to the paths that the whole configuration exempts.
+The section names the index-type schemas of the repository and, optionally, the metadata schema
+whose enumerations give the closed value sets of the metadata keys, as
+:mod:`anagraphe.indexes.value_sets` reads them. It declares the file name of an index under
+``entry_point``, the areas whose indexes are generated, the statuses of an archived note, the roles
+that an index lists in its control block alone, the types of the files that an index lists, the
+task states, the build manifests and the migration classes. Its paths are exempted in addition to
+the paths that the whole configuration exempts.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -19,19 +23,24 @@ from anagraphe.core.configuration import (
     mapping,
     repository_path,
     strings,
+    strings_in_order,
 )
 from anagraphe.core.conditions import FILE_KEYS, Condition, parse_condition
 from anagraphe.core.exclusions import Exemptions, exemptions
 from anagraphe.core.filters import scalar
 from anagraphe.core.metadata import MetadataReader
-from anagraphe.indexes.fields import declared_values
-from anagraphe.indexes.retired import MIGRATABLE_KEYS, RETIRED_VOCABULARY, MigrationClass
+from anagraphe.indexes.retired import MIGRATABLE_KEYS, MigrationClass
+from anagraphe.indexes.value_sets import ValueSets, read_value_sets
 
 #: The keys of the section ``indexes``.
 SECTION_KEYS = frozenset(
     {
-        "vocabulary",
+        "entry_point",
         "index_types",
+        "metadata_schema",
+        "generated_areas",
+        "archived_statuses",
+        "unlisted_roles",
         "exclude",
         "task_states",
         "sequences",
@@ -40,6 +49,8 @@ SECTION_KEYS = frozenset(
         "members",
     }
 )
+#: The key of the status of a note, whose enumeration bounds the archived statuses.
+STATUS_KEY = "status"
 
 
 @dataclass(frozen=True)
@@ -61,13 +72,22 @@ DEFAULT_MEMBERS = (MemberRule(Condition(types=frozenset({"md", "yml", "yaml"})))
 class IndexConfig:
     """The resolved inputs of the index generator, supplied by one consuming repository."""
 
-    vocabulary: Path
+    #: The file name of an index, such as ``_index.md``.
+    entry_point: str
     index_types: Path
     #: The paths excluded from member discovery and index processing.
     exemptions: Exemptions
     task_states: Mapping[str, bool]
     #: The build manifest of each folder: its member paths in order, relative to the folder.
     sequences: Mapping[str, tuple[str, ...]]
+    #: The closed value sets read from the metadata schema; empty without one.
+    value_sets: ValueSets = field(default_factory=ValueSets)
+    #: The top-level areas whose every index must hold the region of its groups.
+    generated_areas: frozenset[str] = frozenset()
+    #: The statuses of an archived note, the only notes that may declare ``superseded_by``.
+    archived_statuses: tuple[str, ...] = ()
+    #: The roles that an index lists in its control block, never as entries, such as a worklog.
+    unlisted_roles: frozenset[str] = frozenset()
     #: The files tolerating a retired key until a declared migration.
     migrations: tuple[MigrationClass, ...] = ()
     inspect_git: bool = True
@@ -97,81 +117,25 @@ class IndexConfig:
         return self.sequences.get("" if key == "." else key)
 
 
-def load_vocabulary(path: Path) -> dict[str, Any]:
-    """Load one vocabulary file or merge the YAML files of one directory."""
-    if path.is_file():
-        return load_yaml(path)
-    if not path.is_dir():
-        raise ConfigurationError(f"vocabulary path does not exist: {path}")
-    merged: dict[str, Any] = {}
-    files = sorted((*path.glob("*.yml"), *path.glob("*.yaml")))
-    if not files:
-        raise ConfigurationError(f"vocabulary directory contains no YAML files: {path}")
-    for file in files:
-        part = load_yaml(file)
-        for key, value in part.items():
-            if key not in merged:
-                merged[key] = value
-                continue
-            if not isinstance(merged[key], dict) or not isinstance(value, dict):
-                raise ConfigurationError(f"{file.name} declares {key} again")
-            for subkey, subvalue in value.items():
-                if subkey in merged[key]:
-                    raise ConfigurationError(f"{file.name} declares {key}.{subkey} again")
-                merged[key][subkey] = subvalue
-    return merged
-
-
-def validate_vocabulary(raw: Mapping[str, Any], path: Path) -> None:
-    """Require the vocabulary fields consumed by the generic renderer, and no retired section."""
-    for section, replacement in RETIRED_VOCABULARY.items():
-        if section in raw:
-            raise ConfigurationError(
-                f"{path} declares the retired section {section}: {replacement}"
-            )
-    schema = raw.get("schema")
-    if not isinstance(schema, Mapping):
-        raise ConfigurationError(f"{path} must declare schema as a mapping")
-    entry_point = schema.get("entry_point")
-    if not isinstance(entry_point, str) or not entry_point:
-        raise ConfigurationError(f"{path} must declare schema.entry_point as a non-empty string")
-    roles = raw.get("roles", {})
-    if not isinstance(roles, Mapping) or any(
-        not isinstance(name, str) or not isinstance(spec, Mapping) for name, spec in roles.items()
-    ):
-        raise ConfigurationError(f"{path} roles must map names to mappings")
-    key_values = raw.get("key_values", {})
-    if not isinstance(key_values, Mapping) or any(
-        not isinstance(values, (Mapping, list)) for values in key_values.values()
-    ):
-        raise ConfigurationError(
-            f"{path} key_values must map each key to a list of values or to a mapping of glosses"
-        )
-    relations = raw.get("context_relations", [])
-    if not isinstance(relations, (Mapping, list)):
-        raise ConfigurationError(
-            f"{path} context_relations must list relation names or map them to glosses"
-        )
-    _validate_archived(raw, path)
-
-
-def _validate_archived(raw: Mapping[str, Any], path: Path) -> None:
-    """Require the archived statuses to be a list, each among the declared statuses if any."""
-    archived = raw.get("archived_statuses", [])
-    if not isinstance(archived, list) or any(
-        isinstance(item, (list, Mapping)) for item in archived
-    ):
-        raise ConfigurationError(f"{path} archived_statuses must list status values")
-    statuses = (raw.get("key_values") or {}).get("status")
-    if statuses is None:
-        return
-    declared = set(declared_values(statuses))
-    undeclared = [str(item) for item in archived if scalar(item) not in declared]
+def _archived(value: Any, sets: ValueSets, field_name: str) -> tuple[str, ...]:
+    """Return the archived statuses, each among the enumerated statuses when the schema declares
+    them."""
+    archived = tuple(scalar(item) for item in strings_in_order(value, field_name))
+    statuses = sets.values.get(STATUS_KEY)
+    undeclared = [item for item in archived if statuses is not None and item not in statuses]
     if undeclared:
         raise ConfigurationError(
-            f"{path} archived_statuses names a status outside key_values.status: "
-            f"{', '.join(undeclared)}"
+            f"{field_name} names a status outside the enumeration of status in the metadata "
+            f"schema: {', '.join(undeclared)}"
         )
+    return archived
+
+
+def _entry_point(value: Any, field_name: str) -> str:
+    """Return the file name of an index, a non-empty name without a folder."""
+    if not isinstance(value, str) or not value or "/" in value:
+        raise ConfigurationError(f"{field_name} must name the file of an index, such as _index.md")
+    return value
 
 
 def _migrations(value: Any, field: str) -> tuple[MigrationClass, ...]:
@@ -223,20 +187,44 @@ def _sequences(value: Any, field: str) -> dict[str, tuple[str, ...]]:
     return sequences
 
 
-def parse_section(
+def parse_section(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     root: Path,
     raw: Mapping[str, Any],
     shared: Exemptions,
     metadata: MetadataReader | None = None,
     field: str = "indexes",
+    registry: Path | None = None,
 ) -> IndexConfig:
-    """Validate and resolve the section ``indexes``, its exemptions added to the shared ones."""
+    """Validate and resolve the section ``indexes``, its exemptions added to the shared ones.
+
+    The metadata schema resolves an absolute ``$ref`` through ``registry``, the schema registry of
+    the records, when the configuration declares one.
+    """
     known_keys(raw, SECTION_KEYS, field)
     inspect_git = raw.get("inspect_git", True)
     if not isinstance(inspect_git, bool):
         raise ConfigurationError(f"{field}.inspect_git must be a boolean")
+    if "entry_point" not in raw:
+        raise ConfigurationError(
+            f"{field}.entry_point must name the file of an index, such as _index.md"
+        )
+    sets = (
+        read_value_sets(
+            root,
+            repository_path(root, raw["metadata_schema"], f"{field}.metadata_schema"),
+            registry,
+        )
+        if raw.get("metadata_schema") is not None
+        else ValueSets()
+    )
     return IndexConfig(
-        vocabulary=repository_path(root, raw.get("vocabulary"), f"{field}.vocabulary"),
+        entry_point=_entry_point(raw["entry_point"], f"{field}.entry_point"),
+        value_sets=sets,
+        generated_areas=frozenset(strings(raw.get("generated_areas"), f"{field}.generated_areas")),
+        archived_statuses=_archived(
+            raw.get("archived_statuses"), sets, f"{field}.archived_statuses"
+        ),
+        unlisted_roles=frozenset(strings(raw.get("unlisted_roles"), f"{field}.unlisted_roles")),
         index_types=repository_path(root, raw.get("index_types"), f"{field}.index_types"),
         exemptions=shared.union(exemptions(raw.get("exclude"), f"{field}.exclude", root, metadata)),
         task_states=_task_states(root, raw.get("task_states"), f"{field}.task_states"),

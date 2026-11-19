@@ -1,5 +1,5 @@
 """
-Keys, modes and vocabulary sections retired by the decision on collection-owned order.
+Keys and modes retired by the decision on collection-owned order.
 
 The order, the nesting and the grouping of the members belong to the index of their collection
 (ADR 0002). Each construction that stored them elsewhere, or that derived an order from typed
@@ -91,11 +91,6 @@ RETIRED_KEYS: tuple[RetiredKey, ...] = (
 #: Every retired ordering mode, with the modes replacing it.
 RETIRED_MODES: Mapping[str, str] = {
     "construction": "use registry, sorted by a key, or sequence, ordered by a list of links",
-}
-
-#: Every retired section of the vocabulary, with the section replacing it.
-RETIRED_VOCABULARY: Mapping[str, str] = {
-    "cites": "declare the relations of context_relations under context_relations",
 }
 
 #: The keys that a repository may tolerate in a migration class.

@@ -6,7 +6,7 @@ The configuration file `anagraphe.yml` binds Anagraphe to one repository. Withou
 file named by `--config` is read from the current folder, and its absence is an error. The [CLI
 reference](cli-reference.md) states how a command finds the root. The file names its format under
 `_schema`, as its first key, and a command stops with status 2 when the key is absent or holds
-another value than `anagraphe:configuration@2`. The file also declares one section per capability:
+another value than `anagraphe:configuration@3`. The file also declares one section per capability:
 `indexes` to generate the indexes, `references` to check the references between files, `bindings` to
 resolve the bindings of texts, and `targets` to check the logical targets between records and the
 versions declared by the other read sides. The section `records` names the record registry and
@@ -19,21 +19,27 @@ root are invalid.
 ## Layout of the file
 
 A configuration enabling the indexes and the references declares the sources of metadata, the shared
-exclusions, the section `indexes` with its two required paths, and the section `references` with
-its defaults:
+exclusions, the section `indexes` with its two required keys and its metadata schema, and the
+section `references` with its defaults:
 
 ```yaml
-_schema: anagraphe:configuration@2
+_schema: anagraphe:configuration@3
 metadata:
   - when: {types: [toml]}
     from: {toml: [project]}
 exclude:
   paths: [build/]
 indexes:
-  vocabulary: config/vocabulary.yml
+  entry_point: _index.md
   index_types: config/index-types
+  metadata_schema: specs/schemas/metadata.schema.yml
 references: {}
 ```
+
+The format `anagraphe:configuration@3` replaces `anagraphe:configuration@2`, whose section
+`indexes` named a vocabulary under `vocabulary`. A configuration declaring the former format stops
+the command, and the message names each change to write, as the section "Migrate from a vocabulary"
+below lists them.
 
 The metadata sources and the shared `exclude` apply to every section, and each section may
 exclude further files under its own `exclude`, as the next sections state. The [reference specification](references.md) states
@@ -166,11 +172,8 @@ configuration error.
 
 ## Required inputs
 
-The section `indexes` names one vocabulary and one directory of index-type JSON Schemas. The
-vocabulary is a file, or a folder whose YAML files merge in the order of their names. A section
-declared by two files merges when both declare a mapping. A key declared twice stops the
-command.
-The vocabulary declares the entry-point filename, the roles and the frames of the prose fields.
+The section `indexes` declares the file name of an index under `entry_point`, such as `_index.md`,
+and names one directory of index-type JSON Schemas under `index_types`. Both keys are required.
 A schema declares an index type when two conditions hold: its filename ends in `.schema.yaml`,
 and it holds the annotation `x-default-mode`. That annotation gives the default mode of the groups
 of the type, `registry` or `sequence`. Any other value stops the command, and so does the retired
@@ -208,19 +211,45 @@ indexes:
     - {types: [yml, yaml], keys: [metadata]}
 ```
 
-## Categorical values
+## Generated areas and unlisted roles
 
-A categorical key sorts the members of a group in the order of its declared values. The
-vocabulary section `key_values` declares those values, either as a list or as a mapping from each
-value to its gloss:
+The optional key `generated_areas` lists the top-level folders whose every index must hold the
+region of its groups, so an index written by hand there is reported as `ungenerated-index`. The
+optional key `unlisted_roles` lists the roles of the notes that an index reaches through its
+control block alone, never through an entry, such as a work-state file:
 
 ```yaml
-key_values:
-  kind:
-    keynote: a plenary lecture by an invited speaker
-    talk: a contributed presentation within a themed block
-  bearing: [direct, indirect, none]
+indexes:
+  generated_areas: [docs, conferences]
+  unlisted_roles: [worklog]
 ```
+
+## Categorical values
+
+A categorical key sorts the members of a group in the order of its declared values. The values of
+a key are the enumeration of that key in the metadata schema that the optional key
+`metadata_schema` names: a JSON Schema of the metadata of the files, written in YAML or JSON, and
+relative to the root. The values of a key `K` are the `enum` of `properties.K`, or of
+`properties.K.items` for a key holding a list, in their listed order:
+
+```yaml
+# specs/schemas/metadata.schema.yml
+properties:
+  kind:
+    enum: [keynote, talk]
+  outputs:
+    type: array
+    items: {enum: [claim, method, question]}
+  bearing:
+    $ref: 'definitions.schema.yml#/$defs/bearing'
+```
+
+The schema is read through `allOf`, `anyOf`, `oneOf` and `$ref`. A `$ref` by a path names a file
+of the repository, relative to the file holding it. An absolute `$ref` resolves through the
+`resources` of the schema registry of the records, under `targets.records.registry`, else
+`bindings.records.registry`. A reference naming no readable node stops the command. The first
+enumeration met in the order of the walk gives the values of a key, and a key without an
+enumeration has no closed value set.
 
 The check command reports a value outside this set in two cases. Either a filter or an `order`
 names the value, or a member holds it under a categorical sort key of its group. The [index specification](index-specification.md) states how a group sorts by such a
@@ -228,26 +257,54 @@ key.
 
 ## Context relations
 
-In an index, the key `context_relations` states the distinctions between two members. The
-vocabulary section `context_relations` lists the admitted relation names:
+In an index, the key `context_relations` states the distinctions between two members, each as a
+mapping `{source, relation, target, for}`. The admitted relations are the enumeration of the field
+`relation` of its items in the metadata schema. Without that enumeration, every relation is
+admitted:
 
 ```yaml
-context_relations: [contrasts, visualizes]
+properties:
+  context_relations:
+    type: array
+    items:
+      properties:
+        relation: {enum: [contrasts, visualizes]}
 ```
 
 ## Archived statuses
 
 Only an archived note may declare `superseded_by`, the link to the note replacing it. The
-statuses marking a note as archived are listed in the vocabulary section `archived_statuses`:
+statuses marking a note as archived are listed under the key `archived_statuses` of the section
+`indexes`:
 
 ```yaml
-archived_statuses: [archived]
+indexes:
+  archived_statuses: [archived]
 ```
 
 A note declaring `superseded_by` must hold one of these statuses, as the [index
-specification](index-specification.md) states. Without the section, the check command reports
-every note declaring `superseded_by`. When `key_values` declares the values of `status`, each
+specification](index-specification.md) states. Without the key, the check command reports every
+note declaring `superseded_by`. When the metadata schema enumerates the values of `status`, each
 archived status must be one of them; otherwise the command stops.
+
+## Migrate from a vocabulary
+
+Until the format `anagraphe:configuration@3`, the section `indexes` named a vocabulary, a YAML
+file or folder, under `vocabulary`. Each entry that Anagraphe read moves as follows:
+
+| Entry of the vocabulary | Place in `anagraphe:configuration@3` |
+| --- | --- |
+| `schema.entry_point` | `indexes.entry_point` |
+| `schema.generated_index_areas` | `indexes.generated_areas` |
+| `key_values.K`, a list or a mapping of glosses | the `enum` of `properties.K`, or of `properties.K.items` for a list, in the metadata schema |
+| `context_relations` | the `enum` of `properties.context_relations.items.properties.relation` |
+| `archived_statuses` | `indexes.archived_statuses` |
+| `roles.R.listed: false` | `R` listed under `indexes.unlisted_roles` |
+| `schema.frames` | none: Hermeneia checks the form of a prose field |
+| the rest of `roles` | none: Anagraphe no longer reads it |
+
+The other entries of a vocabulary, such as the statuses, the tags or the key order, belong to the
+tools of the repository that read them, and Anagraphe never read them.
 
 ## Task states and build manifests
 

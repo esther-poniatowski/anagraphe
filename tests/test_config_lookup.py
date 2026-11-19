@@ -18,11 +18,11 @@ import pytest
 from typer.testing import CliRunner
 
 from anagraphe.cli import app
-from anagraphe.configuration import find_root, locate_config
+from anagraphe.configuration import find_root, load_config, locate_config
 from anagraphe.core.configuration import ConfigurationError
 
 #: A valid configuration, which the command ``check`` reads with no issue.
-VALID = "_schema: anagraphe:configuration@2\nreferences: {}\n"
+VALID = "_schema: anagraphe:configuration@3\nreferences: {}\n"
 #: A configuration that the command ``check`` rejects with a message naming the retired version.
 RETIRED = "schema_version: 1\nreferences: {}\n"
 NESTED = Path("config/tools/anagraphe.yml")
@@ -55,7 +55,7 @@ def test_lookup_reads_the_file_at_the_root(tmp_path: Path) -> None:
     assert locate_config(root) == root / "anagraphe.yml"
     result = CliRunner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
-    assert "schema_version is retired: write _schema: anagraphe:configuration@2" in result.output
+    assert "schema_version is retired: write _schema: anagraphe:configuration@3" in result.output
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,31 @@ def test_a_file_of_another_format_stops_with_status_2(tmp_path: Path, text: str)
     root = _repository(tmp_path, {"anagraphe.yml": text})
     result = _runner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
-    assert "anagraphe:configuration@2" in result.stderr
+    assert "anagraphe:configuration@3" in result.stderr
+
+
+def test_the_former_format_names_each_move_of_the_vocabulary(tmp_path: Path) -> None:
+    """A configuration in anagraphe:configuration@2 stops, and names the format to write and the
+    place of each entry of the vocabulary that it read."""
+    text = "_schema: anagraphe:configuration@2\nindexes: {vocabulary: v.yml}\n"
+    root = _repository(tmp_path, {"anagraphe.yml": text})
+    with pytest.raises(ConfigurationError) as raised:
+        load_config(root, root / "anagraphe.yml")
+    message = str(raised.value)
+    assert message.startswith(
+        "_schema: anagraphe:configuration@2 is retired: write _schema: anagraphe:configuration@3"
+    )
+    for move in (
+        "indexes.vocabulary is removed",
+        "properties.<key>.items",
+        "properties.context_relations.items.properties.relation",
+        "schema.entry_point becomes indexes.entry_point",
+        "schema.generated_index_areas becomes indexes.generated_areas",
+        "archived_statuses becomes indexes.archived_statuses",
+        "listed: false under roles is listed under indexes.unlisted_roles",
+        "schema.frames is checked by Hermeneia",
+    ):
+        assert move in message
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
@@ -145,7 +169,7 @@ def test_root_is_read_from_the_environment_below_the_option(tmp_path: Path) -> N
 #: A repository declaring one role, bound by the root index.
 BOUND = {
     "anagraphe.yml": (
-        "_schema: anagraphe:configuration@2\nbindings:\n  index: _index.md\n  roles:\n"
+        "_schema: anagraphe:configuration@3\nbindings:\n  index: _index.md\n  roles:\n"
         "    onomasia.glossary: {key: glossary}\n"
     ),
     "_index.md": "---\nglossary: base\n---\n",

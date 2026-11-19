@@ -119,7 +119,7 @@ def _write(root: Path, files: dict[str, str]) -> None:
 
 def _configure(root: Path, sections: dict[str, Any] | None = None) -> RepositoryConfig:
     """Declare the sections of anagraphe.yml, by default those of the cases, and load them."""
-    declared = {"_schema": "anagraphe:configuration@2", **(sections or SUITE["sections"])}
+    declared = {"_schema": "anagraphe:configuration@3", **(sections or SUITE["sections"])}
     (root / "anagraphe.yml").write_text(yaml.safe_dump(declared), encoding="utf-8")
     return load_config(root, root / "anagraphe.yml")
 

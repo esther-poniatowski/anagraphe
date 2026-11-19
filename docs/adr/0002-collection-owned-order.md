@@ -2,6 +2,13 @@
 
 **Status**: Accepted
 
+**Amended** on 2026-11-19, in a change ratified by the researcher: the vocabulary leaves the
+configuration of Anagraphe, in the format `anagraphe:configuration@3`. The closed value sets of
+points 3 and 8 below become the enumerations of a metadata schema named by
+`indexes.metadata_schema`, the relations of `context_relations` the enumeration of their field
+`relation`, and the statuses of an archived note the key `indexes.archived_statuses`. Each amended
+passage below carries the date and keeps the former text beside it.
+
 ---
 
 ## Problem Statement
@@ -123,7 +130,10 @@ of this implementation, adopts the first four, and the last four stay choices of
 2. The `order` of a group overrides the declared values of its first sort key. A value absent
    from `order` is a warning and sorts after the ranked values.
 3. The declared values come from the vocabulary section `key_values` alone. Reading them from the
-   schema of a member is deferred.
+   schema of a member is deferred. *Amended on 2026-11-19*: the declared values of a key `K` are
+   the `enum` of `properties.K`, or of `properties.K.items` for a key holding a list, in the
+   metadata schema that `indexes.metadata_schema` names, in their listed order; a key without an
+   enumeration has no declared values.
 4. A member matching no group belongs to the group `*` only when the index declares that group.
    Otherwise, the member is reported, since an undeclared group has no place in the rendering.
 5. Each entry of `external` is a mapping `{target, for}`.
@@ -134,7 +144,9 @@ of this implementation, adopts the first four, and the last four stay choices of
    mixed types.
 8. The statuses of an archived note are declared in the vocabulary section `archived_statuses`,
    beside the closed value sets of `key_values`. A status is a value of the vocabulary, so the
-   vocabulary can check that each archived status is a declared status.
+   vocabulary can check that each archived status is a declared status. *Amended on 2026-11-19*:
+   the statuses are declared under `indexes.archived_statuses`, and each must belong to the
+   enumeration of `status` when the metadata schema declares one.
 
 #### Retired constructions
 
@@ -147,7 +159,7 @@ of this implementation, adopts the first four, and the last four stay choices of
 | index key `goal`, warning `off-goal` | the expositions of Gnomon |
 | group key `strategy` | a sort key or a sequence |
 | mode `construction`, in a group or in `x-default-mode` | the modes `registry` and `sequence` |
-| vocabulary section `cites` | the vocabulary section `context_relations` |
+| vocabulary section `cites` | the vocabulary section `context_relations`; since 2026-11-19, the enumeration of `properties.context_relations.items.properties.relation` of the metadata schema |
 
 ### Final Answers
 
@@ -156,7 +168,8 @@ of this implementation, adopts the first four, and the last four stay choices of
    build manifest of the folder prevails over the `sequence` of the group.
 2. Each retired construction fails with a message naming its replacement. A retired key of a
    member or of an index is a violation, and a retired construction of a type schema or of the
-   vocabulary stops the command. A retired key is reported under every index, whether or not it
+   vocabulary stops the command; since 2026-11-19, a vocabulary is no longer read, and a
+   configuration naming one stops the command with the changes to write. A retired key is reported under every index, whether or not it
    holds its region of groups, so a repository learns each edit owed before its indexes migrate.
    Each source of order ignored by its group is reported as `ignored-order`. Only the key `cites`
    admits a migration class, whose instances are reported as warnings.

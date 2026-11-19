@@ -133,7 +133,7 @@ def _write(root: Path, files: dict[str, str]) -> None:
 def _repository(root: Path, files: dict[str, str] | None = None, **section: Any) -> None:
     """Write the base repository, extra files, and a configuration with the section references."""
     _write(root, {**BASE, **(files or {})})
-    declared = {"_schema": "anagraphe:configuration@2", "references": {**SECTION, **section}}
+    declared = {"_schema": "anagraphe:configuration@3", "references": {**SECTION, **section}}
     _write(root, {"anagraphe.yml": yaml.safe_dump(declared)})
 
 
@@ -312,7 +312,7 @@ def test_configuration_requires_a_section(tmp_path: Path) -> None:
     """A configuration declaring no section enables nothing, and is rejected."""
     _write(
         tmp_path,
-        {"anagraphe.yml": "_schema: anagraphe:configuration@2\nexclude: {paths: [vendor/]}\n"},
+        {"anagraphe.yml": "_schema: anagraphe:configuration@3\nexclude: {paths: [vendor/]}\n"},
     )
     with pytest.raises(ConfigurationError, match="declares no section: indexes, references"):
         load_config(tmp_path, tmp_path / "anagraphe.yml")
@@ -486,7 +486,6 @@ def test_cli_check_runs_both_sections_on_a_folder_without_index(
     _write(
         tmp_path,
         {
-            "config/vocabulary.yml": "schema: {entry_point: _index.md}\n",
             "config/index-types/module.schema.yaml": yaml.safe_dump(
                 {
                     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -499,7 +498,7 @@ def test_cli_check_runs_both_sections_on_a_folder_without_index(
     )
     config = yaml.safe_load((tmp_path / "anagraphe.yml").read_text(encoding="utf-8"))
     config["indexes"] = {
-        "vocabulary": "config/vocabulary.yml",
+        "entry_point": "_index.md",
         "index_types": "config/index-types",
         "inspect_git": False,
     }

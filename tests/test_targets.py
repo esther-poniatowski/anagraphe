@@ -112,7 +112,7 @@ def _check(
     """Check a repository under the section targets, and the sections repository and metadata when
     they are given, and return its sorted issues."""
     declared = {
-        "_schema": "anagraphe:configuration@2",
+        "_schema": "anagraphe:configuration@3",
         "targets": SUITE["section"] if section is None else section,
         **({"repository": repository} if repository is not None else {}),
         **({"metadata": metadata} if metadata is not None else {}),
@@ -197,7 +197,7 @@ def test_a_check_without_registry_reads_identifiers_and_the_identity(tmp_path: P
 
 def test_a_misspelled_key_of_the_section_fails(tmp_path: Path) -> None:
     (tmp_path / "anagraphe.yml").write_text(
-        "_schema: anagraphe:configuration@2\ntargets: {registry: r.yml}\n", encoding="utf-8"
+        "_schema: anagraphe:configuration@3\ntargets: {registry: r.yml}\n", encoding="utf-8"
     )
     with pytest.raises(ConfigurationError, match="targets declares unknown keys: registry"):
         load_config(tmp_path, tmp_path / "anagraphe.yml")
@@ -259,7 +259,7 @@ def _cli_repository(root: Path) -> None:
             ),
             "anagraphe.yml": yaml.safe_dump(
                 {
-                    "_schema": "anagraphe:configuration@2",
+                    "_schema": "anagraphe:configuration@3",
                     "targets": SUITE["section"],
                     "repository": {"id": "lab"},
                     "resolution": {

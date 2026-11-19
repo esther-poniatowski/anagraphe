@@ -192,7 +192,7 @@ def test_the_providers_reject_an_escaping_path() -> None:
 
 def _configuration_bytes(identifier: str) -> Blob:
     """Return a configuration overriding the identifier of a repository, as the file of a state."""
-    return Blob(f"_schema: anagraphe:configuration@2\nrepository: {{id: {identifier}}}\n".encode())
+    return Blob(f"_schema: anagraphe:configuration@3\nrepository: {{id: {identifier}}}\n".encode())
 
 
 def _root_with_gitlink(root: Path) -> None:
@@ -353,7 +353,7 @@ def _checked_repository(root: Path, citing: str) -> None:
             "cite.yml": f"_schema: test:citing@1\nprofile: {citing}\n",
             "anagraphe.yml": yaml.safe_dump(
                 {
-                    "_schema": "anagraphe:configuration@2",
+                    "_schema": "anagraphe:configuration@3",
                     "targets": SUITE["consumer"]["section"],
                     "repository": {"id": "lab"},
                     "resolution": {

@@ -2,7 +2,7 @@
 
 Anagraphe serves repositories whose records already declare their navigation metadata. Install the
 package in a dedicated environment, place the configuration file at the repository root, and keep
-the referenced vocabulary and schemas under version control.
+the referenced metadata schema and index-type schemas under version control.
 
 ## Update managed blocks
 

@@ -29,7 +29,6 @@ from anagraphe.core.files import TargetError, is_text, walk, write_atomically
 from anagraphe.core.issues import Report
 from anagraphe.core.metadata import MetadataReader
 from anagraphe.core.structured import apply_edits
-from anagraphe.indexes.configuration import load_vocabulary
 from anagraphe.indexes.relocation import IndexEdit, IndexRelocator
 from anagraphe.indexes.service import RunResult, run
 from anagraphe.references.configuration import ReferenceConfig
@@ -203,7 +202,7 @@ class MoveService:
         """Return the relocator of the indexes, None when the configuration declares no indexes."""
         if self.config.indexes is None:
             return None
-        entry_point = str(load_vocabulary(self.config.indexes.vocabulary)["schema"]["entry_point"])
+        entry_point = self.config.indexes.entry_point
         inverse = {new: old for old, new in relocation.files.items()}
 
         metadata = self.config.metadata or MetadataReader(self.root)

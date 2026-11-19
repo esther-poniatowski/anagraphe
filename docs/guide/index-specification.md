@@ -89,8 +89,9 @@ under `sort`:
 Each later key of `sort` breaks the ties of the former. The title, then the path, break the
 remaining ties.
 
-A categorical key sorts in the order of its declared values. The vocabulary declares those values
-under `key_values`, as the [configuration guide](configuration.md) shows. The key `order` of a
+A categorical key sorts in the order of its declared values: the enumeration of the key in the
+metadata schema that `indexes.metadata_schema` names, as the [configuration
+guide](configuration.md) shows. The key `order` of a
 group overrides that order for the first sort key:
 
 ```yaml
@@ -111,7 +112,10 @@ list follow it, in the order of the sort keys, and each of them is reported as a
 ## Nest the members
 
 The key `nest` places each member beneath its parent within the group. Its value names a key of
-the members, whose value designates the parent: a file stem, an `id`, or a link. When that key
+the members, whose value designates the parent: a file stem, an identifier, or a link. The
+identifier of a member is the one that the check of the targets resolves: the field that its
+schema declares by `x-identifier`, when the section `targets` is declared, else the key `id` of its
+metadata source, as the [targets guide](targets.md) states. When that key
 holds a list, its first value naming a member of the group designates the parent. The entries of
 the children are indented beneath the entry of their parent. Two kinds of member stand at the
 first level:
@@ -134,9 +138,11 @@ Three further keys complete the specification of a collection:
   states the file under `target` and its use under `for`. When a target is a web address, such
   as a permanent link into another repository, Anagraphe does not check that it exists.
 - The index key `context_relations` states a distinction between two members, as a mapping
-  `{source, relation, target, for}`. The vocabulary declares the admitted relations.
+  `{source, relation, target, for}`. The metadata schema enumerates the admitted relations under
+  `properties.context_relations.items.properties.relation`; without that enumeration, every
+  relation is admitted.
 - The member key `superseded_by` links an archived note to the note replacing it. A note declaring
-  it must hold a status declared under `archived_statuses`, as the [configuration
+  it must hold a status declared under `indexes.archived_statuses`, as the [configuration
   guide](configuration.md) shows. This check covers every member of an index holding the region
   of groups, including a member held by no group.
 
@@ -194,7 +200,7 @@ under an index holding the region of groups:
 | `missing-sequence` | a sequence group lacks both a `sequence` and a build manifest |
 | `nest-cycle` | a cycle of the parents named through `nest` separates the member from the first level |
 | `invalid-external` | `external` names a member of the index |
-| `invalid-context-relation` | a relation of `context_relations` is not declared by the vocabulary, or names a file absent from the members |
+| `invalid-context-relation` | a relation of `context_relations` lies outside the enumeration of the metadata schema, or names a file absent from the members |
 | `malformed-groups` | a key of a slot is malformed (e.g. an unknown key, a duplicate id, both `members` and `where`) |
 | `malformed-groups` | no member of a group holds one of its sort keys |
 | `malformed-groups` | a group declares the retired key `strategy` or the retired mode `construction`, or names a retired member key (`group`, `cites`) in `show` |
@@ -227,7 +233,7 @@ none of the issues of a listed file:
 | `unknown-task` | `blocked_by` names no declared task |
 | `finished-blocker` | `blocked_by` names a closed task (warning) |
 
-A retired construction of an index-type schema, such as `x-default-mode: construction`, or of the
-vocabulary, such as its section `cites`, stops the command with a configuration error. The
+A retired construction of an index-type schema, such as `x-default-mode: construction`, stops the
+command with a configuration error. The
 [ADR 0002](../adr/0002-collection-owned-order.md) lists each retired construction with its
 replacement.

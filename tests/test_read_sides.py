@@ -30,7 +30,7 @@ def _repository(root: Path, files: dict[str, str], sides: Any) -> None:
     for rel, text in files.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text, encoding="utf-8")
-    config = {"_schema": "anagraphe:configuration@2", "targets": {"read_sides": sides}}
+    config = {"_schema": "anagraphe:configuration@3", "targets": {"read_sides": sides}}
     (root / "anagraphe.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
 
 

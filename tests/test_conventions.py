@@ -35,7 +35,7 @@ def _repository(root: Path, files: dict[str, str], **section: Any) -> None:
         root,
         {
             "anagraphe.yml": yaml.safe_dump(
-                {"_schema": "anagraphe:configuration@2", "references": section}
+                {"_schema": "anagraphe:configuration@3", "references": section}
             )
         },
     )

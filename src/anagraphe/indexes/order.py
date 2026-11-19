@@ -5,8 +5,8 @@ ADR 0002 admits two modes, each with one source of order:
 
 - a **registry** sorts its members by the sort keys of the group: the title, the file name, the
   date, or any key of the members. Each later key breaks the ties of the former. A categorical
-  key sorts in the order of the values that the vocabulary declares for it, or in the order that
-  the group states in ``order`` for its first sort key;
+  key sorts in the order of the values that the metadata schema enumerates for it, or in the
+  order that the group states in ``order`` for its first sort key;
 - a **sequence** follows a list of files: the build manifest of the folder where one exists, else
   the sequence of the group. The members absent from that list follow it, in the order of the
   sort keys.

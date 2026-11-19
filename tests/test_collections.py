@@ -38,28 +38,44 @@ def _markdown(data: dict[str, Any], body: str) -> str:
 
 def _repository(
     root: Path,
-    vocabulary: dict[str, Any] | None = None,
+    schema: dict[str, Any] | None = None,
     configuration: str = "",
     default_mode: str = "registry",
 ) -> None:
-    """Create a repository whose default index type has the given default mode."""
-    schema = {
+    """Create a repository whose default index type has the given default mode, with the metadata
+    schema and the further keys of the section indexes that are given."""
+    index_type = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "module.schema.yaml",
         "type": "object",
         "x-default-mode": default_mode,
     }
-    _write(
-        root / "config" / "vocabulary.yml",
-        yaml.safe_dump({"schema": {"entry_point": "_index.md"}, **(vocabulary or {})}),
-    )
-    _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(schema))
+    _write(root / "config" / "index-types" / "module.schema.yaml", yaml.safe_dump(index_type))
+    if schema is not None:
+        _write(root / "config" / "metadata.schema.yml", yaml.safe_dump(schema))
+        configuration = "metadata_schema: config/metadata.schema.yml\n" + configuration
     _write(
         root / "anagraphe.yml",
-        "_schema: anagraphe:configuration@2\nindexes:\n  vocabulary: config/vocabulary.yml\n"
+        "_schema: anagraphe:configuration@3\nindexes:\n  entry_point: _index.md\n"
         "  index_types: config/index-types\n  inspect_git: false\n"
         + textwrap.indent(configuration, "  "),
     )
+
+
+def _enums(**values: list[str]) -> dict[str, Any]:
+    """Return a metadata schema enumerating the values of each key."""
+    return {"properties": {key: {"enum": listed} for key, listed in values.items()}}
+
+
+#: A metadata schema enumerating one relation of the key context_relations of an index.
+RELATIONS = {
+    "properties": {
+        "context_relations": {
+            "type": "array",
+            "items": {"properties": {"relation": {"enum": ["contrasts"]}}},
+        }
+    }
+}
 
 
 def _index(root: Path, groups: list[dict[str, Any]], **keys: Any) -> None:
@@ -206,7 +222,7 @@ def test_members_naming_a_file_outside_the_folder_is_a_violation(tmp_path: Path)
 
 def test_categorical_key_sorts_by_declared_values_then_secondary_key(tmp_path: Path) -> None:
     """A categorical key must sort in its declared order, and a second key break its ties."""
-    _repository(tmp_path, {"key_values": {"kind": {"keynote": "a lecture", "talk": "a talk"}}})
+    _repository(tmp_path, _enums(kind=["keynote", "talk"]))
     _index(tmp_path, [{"id": "*", "sort": ["kind", "day"]}])
     _note(tmp_path, "a.md", kind="talk", day="2")
     _note(tmp_path, "b.md", kind="talk", day="1")
@@ -216,7 +232,7 @@ def test_categorical_key_sorts_by_declared_values_then_secondary_key(tmp_path: P
 
 def test_order_overrides_the_declared_values(tmp_path: Path) -> None:
     """The order of a group must prevail over the declared order of its first sort key."""
-    _repository(tmp_path, {"key_values": {"kind": ["keynote", "talk"]}})
+    _repository(tmp_path, _enums(kind=["keynote", "talk"]))
     _index(tmp_path, [{"id": "*", "sort": "kind", "order": ["talk", "keynote"]}])
     _note(tmp_path, "a.md", kind="keynote")
     _note(tmp_path, "b.md", kind="talk")
@@ -370,7 +386,7 @@ def test_categorical_value_outside_its_declared_values_is_a_violation(tmp_path: 
 
     A declared value that the order of the group omits is only a warning.
     """
-    _repository(tmp_path, {"key_values": {"kind": ["keynote", "talk"]}})
+    _repository(tmp_path, _enums(kind=["keynote", "talk"]))
     _index(
         tmp_path,
         [
@@ -585,9 +601,9 @@ def test_external_names_files_outside_the_collection(tmp_path: Path) -> None:
     assert not _found(result, "invalid-link")
 
 
-def test_context_relations_are_validated_against_the_vocabulary(tmp_path: Path) -> None:
-    """A relation declared by the vocabulary must pass, and another one be reported."""
-    _repository(tmp_path, {"context_relations": ["contrasts"]})
+def test_context_relations_are_validated_against_the_metadata_schema(tmp_path: Path) -> None:
+    """A relation enumerated by the metadata schema must pass, and another one be reported."""
+    _repository(tmp_path, RELATIONS)
     _index(
         tmp_path,
         [{"id": "*"}],
@@ -599,13 +615,13 @@ def test_context_relations_are_validated_against_the_vocabulary(tmp_path: Path) 
     _note(tmp_path, "a.md")
     _note(tmp_path, "b.md")
     assert [issue.detail for issue in _found(_run(tmp_path), "invalid-context-relation")] == [
-        "relation not declared under context_relations in the vocabulary: visualizes"
+        "relation outside the enumeration of context_relations in the metadata schema: visualizes"
     ]
 
 
 def test_context_relation_links_are_url_decoded(tmp_path: Path) -> None:
     """A relation linking a member whose name holds a space must resolve to that member."""
-    _repository(tmp_path, {"context_relations": ["contrasts"]})
+    _repository(tmp_path, RELATIONS)
     _index(
         tmp_path,
         [{"id": "*"}],
@@ -637,14 +653,6 @@ def test_retired_default_mode_fails_the_configuration(tmp_path: Path) -> None:
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
     assert "the mode construction is retired: use registry" in result.stderr
-
-
-def test_retired_vocabulary_section_fails_the_configuration(tmp_path: Path) -> None:
-    """A vocabulary declaring typed citations must fail with the section replacing it."""
-    _repository(tmp_path, {"cites": {"relations": {"contrasts": {}}}})
-    result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
-    assert result.exit_code == 2
-    assert "declares the retired section cites" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -758,11 +766,11 @@ def test_migration_class_admits_only_migratable_keys(tmp_path: Path) -> None:
 
 
 def test_superseded_note_must_hold_an_archived_status(tmp_path: Path) -> None:
-    """A note declaring superseded_by must hold a status that the vocabulary declares archived.
+    """A note declaring superseded_by must hold a status that the section declares archived.
 
     The check covers every member, the members that no group holds included.
     """
-    _repository(tmp_path, {"archived_statuses": ["archived"]})
+    _repository(tmp_path, configuration="archived_statuses: [archived]\n")
     _index(tmp_path, [{"id": "talks", "where": {"kind": "talk"}}])
     _note(tmp_path, "a.md", kind="talk", status="archived", superseded_by=_link("b.md"))
     _note(tmp_path, "b.md", kind="talk", status="wip", superseded_by=_link("a.md"))
@@ -772,7 +780,7 @@ def test_superseded_note_must_hold_an_archived_status(tmp_path: Path) -> None:
         (
             "m/b.md",
             "superseded_by belongs to an archived note, whereas the status wip is not "
-            "declared under archived_statuses: archived",
+            "declared under indexes.archived_statuses: archived",
             True,
         ),
         (
@@ -784,23 +792,135 @@ def test_superseded_note_must_hold_an_archived_status(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("vocabulary", "message"),
+    ("schema", "configuration", "message"),
     [
-        ({"archived_statuses": "archived"}, "archived_statuses must list status values"),
         (
-            {"archived_statuses": ["archived"], "key_values": {"status": ["wip", "stable"]}},
-            "archived_statuses names a status outside key_values.status: archived",
+            None,
+            "archived_statuses: archived\n",
+            "indexes.archived_statuses must be a list of strings",
+        ),
+        (
+            _enums(status=["wip", "stable"]),
+            "archived_statuses: [archived]\n",
+            "indexes.archived_statuses names a status outside the enumeration of status in the "
+            "metadata schema: archived",
         ),
     ],
 )
 def test_malformed_archived_statuses_fail_the_configuration(
-    tmp_path: Path, vocabulary: dict[str, Any], message: str
+    tmp_path: Path, schema: dict[str, Any] | None, configuration: str, message: str
 ) -> None:
-    """Archived statuses must be a list of values, each declared when the statuses are."""
-    _repository(tmp_path, vocabulary)
+    """Archived statuses must be a list of values, each enumerated when the statuses are."""
+    _repository(tmp_path, schema, configuration)
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
     assert message in result.stderr
+
+
+# --- The metadata schema and the settings --------------------------------------------------------
+
+
+def test_the_values_of_a_key_come_from_a_referenced_enumeration(tmp_path: Path) -> None:
+    """An enumeration reached through allOf and $ref, and the enumeration of the items of a list,
+    set the values of a key and the order of a group sorted by it."""
+    _repository(
+        tmp_path,
+        {
+            "allOf": [{"$ref": "kinds.schema.yml"}],
+            "properties": {"outputs": {"type": "array", "items": {"enum": ["claim", "method"]}}},
+        },
+    )
+    _write(
+        tmp_path / "config" / "kinds.schema.yml",
+        yaml.safe_dump(
+            {
+                "properties": {"kind": {"$ref": "#/$defs/kind"}},
+                "$defs": {"kind": {"enum": ["talk", "keynote"]}},
+            }
+        ),
+    )
+    _index(tmp_path, [{"id": "*", "sort": "kind"}])
+    _note(tmp_path, "a.md", kind="keynote")
+    _note(tmp_path, "b.md", kind="talk")
+    assert _entries(tmp_path) == ["b.md", "a.md"]
+    _note(tmp_path, "c.md", outputs=["claim"])
+    _index(tmp_path, [{"id": "out", "where": {"outputs": "theorem"}}, {"id": "*"}])
+    assert [issue.detail for issue in _found(_run(tmp_path), "undeclared-value")] == [
+        "where of group out: outputs admits no value theorem; its values are claim, method"
+    ]
+
+
+def test_an_absolute_reference_resolves_through_the_registry_of_the_records(
+    tmp_path: Path,
+) -> None:
+    """An absolute $ref of the metadata schema names a resource of the schema registry that the
+    section targets declares."""
+    uri = "https://example.org/kinds.schema.yml"
+    _repository(
+        tmp_path,
+        {"properties": {"kind": {"$ref": f"{uri}#/$defs/kind"}}},
+    )
+    with (tmp_path / "anagraphe.yml").open("a", encoding="utf-8") as config:
+        config.write("targets:\n  records: {registry: specs/schema-registry.yml}\n")
+    _write(
+        tmp_path / "specs" / "schema-registry.yml",
+        f"_schema: kleisis:schema-registry@2\nschemas: {{}}\nexports: []\n"
+        f"resources:\n  '{uri}': specs/kinds.schema.yml\n",
+    )
+    _write(
+        tmp_path / "specs" / "kinds.schema.yml",
+        yaml.safe_dump({"$id": uri, "$defs": {"kind": {"enum": ["talk", "keynote"]}}}),
+    )
+    _index(tmp_path, [{"id": "*", "sort": "kind"}])
+    _note(tmp_path, "a.md", kind="keynote")
+    _note(tmp_path, "b.md", kind="talk")
+    assert _entries(tmp_path) == ["b.md", "a.md"]
+
+
+def test_an_unresolved_reference_of_the_metadata_schema_fails_the_configuration(
+    tmp_path: Path,
+) -> None:
+    _repository(tmp_path, {"properties": {"kind": {"$ref": "https://example.org/kinds.yml"}}})
+    with pytest.raises(ConfigurationError, match="the registry maps no \\$id https://example.org"):
+        load_config(tmp_path, tmp_path / "anagraphe.yml")
+
+
+def test_without_an_enumeration_a_relation_and_a_key_are_open(tmp_path: Path) -> None:
+    """A metadata schema enumerating no relation admits every relation, and a key without an
+    enumeration sorts by its text."""
+    _repository(tmp_path, {"properties": {"kind": {"type": "string"}}})
+    _index(
+        tmp_path,
+        [{"id": "*", "sort": "kind"}],
+        context_relations=[
+            {"source": _link("a.md"), "relation": "visualizes", "target": _link("b.md")}
+        ],
+    )
+    _note(tmp_path, "a.md", kind="talk")
+    _note(tmp_path, "b.md", kind="keynote")
+    result = _run(tmp_path, "write")
+    assert not _found(result, "invalid-context-relation")
+    assert ENTRY.findall((tmp_path / "m" / "_index.md").read_text(encoding="utf-8")) == [
+        "b.md",
+        "a.md",
+    ]
+
+
+def test_an_unlisted_role_stays_out_of_the_entries(tmp_path: Path) -> None:
+    """A note of a role under unlisted_roles is listed in the control block, never as an entry."""
+    _repository(tmp_path, configuration="unlisted_roles: [worklog]\n")
+    _index(tmp_path, [{"id": "*"}])
+    _note(tmp_path, "a.md")
+    _note(tmp_path, "todo.md", role="worklog")
+    assert _entries(tmp_path) == ["a.md"]
+
+
+def test_an_index_of_a_generated_area_must_hold_its_region(tmp_path: Path) -> None:
+    _repository(tmp_path, configuration="generated_areas: [m]\n")
+    data = {"role": "index", "aliases": ["Module"], "groups": [{"id": "*"}]}
+    _write(tmp_path / "m" / "_index.md", _markdown(data, "# Module\n"))
+    _note(tmp_path, "a.md")
+    assert _found(_run(tmp_path), "ungenerated-index")
 
 
 def test_every_kind_of_the_indexes_is_documented() -> None:

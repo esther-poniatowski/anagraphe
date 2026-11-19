@@ -58,7 +58,22 @@ ROOT_VARIABLE = "ANAGRAPHE_ROOT"
 #: The key of ``anagraphe.yml`` naming its format.
 FORMAT_KEY = "_schema"
 #: The format of ``anagraphe.yml`` read by this release.
-CONFIGURATION_FORMAT = "anagraphe:configuration@2"
+CONFIGURATION_FORMAT = "anagraphe:configuration@3"
+#: The former format, whose section ``indexes`` named a vocabulary, with the changes to write.
+FORMER_FORMAT = "anagraphe:configuration@2"
+VOCABULARY_MOVES = (
+    "indexes.vocabulary is removed",
+    "the values of each key under key_values become the enum of properties.<key>, or of "
+    "properties.<key>.items for a list, of a metadata schema named by indexes.metadata_schema, "
+    "in their order",
+    "the relations under context_relations become the enum of "
+    "properties.context_relations.items.properties.relation of that schema",
+    "schema.entry_point becomes indexes.entry_point",
+    "schema.generated_index_areas becomes indexes.generated_areas",
+    "archived_statuses becomes indexes.archived_statuses",
+    "each role declaring listed: false under roles is listed under indexes.unlisted_roles",
+    "schema.frames is checked by Hermeneia, and roles is no longer read",
+)
 #: The key that named the version of the layout before ``_schema``, rejected with its replacement.
 RETIRED_FORMAT_KEY = "schema_version"
 #: The top-level keys of ``anagraphe.yml``.
@@ -148,6 +163,12 @@ def _require_format(raw: Mapping[str, Any]) -> None:
         raise ConfigurationError(f"{RETIRED_FORMAT_KEY} is retired: {instruction}{layout}")
     if FORMAT_KEY not in raw:
         raise ConfigurationError(f"anagraphe.yml declares no {FORMAT_KEY}: {instruction}")
+    if raw[FORMAT_KEY] == FORMER_FORMAT:
+        raise ConfigurationError(
+            f"{FORMAT_KEY}: {FORMER_FORMAT} is retired: write {FORMAT_KEY}: {CONFIGURATION_FORMAT}"
+            f"; this format moves the vocabulary into the section indexes: "
+            + "; ".join(VOCABULARY_MOVES)
+        )
     if raw[FORMAT_KEY] != CONFIGURATION_FORMAT:
         raise ConfigurationError(
             f"{FORMAT_KEY} must equal {CONFIGURATION_FORMAT}, not {raw[FORMAT_KEY]}"
@@ -167,9 +188,35 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
     known_keys(raw, TOP_LEVEL_KEYS, "anagraphe.yml")
     reader = MetadataReader(root, parse_metadata(raw.get("metadata"), "metadata"))
     shared = exemptions(raw.get("exclude"), "exclude", root, reader)
+    target_section = (
+        targets.parse_section(root, mapping(raw["targets"], "targets"), shared, reader)
+        if "targets" in raw
+        else None
+    )
+    binding_section = (
+        bindings.parse_section(root, mapping(raw["bindings"], "bindings"), shared, reader)
+        if "bindings" in raw
+        else None
+    )
+    # The metadata schema of the indexes resolves an absolute $ref through the schema registry of
+    # the records, as the targets declare it, else as the bindings declare it.
+    records_schemas = next(
+        (
+            section.records
+            for section in (target_section, binding_section)
+            if section is not None and section.records is not None
+        ),
+        None,
+    )
     config = RepositoryConfig(
         indexes=(
-            indexes.parse_section(root, mapping(raw["indexes"], "indexes"), shared, reader)
+            indexes.parse_section(
+                root,
+                mapping(raw["indexes"], "indexes"),
+                shared,
+                reader,
+                registry=records_schemas.registry if records_schemas is not None else None,
+            )
             if "indexes" in raw
             else None
         ),
@@ -178,16 +225,8 @@ def load_config(root: Path, path: Path) -> RepositoryConfig:
             if "references" in raw
             else None
         ),
-        bindings=(
-            bindings.parse_section(root, mapping(raw["bindings"], "bindings"), shared, reader)
-            if "bindings" in raw
-            else None
-        ),
-        targets=(
-            targets.parse_section(root, mapping(raw["targets"], "targets"), shared, reader)
-            if "targets" in raw
-            else None
-        ),
+        bindings=binding_section,
+        targets=target_section,
         records=(
             records.parse_section(root, mapping(raw["records"], "records"))
             if "records" in raw

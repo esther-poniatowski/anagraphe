@@ -47,7 +47,7 @@ def _repository(root: Path, unlinkable: Any = UNLINKABLE, **section: Any) -> Non
     files = {
         "anagraphe.yml": yaml.safe_dump(
             {
-                "_schema": "anagraphe:configuration@2",
+                "_schema": "anagraphe:configuration@3",
                 "references": {"unlinkable": unlinkable, **section},
             }
         ),

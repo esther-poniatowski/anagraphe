@@ -48,7 +48,7 @@ def test_a_configuration_naming_an_impossible_date_is_a_configuration_error(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "anagraphe.yml"
-    path.write_text(f"_schema: anagraphe:configuration@2\ncreated: {IMPOSSIBLE}\n", "utf-8")
+    path.write_text(f"_schema: anagraphe:configuration@3\ncreated: {IMPOSSIBLE}\n", "utf-8")
     with pytest.raises(ConfigurationError, match="cannot parse"):
         load_config(tmp_path, path)
 
@@ -66,7 +66,7 @@ def test_the_check_of_the_targets_reports_the_note_as_unreadable(tmp_path: Path)
     (tmp_path / "notes").mkdir()
     (tmp_path / "notes" / "a.md").write_text(NOTE, encoding="utf-8")
     path = tmp_path / "anagraphe.yml"
-    path.write_text("_schema: anagraphe:configuration@2\ntargets: {}\n", encoding="utf-8")
+    path.write_text("_schema: anagraphe:configuration@3\ntargets: {}\n", encoding="utf-8")
     config = load_config(tmp_path, path).targets
     assert config is not None
     issues = TargetChecker(tmp_path, config).check().issues

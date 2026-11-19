@@ -10,7 +10,7 @@ from typing import Literal
 from anagraphe.core.files import TargetError, write_atomically
 from anagraphe.core.git_state import committed_files
 from anagraphe.core.issues import Issue, Report
-from anagraphe.indexes.configuration import IndexConfig, load_vocabulary, validate_vocabulary
+from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.fields import FieldRules
 from anagraphe.indexes.generator import IndexGenerator, Settings
 from anagraphe.indexes.types import IndexTypes
@@ -70,14 +70,14 @@ def run(
     When ``strict``, a named target resolving to no index raises a :class:`TargetError`.
     """
     root = root.resolve()
-    vocabulary = load_vocabulary(config.vocabulary)
-    validate_vocabulary(vocabulary, config.vocabulary)
-    settings = Settings.from_vocabulary(
-        vocabulary,
-        config.exemptions.contains,
-        IndexTypes.load(config.index_types),
+    settings = Settings(
+        entry_point=config.entry_point,
+        unlisted_roles=config.unlisted_roles,
+        is_exempt=config.exemptions.contains,
+        types=IndexTypes.load(config.index_types),
+        generated_areas=config.generated_areas,
+        is_member=config.is_member,
     )
-    settings = dataclasses.replace(settings, is_member=config.is_member)
     indexes = _indexes(root, paths, settings, strict)
     if config.inspect_git:
         committed = committed_files(root)
@@ -93,7 +93,7 @@ def run(
     generator = IndexGenerator(
         root,
         settings,
-        FieldRules.from_vocabulary(vocabulary),
+        FieldRules(config.value_sets.values, config.value_sets.relations, config.archived_statuses),
         config.task_states,
         lambda folder: config.sequence_for(root, folder),
         config.migrations,

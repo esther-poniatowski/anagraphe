@@ -21,7 +21,7 @@ Generates repository indexes from record metadata, and checks their drift and th
 
 Repository records often declare the metadata needed for navigation, while hand-written indexes
 repeat that metadata and drift after files move or change. Anagraphe reads repository-owned
-vocabularies and index-type schemas, then renders only the managed blocks of each index. The
+metadata schemas and index-type schemas, then renders only the managed blocks of each index. The
 non-mutating check command compares those blocks with the same rendering used by the write command.
 The same check reads the fields declared as references by the repository, and reports each
 reference naming no file or anchor.
@@ -30,7 +30,7 @@ reference naming no file or anchor.
 
 - **One authority** — record metadata supplies each generated entry
 - **Deterministic output** — a second write produces identical bytes
-- **Repository-owned policy** — vocabularies, index types, exclusions, tasks, and sequences remain
+- **Repository-owned policy** — metadata schemas, index types, exclusions, tasks, and sequences remain
   with the consuming repository
 - **Transactional writes** — a blocking issue prevents every selected write
 - **CI drift checks** — the check command changes no source file and fails on stale blocks
@@ -61,7 +61,7 @@ reference naming no file or anchor.
 ## Quick Start
 
 The repository must contain an `anagraphe.yml` configuration, read from `config/tools/` or
-from the root, and the vocabulary and index-type schemas named by that configuration. The write command materializes every managed block:
+from the root, and the metadata schema and index-type schemas named by that configuration. The write command materializes every managed block:
 
 ```sh
 anagraphe indexes write

@@ -69,20 +69,19 @@ def _repository(root: Path, git_ignored: Any = True) -> None:
         {
             "anagraphe.yml": yaml.safe_dump(
                 {
-                    "_schema": "anagraphe:configuration@2",
+                    "_schema": "anagraphe:configuration@3",
                     "exclude": {"git_ignored": git_ignored},
                     "repository": {"id": "lab"},
                     "targets": {},
                     "records": {},
                     "references": {},
                     "indexes": {
-                        "vocabulary": "config/vocabulary.yml",
+                        "entry_point": "_index.md",
                         "index_types": "config/index-types",
                         "inspect_git": False,
                     },
                 }
             ),
-            "config/vocabulary.yml": "schema: {entry_point: _index.md}\n",
             "config/index-types/module.schema.yaml": yaml.safe_dump(
                 {
                     "$schema": "https://json-schema.org/draft/2020-12/schema",

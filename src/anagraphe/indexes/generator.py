@@ -70,27 +70,6 @@ class Settings:
         default=lambda rel: rel.endswith((".md", ".yml", ".yaml"))
     )
 
-    @classmethod
-    def from_vocabulary(
-        cls,
-        raw: Mapping[str, Any],
-        is_exempt: Callable[[Path], bool],
-        types: IndexTypes,
-    ) -> Settings:
-        """Read the settings from the parsed vocabulary and the types of index."""
-        schema = raw["schema"]
-        return cls(
-            entry_point=str(schema["entry_point"]),
-            unlisted_roles=frozenset(
-                name
-                for name, spec in (raw.get("roles") or {}).items()
-                if spec.get("listed", True) is False
-            ),
-            is_exempt=is_exempt,
-            types=types,
-            generated_areas=frozenset(schema.get("generated_index_areas") or ()),
-        )
-
 
 @dataclass
 class Result:
@@ -671,10 +650,10 @@ class IndexGenerator:
         issues: list[Issue] = []
         for relation in index_note.context_relations:
             problems: list[str] = []
-            if relation.relation not in self.rules.relations:
+            if self.rules.relations is not None and relation.relation not in self.rules.relations:
                 problems.append(
-                    f"relation not declared under context_relations in the vocabulary: "
-                    f"{relation.relation}"
+                    "relation outside the enumeration of context_relations in the metadata "
+                    f"schema: {relation.relation}"
                 )
             problems.extend(
                 f"{end} is no member of {index_rel}: {path}"

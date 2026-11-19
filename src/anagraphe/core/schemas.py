@@ -202,17 +202,20 @@ class SchemaReader:
     """Read the schemas of the contracts of a registry, each file once.
 
     The reader records the references that name no readable node, and the schemas of the registry
-    that cannot be read, under :attr:`problems`.
+    that cannot be read, under :attr:`problems`. Without a registry, the reader holds no contract,
+    and resolves only the references by a path of the repository.
     """
 
     root: Path
-    registry: Path
+    registry: Path | None
     problems: list[SchemaProblem] = field(default_factory=list, init=False)
     _schemas: dict[str, str] = field(default_factory=dict, init=False)
     _resources: dict[str, str] = field(default_factory=dict, init=False)
     _documents: dict[str, Any] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
+        if self.registry is None:
+            return
         # The public reader of Kleisis, the owner of the format, validates the registry.
         try:
             registry = read_registry(self.registry)

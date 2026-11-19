@@ -51,9 +51,6 @@ def _repository(root: Path) -> None:
     _write(
         root,
         {
-            "config/vocabulary.yml": yaml.safe_dump(
-                {"schema": {"entry_point": "_index.md"}, "roles": {"index": {}, "note": {}}}
-            ),
             "config/index-types/module.schema.yaml": yaml.safe_dump(SCHEMA),
             "m/_index.md": _index(
                 "Module",
@@ -69,9 +66,9 @@ def _repository(root: Path) -> None:
             "archive/old.md": "An old pointer to m/a.md.\n",
             "anagraphe.yml": yaml.safe_dump(
                 {
-                    "_schema": "anagraphe:configuration@2",
+                    "_schema": "anagraphe:configuration@3",
                     "indexes": {
-                        "vocabulary": "config/vocabulary.yml",
+                        "entry_point": "_index.md",
                         "index_types": "config/index-types",
                         "inspect_git": False,
                         "sequences": {"m": ["a.md", "b.md"]},
