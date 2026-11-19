@@ -16,12 +16,12 @@ from anagraphe_read._core.files import TextCache, select, walk
 from anagraphe_read._core.issues import Issue, IssueKind, Report, link
 from anagraphe_read._core.metadata import MetadataReader
 
-from anagraphe.core.links import Target
+from anagraphe_read._core.links import Target
 from anagraphe.references.configuration import ReferenceConfig
-from anagraphe.references.model import SHORTEST, WIKILINK, Reference
-from anagraphe.references.resolution import FileIndex, Resolver
+from anagraphe_read._references.model import SHORTEST, WIKILINK, Reference
+from anagraphe_read._references.resolution import FileIndex, Resolver
 from anagraphe.references.rules import RULES, Rule, RuleContext, Subject
-from anagraphe.references.syntaxes import ExtractionError, Found, references_of
+from anagraphe_read._references.syntaxes import ExtractionError, Found, references_of
 
 #: The kind of issue reported for a file whose syntax prevents the extraction of its references.
 UNREADABLE = "unreadable-file"

@@ -27,6 +27,7 @@ from importlib.metadata import PackageNotFoundError, version
 from anagraphe_read._bindings.model import Binding, Merge, Role
 from anagraphe_read._configuration import Configuration
 from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._references.pointers import Pointer
 from anagraphe_read._repository import (
     RecordFile,
     Repository,
@@ -86,6 +87,8 @@ __all__ = [
     "ConfigurationError",
     "Repository",
     "RecordFile",
+    # The pointers of a text.
+    "Pointer",
     "open_repository",
     # The logical targets and their resolution.
     "Finding",

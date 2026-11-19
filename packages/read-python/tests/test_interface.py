@@ -34,6 +34,7 @@ from anagraphe_read import (
     Unavailable,
     addressing_schema,
     git_provider,
+    Repository,
     open_repository,
 )
 
@@ -47,6 +48,7 @@ INTERFACE = frozenset(
         "open_repository",
         "Repository",
         "RecordFile",
+        "Pointer",
         "Configuration",
         "ConfigurationError",
         "Target",
@@ -315,3 +317,61 @@ def test_records_require_the_section_targets(tmp_path: Path) -> None:
     root.mkdir()
     with pytest.raises(ConfigurationError, match="declares no section targets"):
         open_repository(root, provider=MemoryProvider({})).records()
+
+
+# --- The pointers, the metadata and the exclusions of the files.
+
+
+def _texts(root: Path, config: str) -> Repository:
+    """Write a repository of notes and documents, configured by ``config``, and open it."""
+    files = {
+        "anagraphe.yml": "_schema: anagraphe:configuration@3\n" + config,
+        "notes/a.md": (
+            "---\nsource: '[B](../b.md)'\nrole: note\n---\n"
+            "See [B](../b.md), [[b]], `[C](../c.md)`, [gone](../gone.md) and "
+            "[site](https://example.org).\n"
+        ),
+        "b.md": "# B\n",
+        "data/table.yml": "title: Table\nrole: data\n",
+        "data/plain.txt": "no metadata\n",
+        "drafts/x.md": "---\nrole: draft\n---\n",
+        ".hidden/y.md": "---\nrole: hidden\n---\n",
+    }
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    return open_repository(root, provider=MemoryProvider({}))
+
+
+def test_the_pointers_of_a_note_are_resolved(tmp_path: Path) -> None:
+    pointers = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n").references("notes/a.md")
+    found = {(pointer.raw, pointer.syntax, pointer.region, pointer.target) for pointer in pointers}
+    assert found == {
+        ("../b.md", "markdown", "metadata", "b.md"),
+        ("../b.md", "markdown", "content", "b.md"),
+        ("b", "wikilink", "content", "b.md"),
+        ("../gone.md", "markdown", "content", None),
+        ("https://example.org", "markdown", "content", None),
+    }
+    link = next(pointer for pointer in pointers if pointer.region == "content")
+    assert (link.source, link.line, link.column) == ("notes/a.md", 5, 9)
+
+
+def test_the_metadata_of_a_file_is_read_from_its_source(tmp_path: Path) -> None:
+    repository = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n")
+    assert repository.metadata("notes/a.md")["role"] == "note"
+    assert repository.metadata("data/table.yml") == {"title": "Table", "role": "data"}
+    assert repository.metadata("data/plain.txt") == {}
+
+
+def test_the_shared_exclusions_leave_out_excluded_and_hidden_paths(tmp_path: Path) -> None:
+    repository = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n")
+    assert repository.exempt("drafts/x.md") and repository.exempt(".hidden/y.md")
+    assert not repository.exempt("notes/a.md")
+
+
+def test_a_path_leaving_the_repository_is_refused(tmp_path: Path) -> None:
+    repository = _texts(tmp_path, "exclude:\n  paths: [drafts/]\n")
+    for call in (repository.references, repository.metadata, repository.exempt):
+        with pytest.raises(ValueError, match="inside the repository"):
+            call("../outside.md")

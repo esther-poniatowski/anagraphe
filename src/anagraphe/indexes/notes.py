@@ -19,7 +19,7 @@ from typing import Any, Mapping
 
 from anagraphe_read._core.metadata import MetadataReader, SourceKind, split_frontmatter
 
-from anagraphe.core.links import value_link
+from anagraphe_read._core.links import value_link
 from anagraphe.indexes.slots import (
     ContextRelation,
     ExternalSpec,

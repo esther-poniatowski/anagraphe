@@ -105,18 +105,6 @@ The package `anagraphe` holds the command line. Its modules are internal to the 
 .. automodule:: anagraphe.core.sarif
    :members:
    :undoc-members:
-
-.. automodule:: anagraphe.core.links
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.core.regions
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.core.paths
-   :members:
-   :undoc-members:
 ```
 
 ### Indexes
@@ -194,22 +182,6 @@ The package `anagraphe` holds the command line. Its modules are internal to the 
    :undoc-members:
 
 .. automodule:: anagraphe.references.configuration
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.references.model
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.references.syntaxes
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.references.conventions
-   :members:
-   :undoc-members:
-
-.. automodule:: anagraphe.references.resolution
    :members:
    :undoc-members:
 
@@ -300,6 +272,51 @@ left out of the index, so that a reference to a public name resolves to the inte
    :undoc-members:
 
 .. automodule:: anagraphe_read._core.metadata
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.links
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.regions
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._core.paths
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.model
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.syntaxes
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.conventions
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.resolution
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.configuration
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: anagraphe_read._references.pointers
    :no-index:
    :members:
    :undoc-members:

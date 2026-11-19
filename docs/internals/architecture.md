@@ -88,15 +88,17 @@ replaced earlier in that run. This rollback does not cover process termination o
 
 ## References
 
-Within `anagraphe.references`, the check runs as a pipeline of three stages. A stage is extended by
+The check of `anagraphe.references` runs as a pipeline of three stages, whose first two stages lie
+in the read distribution, under `anagraphe_read._references`, so that `Repository.references`
+finds and resolves the pointers of a file as the check does. A stage is extended by
 declaring one more syntax, or by registering one more rule:
 
-1. each syntax of `anagraphe.references.syntaxes` covering a file finds its candidates, each with
+1. each syntax of `anagraphe_read._references.syntaxes` covering a file finds its candidates, each with
    its line, its column, and its region, from the metadata source declared in
    `anagraphe_read._core.metadata`.
    The syntaxes of Markdown take the link destinations and the code spans of a file from Merismos;
 2. the resolver resolves the path of each reference under every path style, and the conventions
-   of `anagraphe.references.conventions` state the formats and the styles that it admits;
+   of `anagraphe_read._references.conventions` state the formats and the styles that it admits;
 3. each rule of the registry reads the resolved reference and its convention, and reports one
    kind of issue.
 

@@ -18,10 +18,10 @@ from anagraphe_read._core.anchors import has_block_anchor
 from anagraphe_read._core.conditions import Condition
 from anagraphe_read._core.filters import scalars
 
-from anagraphe.core.links import Target
-from anagraphe.references.conventions import Convention
-from anagraphe.references.model import MARKDOWN, WIKILINK, Fragments, Reference
-from anagraphe.references.resolution import Resolution
+from anagraphe_read._core.links import Target
+from anagraphe_read._references.conventions import Convention
+from anagraphe_read._references.model import MARKDOWN, WIKILINK, Fragments, Reference
+from anagraphe_read._references.resolution import Resolution
 
 
 @dataclass(frozen=True)

@@ -16,9 +16,9 @@ import urllib.parse
 from dataclasses import dataclass, field
 from typing import Callable, Iterator, Mapping
 
-from anagraphe.core.links import SCHEME
+from anagraphe_read._core.links import SCHEME
 from anagraphe.core.structured import Edit
-from anagraphe.references.model import (
+from anagraphe_read._references.model import (
     ABSOLUTE,
     BARE,
     MARKDOWN,
@@ -29,8 +29,14 @@ from anagraphe.references.model import (
     Style,
     StyleKind,
 )
-from anagraphe.references.resolution import FileIndex
-from anagraphe.references.syntaxes import BUILT_IN, ExtractionError, Syntaxes, references_of, shaped
+from anagraphe_read._references.resolution import FileIndex
+from anagraphe_read._references.syntaxes import (
+    BUILT_IN,
+    ExtractionError,
+    Syntaxes,
+    references_of,
+    shaped,
+)
 
 #: A bare path, opening on no character of a path or of a URL, with an optional fragment. Each
 #: segment closes on no period, so that a path closing a sentence leaves its period out.

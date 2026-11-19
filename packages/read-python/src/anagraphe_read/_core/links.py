@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
 
-from anagraphe.core.paths import normalize
+from anagraphe_read._core.paths import normalize
 
 #: A whole value written as one wikilink, capturing its target.
 VALUE_WIKILINK = re.compile(r"^!?\[\[([^\[\]|\n]+?)(?:\|[^\[\]\n]*)?\]\]$")

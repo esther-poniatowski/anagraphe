@@ -27,8 +27,8 @@ from typing import Any, Callable, Mapping, Protocol, Sequence
 from anagraphe_read._core.issues import Issue, pointer
 from anagraphe_read._core.metadata import MetadataReader
 
-from anagraphe.core.links import link_target, value_link
-from anagraphe.core.paths import normalize
+from anagraphe_read._core.links import link_target, value_link
+from anagraphe_read._core.paths import normalize
 from anagraphe.indexes.blocks import Block, parse_blocks, replace_bodies
 from anagraphe.indexes.fields import FieldRules
 from anagraphe.indexes.membership import Membership, assign

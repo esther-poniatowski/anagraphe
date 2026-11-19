@@ -1,9 +1,10 @@
 # anagraphe-read
 
 The distribution `anagraphe-read` reads the addressing of Anagraphe in Python. The distribution
-covers five objects of a repository:
+covers six objects of a repository:
 
 - its identity;
+- its files: their metadata, their pointers, and whether the shared exclusions leave them out;
 - its records, each with the contract that it names and the position of each of its nodes;
 - the logical targets of its records;
 - the records named by those targets in other repositories;
@@ -63,7 +64,7 @@ if resolution.outcome is Outcome.RECORD:
 binding = repository.bindings("notes/a.md", Role("onomasia.glossary"))
 ```
 
-The returned `Repository` exposes ten members:
+The returned `Repository` exposes thirteen members:
 
 | Member | Returns |
 | --- | --- |
@@ -76,6 +77,9 @@ The returned `Repository` exposes ten members:
 | `records()` | the `RecordFile` of each record of the walk: its path, the contract that it names, its data, its declared identifier and its problem; its method `position(path)` returns the line and the column where a node of the data opens |
 | `resolve(target)` | the `Resolution` of a `Target`: its outcome, its findings and its provenance |
 | `read(resolution, contracts=())` | the `RecordRead` of a resolved target: the bytes of the record, their provenance and the findings of their verification; its property `verified` states that none failed |
+| `references(path)` | the `Pointer` of each target written in a file: its place, its raw text, its syntax, its region (`metadata` or `content`), and the repository-relative file that it names, or `None` when it names no file of the repository, an external URL or a path outside it; a candidate naming no file counts only when its syntax reports unresolved targets |
+| `metadata(path)` | the metadata of a file, read from the source that the configuration declares for it, the built-in sources without one; empty when the file holds none or cannot be read |
+| `exempt(path)` | whether the shared exclusions leave a file out: the hidden paths, the top-level `exclude`, and the paths that Git ignores when the configuration says so |
 | `bindings(path, role)` | the `Binding` of a text for a `Role`, resolved along the directory chain |
 
 The other public names fall into four groups:

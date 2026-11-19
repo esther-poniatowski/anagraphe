@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from anagraphe.indexes.slots import prose_units
-from anagraphe.references.syntaxes import BUILT_IN
+from anagraphe_read._references.syntaxes import BUILT_IN
 
 CASES = {
     "balanced-parentheses": (

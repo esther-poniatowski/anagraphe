@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-from anagraphe.core.links import Target
-from anagraphe.references.model import (
+from anagraphe_read._core.links import Target
+from anagraphe_read._references.model import (
     ABSOLUTE,
     RELATIVE,
     ROOT,

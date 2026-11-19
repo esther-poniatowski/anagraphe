@@ -20,25 +20,21 @@ from typing import Any, Mapping
 
 from anagraphe_read._core.conditions import parse_condition
 from anagraphe_read._core.configuration import ConfigurationError, known_keys, mapping, strings
-from anagraphe_read._core.exclusions import Exemptions, exemptions
+from anagraphe_read._core.exclusions import Exemptions
 from anagraphe_read._core.metadata import MetadataReader
-
-from anagraphe.references.conventions import Conventions, parse_conventions
-from anagraphe.references.model import Fragments
-from anagraphe.references.rules import RULES, Unlinkable
-from anagraphe.references.syntaxes import Syntaxes, parse_syntaxes
-
-#: The keys of the section ``references``.
-SECTION_KEYS = frozenset(
-    {"exclude", "schemes", "fragments", "syntaxes", "conventions", "unlinkable", "ignore"}
+from anagraphe_read._references.configuration import (
+    DEFAULT_SCHEMES,
+    ReadReferences,
+    parse_read_section,
 )
+from anagraphe_read._references.conventions import Conventions
+from anagraphe_read._references.model import Fragments
+from anagraphe_read._references.syntaxes import Syntaxes
+
+from anagraphe.references.rules import RULES, Unlinkable
+
 #: The keys of one entry of ``unlinkable``.
 UNLINKABLE_KEYS = frozenset({"target", "unless", "blocking", "syntaxes"})
-#: The retired keys of the section, each with the declaration that replaces it.
-RETIRED_KEYS = {
-    "markdown": "the files of a syntax under syntaxes.markdown.when, such as {types: [md, yml]}",
-    "records": "a syntax of keys under syntaxes, such as {glossary: {when: {...}, keys: [source]}}",
-}
 
 
 @dataclass(frozen=True)
@@ -47,7 +43,7 @@ class ReferenceConfig:
 
     exemptions: Exemptions = Exemptions()
     #: The URL schemes resolved outside the repository, in lowercase.
-    schemes: frozenset[str] = frozenset({"https", "http", "mailto"})
+    schemes: frozenset[str] = DEFAULT_SCHEMES
     fragments: Fragments = Fragments.BLOCK
     syntaxes: Syntaxes = Syntaxes()
     conventions: Conventions = Conventions()
@@ -68,14 +64,6 @@ def _choice[E: StrEnum](enum: type[E], value: Any, default: E, field: str) -> E:
     except ValueError as error:
         admitted = ", ".join(member.value for member in enum)
         raise ConfigurationError(f"{field} must be one of: {admitted}") from error
-
-
-def _schemes(value: Any, field: str) -> frozenset[str]:
-    """Return the declared schemes, written as a list or as a mapping to their glosses."""
-    if value is None:
-        return ReferenceConfig.schemes
-    names = list(value) if isinstance(value, Mapping) else value
-    return frozenset(name.lower() for name in strings(names, field))
 
 
 def _unlinkable(value: Any, field: str, syntax_names: tuple[str, ...]) -> tuple[Unlinkable, ...]:
@@ -123,11 +111,12 @@ def parse_section(
     metadata: MetadataReader | None = None,
     field: str = "references",
 ) -> ReferenceConfig:
-    """Validate and resolve the section ``references``, its exemptions added to the shared ones."""
-    for key, replacement in RETIRED_KEYS.items():
-        if key in raw:
-            raise ConfigurationError(f"{field}.{key} is retired: declare {replacement}")
-    known_keys(raw, SECTION_KEYS, field)
+    """Validate and resolve the section ``references``, its exemptions added to the shared ones.
+
+    The read distribution parses the part that finds and resolves the pointers; the check adds the
+    fragments, the unlinkable files and the ignored kinds.
+    """
+    read: ReadReferences = parse_read_section(root, raw, shared, metadata, field)
     ignored = strings(raw.get("ignore"), f"{field}.ignore")
     unknown = sorted(ignored - {rule.kind for rule in RULES})
     if unknown:
@@ -135,15 +124,13 @@ def parse_section(
             f"{field}.ignore names unknown kinds: {', '.join(unknown)}; "
             f"admitted kinds: {', '.join(rule.kind for rule in RULES)}"
         )
-    syntaxes = parse_syntaxes(raw.get("syntaxes"), f"{field}.syntaxes", metadata)
-    rules = parse_conventions(raw.get("conventions"), f"{field}.conventions", syntaxes.names())
     return ReferenceConfig(
-        exemptions=shared.union(exemptions(raw.get("exclude"), f"{field}.exclude", root, metadata)),
-        schemes=_schemes(raw.get("schemes"), f"{field}.schemes"),
+        exemptions=read.exemptions,
+        schemes=read.schemes,
         fragments=_choice(Fragments, raw.get("fragments"), Fragments.BLOCK, f"{field}.fragments"),
-        syntaxes=syntaxes,
-        conventions=Conventions(rules, metadata),
-        unlinkable=_unlinkable(raw.get("unlinkable"), f"{field}.unlinkable", syntaxes.names()),
+        syntaxes=read.syntaxes,
+        conventions=read.conventions,
+        unlinkable=_unlinkable(raw.get("unlinkable"), f"{field}.unlinkable", read.syntaxes.names()),
         ignored=ignored,
         metadata=metadata,
     )

@@ -38,7 +38,7 @@ from typing import Any, Callable, Iterable, Mapping
 from anagraphe_read._core.conditions import FILE_KEYS, Condition, parse_condition
 from anagraphe_read._core.configuration import ConfigurationError, known_keys, mapping, strings
 
-from anagraphe.references.model import CODE, RELATIVE, ROOT, Region, Style, StyleKind
+from anagraphe_read._references.model import CODE, RELATIVE, ROOT, Region, Style, StyleKind
 
 #: The keys of a rule, and of its condition.
 RULE_KEYS = frozenset({"when", "format", "path", "strict"})

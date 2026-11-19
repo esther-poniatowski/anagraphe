@@ -12,10 +12,11 @@ once. The command line of Anagraphe and :func:`open_repository` both build their
 from __future__ import annotations
 
 import copy
+import posixpath
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from anagraphe_read._bindings.model import Binding, Role
@@ -27,12 +28,16 @@ from anagraphe_read._configuration import (
     locate_config,
 )
 from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.exclusions import Exemptions
+from anagraphe_read._core.metadata import MetadataReader
 from anagraphe_read._core.published import ADDRESSING_FILE, schema
 from anagraphe_read._core.schemas import DEFAULT_BINDING
 from anagraphe_read._resolution.context import ResolutionContext, build_context
 from anagraphe_read._resolution.git import GitProvider, default_cache
 from anagraphe_read._resolution.provider import StateProvider
 from anagraphe_read._resolution.resolver import RecordRead, RecordResolver, Resolution
+from anagraphe_read._references.configuration import ReadReferences
+from anagraphe_read._references.pointers import Pointer, PointerReader
 from anagraphe_read._targets.declarations import Declarations
 from anagraphe_read._targets.identity import Identity, repository_identity
 from anagraphe_read._targets.model import Target
@@ -175,6 +180,25 @@ class Composition:
         return RecordResolver(self.context, self.provider, self.declarations, self.binding)
 
     @cached_property
+    def metadata(self) -> MetadataReader:
+        """Return the reader of the metadata of the files, the built-in sources without a file."""
+        return self.configuration.metadata or MetadataReader(self.root)
+
+    @cached_property
+    def exclusions(self) -> Exemptions:
+        """Return the shared exclusions of the files, the hidden paths alone without a file."""
+        return self.configuration.exclusions or Exemptions()
+
+    @cached_property
+    def pointer_reader(self) -> PointerReader:
+        """Return the reader of the pointers of the files, the built-in syntaxes without a
+        section ``references``."""
+        section = self.configuration.references or ReadReferences(
+            exemptions=self.exclusions, metadata=self.metadata
+        )
+        return PointerReader(self.root, section)
+
+    @cached_property
     def binding_resolver(self) -> BindingResolver:
         """Return the resolver of the bindings of the texts.
 
@@ -291,6 +315,52 @@ class Repository:
         """
         return self._composition.binding_resolver.resolve(path, role)
 
+    def references(self, path: str) -> tuple[Pointer, ...]:
+        """Return the pointers written in one file, each resolved to the file that it names.
+
+        The syntaxes and the conventions are those of the section ``references``, the built-in
+        ones without it. A candidate naming no file is a pointer only when its syntax reports
+        unresolved targets, as ``anagraphe refs check`` decides.
+
+        Parameters
+        ----------
+        path : str
+            The path of the file, relative to the root, written with ``/``.
+
+        Raises
+        ------
+        ValueError
+            If the path is absolute, or leaves the repository.
+        """
+        return self._composition.pointer_reader.pointers(_inside(path))
+
+    def metadata(self, path: str) -> Mapping[str, Any]:
+        """Return the metadata of one file, read from the source that the configuration declares.
+
+        The source is the frontmatter of a note, the top-level mapping or the declared key paths
+        of a document, the built-in sources without a declaration. A file that holds no metadata,
+        or cannot be read, yields an empty mapping.
+
+        Raises
+        ------
+        ValueError
+            If the path is absolute, or leaves the repository.
+        """
+        return self._composition.metadata(_inside(path))
+
+    def exempt(self, path: str) -> bool:
+        """Return whether the shared exclusions leave a repository-relative file out.
+
+        The shared exclusions are the hidden paths, the top-level ``exclude`` of the
+        configuration, and the paths that Git ignores when the configuration says so.
+
+        Raises
+        ------
+        ValueError
+            If the path is absolute, or leaves the repository.
+        """
+        return self._composition.exclusions.contains(PurePosixPath(_inside(path)))
+
     @property
     def binding(self) -> str:
         """Return the key of a record naming its contract, ``_schema`` by default."""
@@ -334,6 +404,15 @@ class Repository:
             )
             for record in walk.records()
         )
+
+
+def _inside(rel: str) -> str:
+    """Return a repository-relative path in its normal form, or raise ``ValueError`` for an
+    absolute path or one that leaves the repository."""
+    path = posixpath.normpath(rel)
+    if PurePosixPath(rel).is_absolute() or path == "." or path.split("/")[0] == "..":
+        raise ValueError(f"the path must name a file inside the repository: {rel}")
+    return path
 
 
 def open_repository(

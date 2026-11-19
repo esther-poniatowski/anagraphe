@@ -44,9 +44,9 @@ from anagraphe_read._core.configuration import (
 )
 from anagraphe_read._core.json_text import load_json
 
-from anagraphe.core.links import VALUE_LINK, VALUE_WIKILINK
-from anagraphe.core.regions import CODE_KIND, markdown_regions
-from anagraphe.references.model import (
+from anagraphe_read._core.links import VALUE_LINK, VALUE_WIKILINK
+from anagraphe_read._core.regions import CODE_KIND, markdown_regions
+from anagraphe_read._references.model import (
     CODE,
     LATEX,
     MARKDOWN,

@@ -21,7 +21,7 @@ from anagraphe.cli import app
 from anagraphe.configuration import load_config
 from anagraphe.references.configuration import ReferenceConfig
 from anagraphe.references.service import ReferenceChecker
-from anagraphe.references.syntaxes import references_of
+from anagraphe_read._references.syntaxes import references_of
 
 #: The declaration of the fixture repository, the section ``references`` of ``anagraphe.yml``.
 SECTION: dict[str, Any] = {

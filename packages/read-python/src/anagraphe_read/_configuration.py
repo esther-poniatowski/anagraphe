@@ -15,10 +15,12 @@ that every section excludes under ``exclude``. The read side parses five section
   repositories that the targets name besides the submodules, and the machine file of their local
   clones;
 - ``repository``, parsed by :mod:`anagraphe_read._targets.identity`, which declares the override of
-  the identifier of the repository and its former identifiers.
+  the identifier of the repository and its former identifiers;
+- ``references``, of which :mod:`anagraphe_read._references.configuration` parses the syntaxes, the
+  conventions, the schemes and the exclusions, which find and resolve the pointers of a file.
 
-The format admits two more sections, ``indexes`` and ``references``, which the command line of
-Anagraphe parses from :attr:`Configuration.document`. A section left out is None, so a repository
+The format admits one more section, ``indexes``, which the command line of Anagraphe parses from
+:attr:`Configuration.document`, as it parses the rest of ``references``. A section left out is None, so a repository
 adopts each one apart.
 """
 
@@ -39,6 +41,7 @@ from anagraphe_read._core.configuration import (
 )
 from anagraphe_read._core.exclusions import Exemptions, exemptions
 from anagraphe_read._core.metadata import MetadataReader, parse_metadata
+from anagraphe_read._references.configuration import ReadReferences, parse_read_section
 from anagraphe_read._resolution import configuration as resolution
 from anagraphe_read._targets import configuration as targets
 from anagraphe_read._targets import identity
@@ -104,6 +107,8 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     metadata: MetadataReader | None = None
     #: The files that every section excludes, declared under ``exclude``.
     exclusions: Exemptions | None = None
+    #: The section ``references``, as far as it finds and resolves pointers.
+    references: ReadReferences | None = None
     #: The mapping read from the file, which also holds the sections of the command line.
     document: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
@@ -214,6 +219,11 @@ def load_configuration(root: Path, path: Path) -> Configuration:
         ),
         metadata=reader,
         exclusions=shared,
+        references=(
+            parse_read_section(root, mapping(raw["references"], "references"), shared, reader)
+            if "references" in raw
+            else None
+        ),
         document=MappingProxyType(raw),
     )
     if configuration.records is not None and configuration.targets is None:

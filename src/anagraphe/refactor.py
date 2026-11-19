@@ -34,7 +34,7 @@ from anagraphe.core.writes import write_atomically
 from anagraphe.indexes.relocation import IndexEdit, IndexRelocator
 from anagraphe.indexes.service import RunResult, run
 from anagraphe.references.configuration import ReferenceConfig
-from anagraphe.references.resolution import FileIndex
+from anagraphe_read._references.resolution import FileIndex
 from anagraphe.references.rewrite import PointerEdit, PointerRewriter, Relocation
 from anagraphe.references.service import ReferenceChecker
 

@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Sequence
 
-from anagraphe.core.paths import matches
+from anagraphe_read._core.paths import matches
 
 Scope = Literal["member", "note", "index", "group"]
 
