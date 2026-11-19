@@ -327,8 +327,8 @@ whereas option 5 of the resolved questions takes "the key `id` of the metadata s
 The default now follows that option. The metadata source of a file is the one that the section
 `metadata` of `anagraphe.yml` declares for it, the source from which the indexes read its fields.
 The built-in sources read the frontmatter of a note, and the key paths `.` then `metadata` of a
-YAML document, so a key `id` at the root of a YAML document is now its identifier. A JSON document
-has no built-in source, so it holds a default identifier only under a declared source. A TOML
+YAML or JSON document, so a key `id` at the root of such a document is now its identifier. A JSON
+document read its default identifier at `metadata.id` before the amendment, and still does. A TOML
 document is a record when its declared source is `toml`, and the record registry admits the format
 `toml`. When several key paths of the source hold `id` with a value other than null, the first
 path in the declared order gives the identifier and its pointer. A later path holding another

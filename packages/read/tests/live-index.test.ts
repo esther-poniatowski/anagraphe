@@ -78,8 +78,8 @@ describe("the indexing of identifiers", () => {
     expect(index.record("broken.yml")?.problem).toMatch(/^the document cannot be parsed/);
     expect(index.identifierOf("undeclaring.yml")).toBe("quest.plain");
     expect(index.identifierOf("missing.yml")).toBe("quest.missing");
-    // A JSON document has no built-in metadata source.
-    expect(index.identifierOf("data.json")).toBeNull();
+    // The built-in source of a JSON document reads its top level, then its block metadata.
+    expect(index.identifierOf("data.json")).toBe("quest.json");
   });
 
   it("reads a TOML record through the source and the parser that the host supplies", async () => {

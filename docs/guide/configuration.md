@@ -77,8 +77,9 @@ A rule holds a condition under `when`, on `paths` and `types`, and a source unde
 | `none` | no field |
 
 The rules cascade after built-in rules, and the last rule whose condition holds names the source.
-The built-in rules read the frontmatter of a Markdown note, and the top level of a YAML document
-overridden by its block `metadata`, as `{yaml: [., metadata]}` writes it. The source also marks the
+The built-in rules read the frontmatter of a Markdown note, and the top level of a YAML or JSON
+document overridden by its block `metadata`, as `{yaml: [., metadata]}` and `{json: [., metadata]}`
+write it. The source also marks the
 **metadata region** of a file, where a pointer takes the conventions of the metadata. That region is
 the block of a frontmatter, each YAML node at a declared path, or the whole of a JSON or TOML
 document whose top level is declared.

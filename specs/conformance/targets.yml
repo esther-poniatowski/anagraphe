@@ -420,6 +420,17 @@ cases:
         - {id: block}
         - {id: below-null}
   issues: []
+- id: default-identifier-in-a-json-document
+  note: The built-in source of a JSON document reads its top level, then its block metadata.
+  files:
+    data/root.json: '{"title": "Root", "id": "json-root"}'
+    data/block.json: '{"metadata": {"id": "json-block"}}'
+    cite.yml: |
+      _schema: test:citing@1
+      cites:
+        - {id: json-root}
+        - {id: json-block}
+  issues: []
 - id: default-identifier-in-a-toml-source
   note: >-
     A TOML document is a record when a rule of the section metadata declares a toml source for it,

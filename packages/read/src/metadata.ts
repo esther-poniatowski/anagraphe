@@ -34,11 +34,12 @@ export const IDENTIFIER_KEY = "id";
 export const NO_SOURCE: MetadataSource = { kind: "none", at: [] };
 
 /** Returns the built-in source of a file: the frontmatter of a note, the top level then the block
- * `metadata` of a YAML document, and none otherwise. */
+ * `metadata` of a YAML or JSON document, and none otherwise. */
 export function builtInSource(path: string): MetadataSource {
   if (path.endsWith(".md")) return { kind: "frontmatter", at: [TOP] };
   if (path.endsWith(".yml") || path.endsWith(".yaml"))
     return { kind: "yaml", at: [TOP, "metadata"] };
+  if (path.endsWith(".json")) return { kind: "json", at: [TOP, "metadata"] };
   return NO_SOURCE;
 }
 

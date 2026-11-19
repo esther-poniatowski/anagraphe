@@ -210,8 +210,8 @@ def _bytes(path: Path) -> bytes | None:
 
 
 def test_write_generates_the_registry_and_carries_the_retired_identifiers(tmp_path: Path) -> None:
-    """A JSON and a TOML document are records identified through the metadata sources that the
-    configuration declares for them; a JSON document has no built-in source."""
+    """A JSON and a TOML document are records identified through their metadata sources: the
+    built-in source of a JSON document, or the source that the configuration declares."""
     _repository(
         tmp_path,
         {
@@ -232,6 +232,7 @@ def test_write_generates_the_registry_and_carries_the_retired_identifiers(tmp_pa
         "  note-n: {path: notes/n.md, format: markdown}\n",
         "  new: {path: notes/new.md, format: markdown}\n"
         "  note-n: {path: notes/n.md, format: markdown}\n"
+        "  plain: {path: data/plain.json, format: json}\n"
         "  t: {path: data/t.toml, format: toml}\n"
         "  z: {path: data/z.json, format: json}\n",
     )

@@ -11,8 +11,8 @@ A source names where the fields of a file are written:
 
 The repository declares its sources under ``metadata``, as rules holding a condition on the path or
 the type of a file. The rules cascade after the built-in ones, and the last matching rule names the
-source. The built-in rules read the frontmatter of a Markdown note, and the top level of a YAML
-document overridden by its block ``metadata``. The metadata region of a file, where its fields are
+source. The built-in rules read the frontmatter of a Markdown note, and the top level of a YAML or
+JSON document overridden by its block ``metadata``. The metadata region of a file, where its fields are
 written, tells a pointer of the metadata from a pointer of the content.
 
 The default identifier of a file is the key ``id`` of its source, as :class:`Identifier` states:
@@ -334,6 +334,7 @@ BUILT_IN = (
     MetadataRule(
         Condition(types=frozenset({"yml", "yaml"})), Source(SourceKind.YAML, (TOP, "metadata"))
     ),
+    MetadataRule(Condition(types=frozenset({"json"})), Source(SourceKind.JSON, (TOP, "metadata"))),
 )
 #: The source of a file that no rule names.
 NO_SOURCE = Source(SourceKind.NONE)

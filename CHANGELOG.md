@@ -43,8 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   through the metadata source that `anagraphe.yml` declares for its file, as ADR 0006 states since
   its amendment of 2026-11-19. The first key path holding `id` gives the identifier. Under the
   built-in sources, a key `id` at the top level of a YAML document is now its identifier, read
-  before its block `metadata`, and a JSON document holds a default identifier only under a declared
-  source, such as `{when: {types: [json]}, from: {json: [metadata]}}`.
+  before its block `metadata`, and the same holds for a JSON document, which gains a built-in
+  source.
 - A nested group of an index designates a parent by the identifier that the check of the targets
   resolves, through `x-identifier` when the section `targets` is declared, instead of the key `id`
   of the merged metadata.

@@ -6,7 +6,7 @@
  * its identifier by `x-identifier`. Without that declaration, the identifier of a record is the key
  * `id` of the metadata source of the file, which the host selects from its configuration, as
  * {@link defaultIdentifier} reads it: by default the frontmatter of a note, and the top level of a
- * YAML document, then its block `metadata`. A JSON document has no built-in source.
+ * YAML or JSON document, then its block `metadata`.
  *
  * The units of a record are the items declared by `x-identifier` on the definition of the items of
  * an array, then, in a note, the block anchors of its body. The units of one record share one

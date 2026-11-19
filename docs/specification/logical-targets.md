@@ -102,8 +102,7 @@ read on two kinds of node, outside `anyOf` and `oneOf`:
 Without a declaration at the root, the identifier of a record is the key `id` of the metadata
 source that the section `metadata` of `anagraphe.yml` declares for its file, the same source from
 which the indexes read the fields of the file. The built-in sources read the frontmatter of a
-Markdown note, and the key paths `.` then `metadata` of a YAML document. A JSON document has no
-built-in source, so it holds a default identifier only under a declared source. A TOML document is
+Markdown note, and the key paths `.` then `metadata` of a YAML or JSON document. A TOML document is
 a record when its declared source is `toml`.
 
 A key path of the source holds the identifier when the mapping found at that path holds the key `id`

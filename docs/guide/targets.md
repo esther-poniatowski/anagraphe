@@ -78,9 +78,7 @@ properties:
 A record whose schema declares no `x-identifier`, and a note without a schema, take the key `id`
 of the metadata source that the section `metadata` of `anagraphe.yml` declares for the file, as
 the [configuration guide](configuration.md) states. The built-in sources read the frontmatter of a
-note, and the top level of a YAML document, then its block `metadata`. A JSON document has no
-built-in source, so it holds an identifier only when a rule declares one, such as
-`{when: {types: [json]}, from: {json: [metadata]}}`. A TOML document is a record when a rule
+note, and the top level of a YAML or JSON document, then its block `metadata`. A TOML document is a record when a rule
 declares a `toml` source for it.
 
 When several key paths of the source hold `id`, the first path in the declared order gives the
