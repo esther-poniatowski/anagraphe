@@ -9,3 +9,12 @@ exports:
   - anagraphe:migration-plan@1
   - anagraphe:record-registry@1
   - anagraphe:repository@1
+
+# The keywords to which Anagraphe gives a meaning; a schema of another tool uses them through the
+# registry of Anagraphe.
+keywords:
+  x-identifier: the dotted path of property names holding the identifier of a record, at the root of its schema; the key id when absent
+  x-target-contract: the contracts that the record named by a logical target must follow, declared on the field holding the target
+  x-default-mode: the ordering mode that a type of index gives to the groups of an index
+  x-expected-files: the control files that an index of a type is expected to hold
+  x-location: the glob of the indexes whose location fixes their type

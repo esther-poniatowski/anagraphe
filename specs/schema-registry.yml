@@ -12,3 +12,9 @@ resources:
   "https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml": "packages/read-python/src/anagraphe_read/data/schemas/addressing.v1.schema.yml"
   "https://github.com/esther-poniatowski/anagraphe/schemas/migration-plan.v1.schema.yml": "packages/read-python/src/anagraphe_read/data/schemas/migration-plan.v1.schema.yml"
   "https://github.com/esther-poniatowski/anagraphe/schemas/record-registry.v1.schema.yml": "packages/read-python/src/anagraphe_read/data/schemas/record-registry.v1.schema.yml"
+keywords:
+  "x-default-mode": "the ordering mode that a type of index gives to the groups of an index"
+  "x-expected-files": "the control files that an index of a type is expected to hold"
+  "x-identifier": "the dotted path of property names holding the identifier of a record, at the root of its schema; the key id when absent"
+  "x-location": "the glob of the indexes whose location fixes their type"
+  "x-target-contract": "the contracts that the record named by a logical target must follow, declared on the field holding the target"
