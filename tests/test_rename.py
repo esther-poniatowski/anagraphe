@@ -10,6 +10,7 @@ declares ``x-lab`` in its resolution context. Each repository holds a record cit
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -542,5 +543,7 @@ def test_an_invalid_invocation_exits_with_two(
     before = _snapshot(root)
     status, output = _rename(root, *arguments)
     assert status == 2, output
-    assert message in " ".join(output.split())
+    # Rich colours the usage error and frames it in a box when the host forces colour, as CI does.
+    plain = re.sub(r"[\u2500-\u257f]", " ", re.sub(r"\x1b\[[0-9;]*m", "", output))
+    assert message in " ".join(plain.split())
     assert _snapshot(root) == before
