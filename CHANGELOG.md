@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` takes the metadata source of each file from the host, through the options
   `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
   the type `MetadataSource`.
-- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.4.0`. The
+- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.5.0`. The
   distribution holds the Python read side of Anagraphe and depends on no part of the command line.
   Its module `anagraphe_read` is its whole interface:
   - `open_repository` locates and loads the configuration of a repository, derives its identity
@@ -76,16 +76,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Breaking:** Hodegos locates the root of a command and the file `anagraphe.yml`, as its
   [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md)
   states, in the command line, in `open_repository`, and in each state of another repository that
-  the record resolver reads. The file lies at the root, in its subfolder `.config/`, or in a folder
-  that the `hodegos.yml` of the root declares, and two places holding a file is an error.
-  `config/tools/anagraphe.yml` is read only when `hodegos.yml` lists `config/tools`, also at a
-  state. Hodegos reads the variable `ANAGRAPHE_ROOT`, which the help of `--root` no longer shows as
-  an environment variable of the option. A root holding no configuration stops a command with
-  `no configuration: write anagraphe.yml at the root, in .config/, or in a folder that hodegos.yml
-  declares, or name it with --config`, and an invalid `hodegos.yml` stops it with status 2.
+  the record resolver reads. The file lies at the root, in its subfolder `.config/`, or in its
+  subfolder `config/`, and two places holding a file is an error. `config/tools/anagraphe.yml` is
+  no longer read, also at a state: name it with `--config`, or move it to `config/`. Hodegos reads
+  the variable `ANAGRAPHE_ROOT`, which the help of `--root` no longer shows as an environment
+  variable of the option. A root holding no configuration stops a command with `no configuration:
+  write anagraphe.yml at the root, in .config/ or in config/, or name it with --config`.
   `discover_configuration` of `anagraphe_read._core.configuration` replaces `find_root`,
   `locate_config`, `holds_config` and `CONFIG_LOCATIONS`. The distribution `anagraphe-read`
-  requires Hodegos, and raises its version to `0.4.0`.
+  requires Hodegos.
+- **Breaking:** Hodegos is pinned at `a151a28`, which reads `config/` and no longer reads a
+  declaration `hodegos.yml`. A folder that an unreleased `hodegos.yml` declared, such as
+  `config/tools/`, is no longer searched, in a working tree and in a state: its file is named by
+  `--config`, or moves to `config/`. The configuration of a state is read through the port
+  `FileSystem` of Hodegos over the state provider, instead of a copy of the state in a temporary
+  folder, so the read side imports no private name of Hodegos. A link or a folder at
+  `config/anagraphe.yml` of a state makes its configuration unreadable, as at the other places. The
+  distribution `anagraphe-read` raises its version to `0.5.0`, and both distributions pin Kleisis
+  at `b098f5e`; the tests pin Elenchos at `33160b2`. The configuration of Kleisis of this
+  repository moves from `config/tools/kleisis.yml` to `config/kleisis.yml`.
 - The configuration format is `anagraphe:configuration@3`, and the section `indexes` no longer
   reads a vocabulary. The closed value sets of `key_values` become the enumerations of the metadata
   schema named by `indexes.metadata_schema`: the `enum` of `properties.K`, or of
@@ -139,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   takes the identifier of the repository from the host, through its option `repository` and its
   method `setRepository`.
 - The read side moves from `anagraphe` to the private subpackages of `anagraphe_read`, and the
-  distribution `anagraphe` requires `anagraphe-read==0.4.0`. A consumer imports the names of
+  distribution `anagraphe` requires `anagraphe-read==0.5.0`. A consumer imports the names of
   `anagraphe_read` instead of the moved modules:
   - the modules `configuration`, `conditions`, `filters`, `exclusions`, `git_state`, `issues`,
     `json_text`, `metadata`, `published`, `schemas`, `anchors` and `files` of `anagraphe.core` move
