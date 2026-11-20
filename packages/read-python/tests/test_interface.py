@@ -294,24 +294,16 @@ def test_a_root_without_configuration_opens_empty(tmp_path: Path) -> None:
 
 #: A configuration declaring an override of the identifier, found only at a place of the root.
 IDENTIFIED = "_schema: anagraphe:configuration@3\nrepository: {id: lab}\n"
-#: The declaration of a root keeping its configuration in ``shared/``.
-DECLARATION = "_schema: hodegos:configuration@1\nfolders: [shared]\n"
 
 
-@pytest.mark.parametrize(
-    "files",
-    [
-        {".config/anagraphe.yml": IDENTIFIED},
-        {"hodegos.yml": DECLARATION, "shared/anagraphe.yml": IDENTIFIED},
-    ],
-)
-def test_open_repository_reads_each_place_of_hodegos(tmp_path: Path, files: dict[str, str]) -> None:
+@pytest.mark.parametrize("place", [".config/anagraphe.yml", "config/anagraphe.yml"])
+def test_open_repository_reads_each_place_of_hodegos(tmp_path: Path, place: str) -> None:
     root = tmp_path / "plain-lab"
-    write(root, files)
+    write(root, {place: IDENTIFIED})
     assert open_repository(root, provider=MemoryProvider({})).identity.id == "lab"
 
 
-def test_a_folder_that_the_root_does_not_declare_is_not_read(tmp_path: Path) -> None:
+def test_a_folder_outside_the_places_is_not_read(tmp_path: Path) -> None:
     root = tmp_path / "plain-lab"
     write(root, {"shared/anagraphe.yml": IDENTIFIED})
     assert open_repository(root, provider=MemoryProvider({})).identity.id == "plain-lab"

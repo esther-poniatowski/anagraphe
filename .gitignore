@@ -39,7 +39,7 @@ docs/_build/
 .agent-work/
 .agent-tmp/
 
-# State folder of Kleisis, regenerated from config/tools/kleisis.yml.
+# State folder of Kleisis, regenerated from config/kleisis.yml.
 .kleisis/
 
 # Dependencies, build output and generated module of the TypeScript read package.

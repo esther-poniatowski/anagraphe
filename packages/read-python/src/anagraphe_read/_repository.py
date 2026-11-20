@@ -417,15 +417,15 @@ def open_repository(
 
     The configuration is the file ``config``, read from the current folder, else the file
     ``anagraphe.yml`` that Hodegos locates at one place of the root: the root itself, its subfolder
-    ``.config/``, or a folder that the ``hodegos.yml`` of the root declares. A root holding no file
+    ``.config/``, or its subfolder ``config/``. A root holding no file
     at these places opens with the empty configuration, so that its submodules still resolve. The
     provider reads the selected states of other repositories, :func:`git_provider` by default.
 
     Raises
     ------
     ConfigurationError
-        If the configuration is invalid, if ``config`` names no file, if two places of the root
-        hold a file, or if the declaration ``hodegos.yml`` of the root is invalid.
+        If the configuration is invalid, if ``config`` names no file, or if two places of the root
+        hold a file.
     """
     resolved, path = discover_configuration(root, config)
     configuration = Configuration() if path is None else load_configuration(resolved, path)

@@ -2,9 +2,9 @@
 
 Hodegos locates both. The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else
 the nearest folder, from the current one upwards, holding ``anagraphe.yml`` at one of its places,
-else the current folder. The places are the root, its ``.config/``, and the folders that its
-``hodegos.yml`` declares; two places holding a file is an error. A given ``--config`` is read from
-the current folder. The former option ``--json`` of ``bindings show`` is retired.
+else the current folder. The places are the root, its ``.config/`` and its ``config/``; two places
+holding a file is an error, and a folder outside them is not searched. A given ``--config`` is read
+from the current folder. The former option ``--json`` of ``bindings show`` is retired.
 """
 
 from __future__ import annotations
@@ -26,10 +26,10 @@ from anagraphe.configuration import load_config
 VALID = "_schema: anagraphe:configuration@3\nreferences: {}\n"
 #: A configuration that the command ``check`` rejects with a message naming the retired version.
 RETIRED = "schema_version: 1\nreferences: {}\n"
-#: The configuration in a folder that the declaration below lists.
-NESTED = Path("shared/anagraphe.yml")
-#: The declaration of a repository keeping its configuration in ``shared/``.
-DECLARATION = "_schema: hodegos:configuration@1\nfolders:\n  - shared\n"
+#: The configuration in the subfolder ``config/``, a place of Hodegos.
+NESTED = Path("config/anagraphe.yml")
+#: The configuration in a folder that no place of Hodegos admits.
+OUTSIDE = Path("shared/anagraphe.yml")
 
 
 def _repository(root: Path, files: dict[Path | str, str]) -> Path:
@@ -53,14 +53,14 @@ def _located(root: Path, config: Path | None = None) -> Path | None:
     return discover_configuration(root, config)[1]
 
 
-def test_lookup_reads_a_folder_that_the_root_declares(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {NESTED: VALID, "hodegos.yml": DECLARATION})
+def test_lookup_reads_the_file_of_config(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {NESTED: VALID})
     assert _located(root) == root / NESTED
     assert CliRunner().invoke(app, ["check", "--root", str(root)]).exit_code == 0
 
 
-def test_lookup_ignores_an_undeclared_folder(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {NESTED: VALID})
+def test_lookup_ignores_a_folder_outside_the_places(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {OUTSIDE: VALID})
     assert _located(root) is None
     result = _runner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
@@ -79,15 +79,6 @@ def test_lookup_reads_the_file_of_dot_config(tmp_path: Path) -> None:
     root = _repository(tmp_path, {".config/anagraphe.yml": VALID})
     assert _located(root) == root / ".config/anagraphe.yml"
     assert CliRunner().invoke(app, ["check", "--root", str(root)]).exit_code == 0
-
-
-def test_an_invalid_declaration_stops_with_status_2(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {"anagraphe.yml": VALID, "hodegos.yml": "folders: [shared]\n"})
-    with pytest.raises(ConfigurationError, match="hodegos.yml"):
-        _located(root)
-    result = _runner().invoke(app, ["check", "--root", str(root)])
-    assert result.exit_code == 2
-    assert "configuration: " in result.stderr and "hodegos.yml" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -131,9 +122,7 @@ def test_the_former_format_names_each_move_of_the_vocabulary(tmp_path: Path) -> 
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
-    root = _repository(
-        tmp_path, {NESTED: VALID, "anagraphe.yml": VALID, "hodegos.yml": DECLARATION}
-    )
+    root = _repository(tmp_path, {NESTED: VALID, "anagraphe.yml": VALID})
     with pytest.raises(ConfigurationError, match="two places hold a configuration"):
         _located(root)
     result = _runner().invoke(app, ["check", "--root", str(root)])
@@ -177,8 +166,8 @@ def test_missing_configuration_names_the_places(tmp_path: Path) -> None:
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
     assert (
-        "no configuration: write anagraphe.yml at the root, in .config/, or in a folder that "
-        "hodegos.yml declares, or name it with --config"
+        "no configuration: write anagraphe.yml at the root, in .config/ or in config/, or name "
+        "it with --config"
     ) in result.output
 
 

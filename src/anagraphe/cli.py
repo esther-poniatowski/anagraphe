@@ -22,8 +22,10 @@ Hodegos resolves the root and the configuration file. The root is the folder giv
 else by ``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, holding a
 configuration, else the current folder. The configuration is the file given by ``--config``, else
 ``anagraphe.yml`` at the one place of the root that holds it: the root itself, its subfolder
-``.config/``, or a folder that the ``hodegos.yml`` of the root declares. Every path typed on the
-command line, a target, ``--config`` or ``--output``, is read from the current folder.
+``.config/``, or its subfolder ``config/``, as the specification of Hodegos states, at
+https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md. A file kept in
+another folder is named by ``--config``. Every path typed on the command line, a target,
+``--config`` or ``--output``, is read from the current folder.
 
 Every command prints one line per issue, ``path:line: [warning: |note: ]kind: detail``, then one
 summary line per check. It exits with 0 when no issue blocks, 1 when one does, and 2 when the
@@ -143,7 +145,7 @@ Config = Annotated[
         "--config",
         "-c",
         help="Configuration file, relative to the current folder; by default anagraphe.yml at "
-        "the root, in .config/, or in a folder that hodegos.yml declares.",
+        "the root, in .config/ or in config/.",
     ),
 ]
 
@@ -289,8 +291,8 @@ def _locate(
     if path is None:
         _fail(
             ConfigurationError(
-                f"{resolved}: no configuration: write {CONFIG_FILE} at the root, in .config/, or "
-                "in a folder that hodegos.yml declares, or name it with --config"
+                f"{resolved}: no configuration: write {CONFIG_FILE} at the root, in .config/ or "
+                "in config/, or name it with --config"
             ),
             findings,
         )

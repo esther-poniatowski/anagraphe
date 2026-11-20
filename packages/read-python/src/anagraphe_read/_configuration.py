@@ -2,9 +2,8 @@
 The configuration of a repository, ``anagraphe.yml``, as the read side reads it.
 
 Hodegos locates the file, through :func:`anagraphe_read._core.configuration.discover_configuration`:
-the file lies at ``anagraphe.yml`` below the root, in its subfolder ``.config/``, or in a folder that
-the ``hodegos.yml`` of the root declares, and two places holding a file is an error, unless the
-caller names another file. The file declares its format under ``_schema``, the sources of the metadata of its files under ``metadata``, and the files
+the file lies at ``anagraphe.yml`` below the root, in its subfolder ``.config/``, or in its subfolder
+``config/``, and two places holding a file is an error, unless the caller names another file. The file declares its format under ``_schema``, the sources of the metadata of its files under ``metadata``, and the files
 that every section excludes under ``exclude``. The read side parses five sections:
 
 - ``targets``, parsed by :mod:`anagraphe_read._targets.configuration`;

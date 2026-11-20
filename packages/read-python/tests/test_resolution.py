@@ -19,8 +19,22 @@ import pytest
 from anagraphe_read._core.configuration import ConfigurationError
 from anagraphe_read._core.schemas import SchemaReader
 from anagraphe_read._resolution.configuration import MACHINE_VARIABLE, parse_section
-from anagraphe_read._resolution.context import Entry, ResolutionContext, Unnamed, build_context
-from anagraphe_read._resolution.provider import Blob, EmptyProvider, Escaping, MemoryProvider, State
+from anagraphe_read._resolution.context import (
+    Entry,
+    ResolutionContext,
+    Unnamed,
+    Unreadable,
+    build_context,
+    read_configuration,
+)
+from anagraphe_read._resolution.provider import (
+    Blob,
+    EmptyProvider,
+    Escaping,
+    MemoryProvider,
+    Mode,
+    State,
+)
 from anagraphe_read._resolution.resolver import Outcome, RecordResolver
 from anagraphe_read._targets.declarations import Declarations
 from anagraphe_read._targets.identity import Identity, IdentitySource
@@ -203,6 +217,47 @@ def test_a_gitlink_without_identity_stays_unnamed(tmp_path: Path) -> None:
     assert context.entries == {}
     (unnamed,) = context.unnamed
     assert "declares no repository.id" in unnamed.detail
+
+
+@pytest.mark.parametrize(
+    "place", ["anagraphe.yml", ".config/anagraphe.yml", "config/anagraphe.yml"]
+)
+def test_the_configuration_of_a_state_is_read_at_each_place(place: str) -> None:
+    provider = MemoryProvider({COMMIT: {place: _configuration_bytes("x-lab")}})
+    found = read_configuration(provider, State(COMMIT))
+    assert isinstance(found, tuple) and found[0] == place
+    assert found[1]["repository"] == {"id": "x-lab"}
+
+
+def test_a_folder_outside_the_places_of_a_state_is_not_read() -> None:
+    provider = MemoryProvider({COMMIT: {"shared/anagraphe.yml": _configuration_bytes("x-lab")}})
+    assert read_configuration(provider, State(COMMIT)) is None
+
+
+@pytest.mark.parametrize(
+    ("entries", "detail"),
+    [
+        (
+            {"anagraphe.yml": b"records: {}\n", "config/anagraphe.yml": b"records: {}\n"},
+            "two places hold a configuration of anagraphe: anagraphe.yml and config/anagraphe.yml",
+        ),
+        ({"config/anagraphe.yml": Blob(b"x.yml", Mode.LINK)}, "config/anagraphe.yml is a link"),
+        ({"config": Blob(b"elsewhere", Mode.LINK)}, "config/anagraphe.yml leaves the state"),
+        ({".config/anagraphe.yml/a": b""}, ".config/anagraphe.yml is a directory"),
+        ({"anagraphe.yml": b"- a list\n"}, "anagraphe.yml cannot be parsed as a mapping"),
+    ],
+)
+def test_a_defect_at_a_place_of_a_state_makes_its_configuration_unreadable(
+    entries: dict[str, bytes | Blob], detail: str
+) -> None:
+    blobs = {path: item if isinstance(item, Blob) else Blob(item) for path, item in entries.items()}
+    found = read_configuration(MemoryProvider({COMMIT: blobs}), State(COMMIT))
+    assert isinstance(found, Unreadable) and found.detail.startswith(detail)
+
+
+def test_an_absent_state_keeps_the_reading_of_the_provider() -> None:
+    found = read_configuration(EmptyProvider(), State(COMMIT))
+    assert isinstance(found, Unreadable) and found.reading is not None
 
 
 def test_a_derived_and_a_declared_entry_of_one_repository_stop_the_command(

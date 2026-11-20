@@ -279,25 +279,24 @@ cases:
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]
-- id: configuration-in-a-declared-folder
-  note: The hodegos.yml of the state declares the folder holding its configuration.
+- id: configuration-in-config
+  note: The subfolder config/ of the state is a place of its configuration.
   context: {repository: lab, commits: {other-lab: c1}}
   states:
     c1:
       from: other-lab
       remove: [anagraphe.yml]
       files:
-        hodegos.yml: "_schema: hodegos:configuration@1\nfolders: [shared]\n"
-        shared/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {}\n"
+        config/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {}\n"
   target: {repository: other-lab, id: ada}
   contracts: [[test:person]]
   outcome: record
   provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
   findings: []
-- id: configuration-in-an-undeclared-folder
+- id: configuration-in-a-folder-outside-the-places
   note: >-
-    A folder that no hodegos.yml declares holds no configuration, so the remote of the state names
-    it, and its targets stay unverified.
+    A folder that no rule of Hodegos admits, such as shared/, holds no configuration, so the remote
+    of the state names it, and its targets stay unverified.
   context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
   states:
     c1:
@@ -308,13 +307,14 @@ cases:
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [unverified-target]
-- id: invalid-declaration-of-the-state
+- id: configuration-in-config-and-at-the-root
+  note: The root and config/ of the state both hold a configuration, which competes.
   context: {repository: lab, commits: {other-lab: c1}}
   states:
     c1:
       from: other-lab
       files:
-        hodegos.yml: "_schema: hodegos:configuration@1\nfolders: [../outside]\n"
+        config/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]

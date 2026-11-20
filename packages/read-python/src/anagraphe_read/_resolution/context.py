@@ -20,21 +20,14 @@ the command, since the context would select two states of one repository.
 from __future__ import annotations
 
 import os
-import tempfile
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
-from hodegos import DiscoveryError
-from hodegos.declaration import DECLARATION_PLACES, read_declared_folders
-from hodegos.discovery import DOT_CONFIG
+from hodegos import DiscoveryError, discover
 
-from anagraphe_read._core.configuration import (
-    CONFIG_FILE,
-    ConfigurationError,
-    discover_configuration,
-)
+from anagraphe_read._core.configuration import TOOL, ConfigurationError
 from anagraphe_read._core.git_state import default_remote_url, gitlinks, submodule_urls
 from anagraphe_read._resolution.configuration import ResolutionConfig, remote_problem
 from anagraphe_read._resolution.provider import (
@@ -42,6 +35,7 @@ from anagraphe_read._resolution.provider import (
     Escaping,
     Missing,
     Mode,
+    Reading,
     State,
     StateProvider,
     Unavailable,
@@ -208,6 +202,79 @@ class Unreadable:
     reading: Unavailable | None = None
 
 
+#: The folder at which the files of a state are presented to Hodegos. Hodegos reaches every path
+#: through the port of :class:`StateFiles`, so this folder names no folder of the machine.
+STATE_ROOT = Path(os.path.normpath(Path(os.sep, "anagraphe-state").absolute()))
+
+
+@dataclass
+class StateFiles:
+    """The port ``FileSystem`` of Hodegos over the blobs of one state, read through a provider.
+
+    A path names a regular file when the provider reads a blob of mode ``file`` at it. The bytes
+    of each such file are kept in :attr:`blobs`, so that the configuration is parsed from the bytes
+    that the discovery saw. A reading that the port cannot answer by a file or by no entry, an
+    unavailable state, a path leaving the state, or a link, a folder or a submodule at a place, is
+    recorded in :attr:`problem` and answered as no file; the first such reading is kept.
+    """
+
+    provider: StateProvider
+    state: State
+    #: The bytes of each file of the state that the discovery found, keyed by its path in the state.
+    blobs: dict[str, bytes] = field(default_factory=dict)
+    #: Why the configuration of the state cannot be read, None while every reading is answered.
+    problem: Unreadable | None = None
+
+    def is_file(self, path: Path) -> bool:
+        """Return whether the state holds a regular file at ``path``, below :data:`STATE_ROOT`."""
+        name = _state_path(path)
+        if name is None:
+            return False
+        reading = self.provider.read(self.state, name)
+        if isinstance(reading, Missing):
+            return False
+        if isinstance(reading, Blob) and reading.mode is Mode.FILE:
+            self.blobs[name] = reading.data
+            return True
+        if self.problem is None:
+            self.problem = _unreadable(name, reading)
+        return False
+
+    def read_text(self, path: Path) -> str:
+        """Return the content of the file of the state at ``path``, decoded as UTF-8.
+
+        Raises
+        ------
+        OSError
+            If the state holds no regular file at ``path``.
+        UnicodeDecodeError
+            If the content is not UTF-8.
+        """
+        name = _state_path(path)
+        if name is not None and self.is_file(path):
+            return self.blobs[name].decode("utf-8")
+        raise FileNotFoundError(f"the state holds no file at {path}")
+
+
+def _state_path(path: Path) -> str | None:
+    """Return the path of the state that a path below :data:`STATE_ROOT` names, None for a path
+    outside it."""
+    try:
+        return path.relative_to(STATE_ROOT).as_posix()
+    except ValueError:
+        return None
+
+
+def _unreadable(name: str, reading: Reading) -> Unreadable:
+    """Return why a reading other than a file or no entry leaves the configuration unreadable."""
+    if isinstance(reading, Unavailable):
+        return Unreadable(reading.detail, reading)
+    if isinstance(reading, Escaping):
+        return Unreadable(f"{name} leaves the state")
+    mode = reading.mode.value if isinstance(reading, Blob) else "entry"
+    return Unreadable(f"{name} is a {mode}, not a file")
+
+
 def read_configuration(
     provider: StateProvider, state: State
 ) -> tuple[str, Mapping[str, Any]] | Unreadable | None:
@@ -215,33 +282,26 @@ def read_configuration(
     no place of the state holds one.
 
     Hodegos locates the file at the root of the state as it locates it in a working tree: at
-    ``anagraphe.yml``, in ``.config/``, or in a folder that the ``hodegos.yml`` of the state
-    declares. Since Hodegos reads a file system, the declarations of the state, then the files at
-    the places of the state, are copied into a temporary folder, in which Hodegos applies its rules.
-    Two configuration files, an invalid declaration, a folder or a link at a place, and a file that
-    is not a YAML mapping in UTF-8 make the configuration unreadable.
+    ``anagraphe.yml``, in ``.config/`` or in ``config/``, as the specification of Hodegos states.
+    Hodegos reads the state through its port ``FileSystem``, which :class:`StateFiles` implements
+    over the provider, so no file of the state is copied to disk. Two configuration files, an
+    unavailable state, a link, a folder or a submodule at a place, and a file that is not a YAML
+    mapping in UTF-8 make the configuration unreadable.
     """
-    copied: dict[str, bytes] = {}
-    with tempfile.TemporaryDirectory(prefix="anagraphe-state-") as folder:
-        tree = Path(folder)
-        declarations = [place.as_posix() for place in DECLARATION_PLACES]
-        problem = _copy(provider, state, tree, declarations, copied)
-        if problem is not None:
-            return problem
-        try:
-            bases = (PurePosixPath(), PurePosixPath(DOT_CONFIG), *read_declared_folders(tree))
-            places = [(base / CONFIG_FILE).as_posix() for base in bases]
-            problem = _copy(provider, state, tree, places, copied)
-            if problem is not None:
-                return problem
-            _, found = discover_configuration(tree)
-        except (ConfigurationError, DiscoveryError) as error:
-            # Hodegos names the copies; the state names its own paths.
-            return Unreadable(str(error).replace(f"{tree}{os.sep}", ""))
-    if found is None:
+    files = StateFiles(provider, state)
+    try:
+        found = discover(TOOL, root=STATE_ROOT, cwd=STATE_ROOT, environ={}, files=files)
+    except DiscoveryError as error:
+        if files.problem is not None:
+            return files.problem
+        # Hodegos names the paths below the presented folder; the state names its own paths.
+        return Unreadable(str(error).replace(f"{STATE_ROOT}{os.sep}", ""))
+    if files.problem is not None:
+        return files.problem
+    if found.configuration is None:
         return None
-    name = found.relative_to(tree).as_posix()
-    data = copied[name]
+    name = found.configuration.path.relative_to(STATE_ROOT).as_posix()
+    data = files.blobs[name]
     try:
         parsed = yaml.safe_load(data.decode("utf-8"))
     except (ValueError, yaml.YAMLError):
@@ -250,32 +310,6 @@ def read_configuration(
     if not isinstance(parsed, dict):
         return Unreadable(f"{name} cannot be parsed as a mapping")
     return name, parsed
-
-
-def _copy(
-    provider: StateProvider,
-    state: State,
-    tree: Path,
-    names: list[str],
-    copied: dict[str, bytes],
-) -> Unreadable | None:
-    """Copy the files of a state at ``names`` below ``tree``, recording their bytes in ``copied``,
-    or return why the configuration of the state cannot be read."""
-    for name in names:
-        reading = provider.read(state, name)
-        if isinstance(reading, Unavailable):
-            return Unreadable(reading.detail, reading)
-        if isinstance(reading, Missing):
-            continue
-        if isinstance(reading, Escaping):
-            return Unreadable(f"{name} leaves the state")
-        if reading.mode is not Mode.FILE:
-            return Unreadable(f"{name} is a {reading.mode.value}, not a file")
-        path = tree / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(reading.data)
-        copied[name] = reading.data
-    return None
 
 
 @dataclass(frozen=True)

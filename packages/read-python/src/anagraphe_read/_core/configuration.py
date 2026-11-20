@@ -5,8 +5,9 @@ Each subpackage parses its own section of ``anagraphe.yml`` with these primitive
 malformed value raises the same error, with the same wording, in every section.
 
 Hodegos locates the file, as its specification states: the file lies at ``anagraphe.yml`` below the
-root, in its subfolder ``.config/``, or in a folder that the declaration ``hodegos.yml`` of the root
-lists, and two places holding a file is an error.
+root, in its subfolder ``.config/``, or in its subfolder ``config/``, and two places holding a file
+is an error. A file kept in another folder is named by the configuration option. The specification
+lies at https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md.
 """
 
 from __future__ import annotations
@@ -47,8 +48,7 @@ def discover_configuration(
     Raises
     ------
     ConfigurationError
-        If ``config`` names no file, if two places of the root hold a file, or if a declaration
-        ``hodegos.yml`` met by the search is invalid.
+        If ``config`` names no file, or if two places of the root hold a file.
     """
     try:
         found = discover(TOOL, root=root, config=config)
