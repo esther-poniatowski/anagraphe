@@ -13,7 +13,10 @@ Command-line interface: one group of commands per subpackage, and one check of a
   ``--check``;
 - ``anagraphe check`` runs the check of every section that ``anagraphe.yml`` declares;
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
-  the indexes, once confirmed on a terminal or by ``--yes``.
+  the indexes, once confirmed on a terminal or by ``--yes``;
+- ``anagraphe repository rename OLD NEW`` records the rename of a repository identifier in the
+  renamed repository, and rewrites its citers in every repository checked out under the root, once
+  confirmed on a terminal or by ``--yes``; ``--format json`` prints the plan for another tool.
 
 Hodegos resolves the root and the configuration file. The root is the folder given by ``--root``,
 else by ``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, holding a
@@ -38,7 +41,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -84,6 +87,7 @@ from anagraphe.targets.migration import Migration, MigrationService, read_plan
 from anagraphe.targets.registry.kinds import KINDS as RECORD_KINDS
 from anagraphe.targets.registry.kinds import UNANALYZED as RECORD_UNANALYZED
 from anagraphe.targets.registry.service import RegistryService, RetireRefused
+from anagraphe.targets.rename import RenamePlan, RenameService
 from anagraphe.targets.service import TargetChecker
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -114,6 +118,11 @@ states_app = typer.Typer(
     help="Fetch the selected states of the repositories that the targets name.",
 )
 app.add_typer(states_app, name="states")
+repository_app = typer.Typer(
+    no_args_is_help=True,
+    help="Rename the identifier of a repository, and rewrite the citers that name it.",
+)
+app.add_typer(repository_app, name="repository")
 
 Paths = Annotated[
     list[Path] | None,
@@ -164,7 +173,8 @@ Output = Annotated[
 
 
 class ShowFormat(str, Enum):
-    """The form of the bindings printed by ``bindings show``."""
+    """The form of the bindings printed by ``bindings show``, and of the plan of
+    ``repository rename``."""
 
     TEXT = "text"
     JSON = "json"
@@ -884,6 +894,129 @@ def move(
         typer.echo(f"{residue.rel}:{residue.line}: warning: residue: {residue.old} remains")
     typer.echo(f"\n{summary}; {len(result.residues)} old paths remain")
     _exit(*reports)
+
+
+def _print_rename(plan: RenamePlan) -> None:
+    """Print each edit, then each warning, of a rename, at their paths from the root."""
+    for member in plan.members:
+        for change in member.changes:
+            verb = "create" if change.created else "edit"
+            for edit in change.edits:
+                before = f"{edit.old} -> " if edit.old is not None else "+ "
+                typer.echo(
+                    f"{verb} {member.at_root(change.path)}:{edit.line}: {edit.pointer}: "
+                    f"{before}{edit.new}"
+                )
+    for member in plan.members:
+        for issue in member.warnings:
+            located = member.at_root(issue.rel) if issue.rel else member.path
+            typer.echo(replace(issue, rel=located).format())
+
+
+@repository_app.command("rename")
+def repository_rename(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    old: Annotated[str, typer.Argument(metavar="OLD", help="Identifier of the repository.")],
+    new: Annotated[
+        str, typer.Argument(metavar="NEW", help="Identifier of the repository after the rename.")
+    ],
+    renamed: Annotated[
+        Path | None,
+        typer.Option(
+            "--repository",
+            metavar="PATH",
+            help="Folder of the renamed repository, relative to the current folder: the root, or "
+            "a submodule checked out under it; the root by default.",
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Print the plan, and change no file.")
+    ] = False,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Apply the plan without asking for a confirmation.")
+    ] = False,
+    output_format: Annotated[
+        ShowFormat,
+        typer.Option("--format", help="text, or json for the plan read by another tool."),
+    ] = ShowFormat.TEXT,
+    root: Root = None,
+    config: Config = None,
+) -> None:
+    """Record the rename of a repository identifier in the renamed repository, and rewrite every
+    target and every entry of the resolution context naming it, in the root and in each submodule
+    checked out under it.
+
+    The rename edits files written by the researcher, so it asks for a confirmation on a terminal
+    once the plan is printed. Without a terminal, only ``--yes`` lets it apply the plan; under
+    ``--format json``, the plan is printed for another tool, which passes ``--dry-run`` or
+    ``--yes``. The command commits nothing.
+    """
+    machine = output_format is ShowFormat.JSON
+    if machine and not dry_run and not yes:
+        raise typer.BadParameter(
+            "--format json prints the plan for another tool, which passes --dry-run or --yes",
+            param_hint="--format",
+        )
+    if not dry_run and not yes and not sys.stdin.isatty():
+        typer.echo(
+            "usage: a rename changes files written by the researcher; confirm it on a terminal, "
+            "or pass --yes",
+            err=True,
+        )
+        raise typer.Exit(2)
+    resolved, config_path = _discover(root, config)
+    service = RenameService(resolved, config_path)
+    try:
+        plan = service.plan(old, new, renamed.absolute() if renamed is not None else None)
+    except (ConfigurationError, OSError, TargetError) as error:
+        _fail(error)
+    if not machine:
+        _print_rename(plan)
+    if plan.refusals or dry_run:
+        _end_rename(plan, machine, "refused, no file changed" if plan.refusals else None)
+        return
+    if not yes and not typer.confirm(f"\n{_summary(plan)}; apply the rename?", default=False):
+        _end_rename(plan, machine, "cancelled, no file changed")
+        return
+    try:
+        service.apply(plan)
+    except OSError as error:
+        _fail(error)
+    _end_rename(plan, machine, "applied", applied=True)
+
+
+def _discover(root: Path | None, config: Path | None) -> tuple[Path, Path | None]:
+    """Return the root of a command and its configuration file, None when the root holds none."""
+    try:
+        return discover_configuration(root, config)
+    except ConfigurationError as error:
+        _fail(error)
+
+
+def _summary(plan: RenamePlan) -> str:
+    """Return the counts of a rename."""
+    files = sum(len(member.changes) for member in plan.members)
+    touched = sum(bool(member.changes) for member in plan.members)
+    return (
+        f"rename: {plan.old} -> {plan.new}: {plan.edit_count} edits in {files} files of "
+        f"{touched} repositories"
+    )
+
+
+def _end_rename(
+    plan: RenamePlan, machine: bool, outcome: str | None, applied: bool = False
+) -> None:
+    """Print the outcome of a rename, and exit with status 1 when it is refused or declined.
+
+    The outcome of a dry run is None; under ``--format json``, the plan alone is printed.
+    """
+    if machine:
+        typer.echo(json.dumps(plan.as_json(applied), indent=2, ensure_ascii=False))
+    else:
+        for reason in plan.refusals:
+            typer.echo(f"rename: refused: {reason}", err=True)
+        typer.echo(f"\n{_summary(plan)}; {outcome or 'dry run, no file changed'}")
+    if plan.refusals or (outcome is not None and not applied):
+        raise typer.Exit(1)
 
 
 @app.callback()

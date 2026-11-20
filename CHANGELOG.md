@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The command `anagraphe repository rename OLD NEW [--repository PATH] [--dry-run] [--yes]
+  [--format text|json]`, which renames a repository identifier, as ADR 0012 decides. In the renamed
+  repository, the identifier `OLD` joins the list `repository.retired`, and an override
+  `repository.id` equal to `OLD` becomes `NEW`. The key `repository` of its record registry becomes
+  `NEW` when it names `OLD`. In the root and in each submodule checked out under it, the keys of
+  `resolution.repositories` and the logical targets naming `OLD` name `NEW`. Each value is edited in
+  place, and every changed file is written at once, or none is. The rename is refused, with status
+  `1`, in four cases:
+  - the identifier `NEW` is a former identifier of the renamed repository;
+  - the renamed repository is identified as neither `OLD` nor `NEW`, or another repository of the
+    scope is identified as `OLD` or `NEW`;
+  - a configuration of the scope already declares `NEW` under `resolution.repositories`;
+  - the identity, the registry or the context cannot be rewritten in place.
+
+  Under the option `--format json`, the command prints the plan of each repository for another
+  tool. The command commits nothing.
 - `anagraphe-read` publishes the field paths in its interface: their parsing, their printing,
   their conversions to and from a JSON Pointer and the expansion of a pattern, so that every tool
   converts a field path through Anagraphe.
