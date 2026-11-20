@@ -47,7 +47,9 @@ reading. The function locates `anagraphe.yml` through Hodegos, at the root, in i
 holding the file is an error. A root holding no file at these places opens with an empty
 configuration, so that its submodules still resolve. The provider reads the selected states of other repositories, and
 defaults to the Git provider returned by `git_provider()`. That provider reads a state from a local
-clone of its repository when the machine holds one, else from the cache of the machine.
+clone of its repository when the machine holds one, else from the cache of the machine. The
+configuration of a state lies at the same places of that state, unless the key `config` of its entry
+under `resolution.repositories` names another file of the state.
 
 The script below opens a repository, resolves a target into another repository and reads the record
 that the target names:

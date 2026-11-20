@@ -10,7 +10,9 @@ current folder, and its absence is an error. Hodegos resolves the root and the p
 searched: a file kept in another folder, such as `config/tools/`, is named by `--config`.
 
 The configuration of a state of another repository, read by the record resolver, lies at the same
-places of that state. The file names its format under
+places of that state. A state declared under `resolution.repositories` that keeps the file in
+another folder names it by the key `config` of its entry, as the [targets guide](targets.md)
+states. The file names its format under
 `_schema`, as its first key, and a command stops with status 2 when the key is absent or holds
 another value than `anagraphe:configuration@3`. The file also declares one section per capability:
 `indexes` to generate the indexes, `references` to check the references between files, `bindings` to

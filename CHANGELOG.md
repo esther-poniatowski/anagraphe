@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   commits nothing, and the researcher commits the files that the plan lists, one commit per
   repository. The command renames no folder, remote or submodule, and runs independently of the
   rename of Architekta, as ADR 0012, accepted on 2026-11-20, states.
+- The key `config` of an entry of `resolution.repositories` names the configuration of Anagraphe
+  inside the selected state of that repository, by its path relative to the root of the
+  repository, such as `settings/anagraphe.yml`. The record resolver then reads the identity and
+  the record registry of the state from that file, through the port of Hodegos over the state.
+  Without the key, the accepted places of the state are searched, as before. A key naming no file of
+  the state yields `invalid-target-repository`, whose detail names the repository, the commit and
+  the path; a key that is no path inside the repository stops the command with status `2`. The
+  format `anagraphe:configuration@3` gains the key in place, since no release has published it.
+  The distribution `anagraphe-read` raises its version to `0.6.0`.
 - `anagraphe-read` publishes the field paths in its interface: their parsing, their printing,
   their conversions to and from a JSON Pointer and the expansion of a pattern, so that every tool
   converts a field path through Anagraphe.
@@ -46,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` takes the metadata source of each file from the host, through the options
   `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
   the type `MetadataSource`.
-- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.5.0`. The
+- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.6.0`. The
   distribution holds the Python read side of Anagraphe and depends on no part of the command line.
   Its module `anagraphe_read` is its whole interface:
   - `open_repository` locates and loads the configuration of a repository, derives its identity
@@ -150,7 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   takes the identifier of the repository from the host, through its option `repository` and its
   method `setRepository`.
 - The read side moves from `anagraphe` to the private subpackages of `anagraphe_read`, and the
-  distribution `anagraphe` requires `anagraphe-read==0.5.0`. A consumer imports the names of
+  distribution `anagraphe` requires `anagraphe-read==0.6.0`. A consumer imports the names of
   `anagraphe_read` instead of the moved modules:
   - the modules `configuration`, `conditions`, `filters`, `exclusions`, `git_state`, `issues`,
     `json_text`, `metadata`, `published`, `schemas`, `anchors` and `files` of `anagraphe.core` move

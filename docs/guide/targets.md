@@ -438,16 +438,18 @@ resolution:
     mixture-input-encoding:
       commit: 0123456789abcdef0123456789abcdef01234567
       remote: https://github.com/lab/mixture-input-encoding.git
+      config: settings/anagraphe.yml
   local: .anagraphe-repositories.yml
 ```
 
 | Key | Content | Default |
 | --- | --- | --- |
-| `repositories` | each cited repository identifier with its `commit`, 40 or 64 hexadecimal digits, and its `remote`, an address in the form `https://`, `http://`, `ssh://`, `git://` or `user@host:path`, without credentials | no declared repository |
+| `repositories` | each cited repository identifier with its `commit`, 40 or 64 hexadecimal digits, its `remote`, an address in the form `https://`, `http://`, `ssh://`, `git://` or `user@host:path`, without credentials, and optionally its `config`, the path of `anagraphe.yml` in the selected state, relative to the root of that repository | no declared repository |
 | `local` | the machine file of the local clones, relative to the root, which Git must ignore | no machine file |
 
 A repository declared under `repositories` and also held as a submodule stops the command, and so
-does an entry naming the repository of the root. The commit of a declared repository moves when
+does an entry naming the repository of the root. A key `config` that is not a path inside the
+repository, such as an absolute path or a path climbing above its root, stops the command too. The commit of a declared repository moves when
 the researcher edits it, so two clones of one commit select the same states.
 
 The machine file maps a repository identifier to the path of a local clone, relative to the folder
@@ -458,7 +460,12 @@ A machine file inside the repository that Git does not ignore stops the command.
 `local` may be absent, as on the host of a gate, whereas a file named by the variable must exist.
 The clones serve the declared repositories; a submodule is read from its own folder.
 
-The resolver selects the state of the named repository and reads its configuration. It derives the
+The resolver selects the state of the named repository and reads its configuration. Hodegos
+locates the file inside the state, through its port of files: at the path named by the key
+`config` of a declared entry, as the option `--config` names a file of a working tree; else at the
+accepted places of the state, its root, `.config/` and `config/`. A state that keeps the file
+elsewhere, such as `settings/anagraphe.yml`, is therefore read only through the key. A
+submodule takes no key, since the gitlink of the root selects its state. The resolver derives the
 identity of the state from that configuration and the remote of the state. It then reads the record
 registry that the section `records` names, and finally the registered record. A target without `id`
 names the repository itself, and resolves once the identity of the state equals the named
@@ -472,7 +479,7 @@ repository. Each step adds its findings to those of the check:
 | `unknown-repository` | error | the context selects no state of the named repository |
 | `unreadable-target-state` | warning | the selected state is absent from the machine, or its access is denied; or a submodule whose state names no repository may hold the named repository |
 | `invalid-target-state` | error | the bytes of the selected state fail the verification of the provider |
-| `invalid-target-repository` | error | the state has no identity, or its identity differs from the named identifier; or the state holds two configuration files, a link or a folder at a place of the configuration, a configuration that cannot be parsed, an invalid section `repository`, or a configuration naming no registry inside the repository |
+| `invalid-target-repository` | error | the state has no identity, or its identity differs from the named identifier; or the key `config` of its entry names no file of the state, which the detail names with the repository and the commit; or the state holds two configuration files, a link or a folder at a place of the configuration, a configuration that cannot be parsed, an invalid section `repository`, or a configuration naming no registry inside the repository |
 | `unverified-target` | note | the state holds no configuration, no section `records`, or no registry at the declared path; or the schemas of the contract of the record, which may declare its identifier field, its units or further contracts, are not held by the checked repository |
 | `invalid-record-registry` | error | the registry of the state violates `anagraphe:record-registry@1`, or names another repository |
 | `unknown-record`, `renamed-target`, `retired-target` | as above | the identifier of the target, looked up in the registry of the state |
