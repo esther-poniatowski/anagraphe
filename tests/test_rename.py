@@ -527,7 +527,7 @@ def test_an_unreadable_record_is_reported(tmp_path: Path) -> None:
     ("arguments", "message"),
     [
         (["x-lab", "x-hub"], "confirm it on a terminal, or pass --yes"),
-        (["x-lab", "x-hub", "--format", "json"], "--format json prints the plan for another tool"),
+        (["x-lab", "x-hub", "--format", "json"], "--format json prints the plan for a program"),
         (["X", "x-hub", "--dry-run"], "OLD 'X' lies outside the pattern of repository-id"),
         (["x-lab", "x-lab", "--dry-run"], "OLD and NEW are both x-lab"),
         (

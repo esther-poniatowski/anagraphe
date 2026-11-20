@@ -16,7 +16,7 @@ Command-line interface: one group of commands per subpackage, and one check of a
   the indexes, once confirmed on a terminal or by ``--yes``;
 - ``anagraphe repository rename OLD NEW`` records the rename of a repository identifier in the
   renamed repository, and rewrites its citers in every repository checked out under the root, once
-  confirmed on a terminal or by ``--yes``; ``--format json`` prints the plan for another tool.
+  confirmed on a terminal or by ``--yes``; ``--format json`` prints the plan for a program.
 
 Hodegos resolves the root and the configuration file. The root is the folder given by ``--root``,
 else by ``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, holding a
@@ -938,7 +938,7 @@ def repository_rename(  # pylint: disable=too-many-arguments,too-many-positional
     ] = False,
     output_format: Annotated[
         ShowFormat,
-        typer.Option("--format", help="text, or json for the plan read by another tool."),
+        typer.Option("--format", help="text, or json for the plan read by a program."),
     ] = ShowFormat.TEXT,
     root: Root = None,
     config: Config = None,
@@ -949,13 +949,13 @@ def repository_rename(  # pylint: disable=too-many-arguments,too-many-positional
 
     The rename edits files written by the researcher, so it asks for a confirmation on a terminal
     once the plan is printed. Without a terminal, only ``--yes`` lets it apply the plan; under
-    ``--format json``, the plan is printed for another tool, which passes ``--dry-run`` or
+    ``--format json``, the plan is printed for a program reading it, which passes ``--dry-run`` or
     ``--yes``. The command commits nothing.
     """
     machine = output_format is ShowFormat.JSON
     if machine and not dry_run and not yes:
         raise typer.BadParameter(
-            "--format json prints the plan for another tool, which passes --dry-run or --yes",
+            "--format json prints the plan for a program, which passes --dry-run or --yes",
             param_hint="--format",
         )
     if not dry_run and not yes and not sys.stdin.isatty():
