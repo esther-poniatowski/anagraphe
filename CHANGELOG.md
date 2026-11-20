@@ -23,8 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - a configuration of the scope already declares `NEW` under `resolution.repositories`;
   - the identity, the registry or the context cannot be rewritten in place.
 
-  Under the option `--format json`, the command prints the plan of each repository for another
-  tool. The command commits nothing.
+  Under the option `--format json`, the command prints the plan as one JSON object. The command
+  commits nothing, and the researcher commits the files that the plan lists, one commit per
+  repository. The command renames no folder, remote or submodule, and runs independently of the
+  rename of Architekta, as ADR 0012, accepted on 2026-11-20, states.
 - `anagraphe-read` publishes the field paths in its interface: their parsing, their printing,
   their conversions to and from a JSON Pointer and the expansion of a pattern, so that every tool
   converts a field path through Anagraphe.

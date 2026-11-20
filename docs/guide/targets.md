@@ -525,6 +525,10 @@ records the rename in the renamed repository. The command then rewrites the cite
 repository checked out under its root, so that their targets and their resolution context name
 `NEW`.
 
+The command renames no folder, remote or submodule. Architekta renames them by a separate command,
+which calls no tool of Anagraphe. Both commands name the renamed repository by its folder, so either
+runs first.
+
 ### Run the rename
 
 The root of the command is the composing repository whose submodules hold the projects. The root
@@ -547,9 +551,9 @@ counts of the edits, the files and the repositories.
 Without the option `--dry-run`, the command asks for a confirmation on a terminal. The option
 `--yes` applies the plan without the question. Without a terminal and without `--yes`, the command
 stops with status `2`, and a declined confirmation exits with status `1`. The command writes all
-changed files at once, or none, and commits nothing. A tool such as Architekta commits the files
-of each repository once. The [CLI reference](cli-reference.md) states the JSON form of the plan,
-printed under the option `--format json`.
+changed files at once, or none, and commits nothing. The researcher commits the files that the plan
+lists, one commit per repository. The [CLI reference](cli-reference.md) states the JSON form of
+the plan, printed under the option `--format json`.
 
 ### Edited values
 

@@ -119,10 +119,10 @@ could not be parsed, as `unreadable-file`, `unreadable-metadata`, `unreadable-bi
 ## Plan of a rename
 
 Under the option `--format json`, the command `repository rename` prints its plan on standard
-output, as one JSON object. A tool such as Architekta reads the plan, shows it, and commits once per
-repository. The [targets guide](targets.md) lists the values edited by a rename, and the
-[decision on repository renames](../adr/0012-repository-rename.md) records the reason for each
-choice. The object holds the keys below:
+output, as one JSON object. The plan lists the changed files of each repository, which the
+researcher commits once per repository. The [targets guide](targets.md) lists the values edited by
+a rename, and the [decision on repository renames](../adr/0012-repository-rename.md) records the
+reason for each choice. The object holds the keys below:
 
 | Key | Value |
 | --- | --- |
