@@ -48,6 +48,7 @@ reference naming no file or anchor.
 - [x] Move a file or a folder, rewriting every pointer to it and updating the affected indexes.
 - [x] Resolve the bindings of texts to the roles of tools along the directory chain, records included through `x-binds`.
 - [x] Check the logical targets between records within one repository, with the identifiers and the derived repository identity that they name.
+- [x] Check the references of a field to the units of the same record, declared by `x-units`.
 - [x] Generate and check the record registry, the file of each record identifier, and retire the identifiers that no record holds, with their successors after a rename.
 - [x] Rewrite the contract named by each record when a domain tool migrates its records, under a migration plan.
 - [x] Rename a repository identifier, retiring the former one and rewriting the targets and the context entries that name it, in the root and each submodule checked out under it.

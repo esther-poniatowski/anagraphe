@@ -116,6 +116,42 @@ $defs:
       id: {type: string}
 ```
 
+## Declare a reference to a unit of the same record
+
+A field whose value names a unit of the same record declares `x-units`, the list of the arrays of
+units that it admits. Each entry is a field path from the root of the record, as the
+[field-path specification](../specification/field-paths.md) states, and names an array whose items
+declare `x-identifier`. The value of the field is the identifier of a unit of one of these arrays,
+or an array of such identifiers:
+
+```yaml
+properties:
+  moves:
+    type: array
+    items: {$ref: '#/$defs/move'}
+  posits:
+    type: array
+    items: {$ref: '#/$defs/posit'}
+$defs:
+  move:
+    x-identifier: id
+    properties:
+      id: {type: string}
+      inputs:
+        x-units: [moves, posits]
+        type: array
+        items: {type: string}
+  posit:
+    x-identifier: id
+    properties:
+      id: {type: string}
+```
+
+In a record of this schema, each entry of `inputs` names a move or a posit of the same record. The
+check of the targets reports each identifier that names no unit of the admitted arrays, as the
+section "Check the targets" below lists. The [logical targets
+specification](../specification/logical-targets.md) states the reading of the keyword.
+
 ## Declare a target field
 
 A consumer schema references the definition `target` of the resource of Anagraphe by its absolute
@@ -167,6 +203,7 @@ reports the identifiers and the targets of the selected files:
 | `invalid-target` | error | a target field holds a value that is not a mapping, holds another key, names neither a record nor a repository, holds a unit without a record, or holds a component outside its pattern |
 | `invalid-identifier-declaration` | error | `x-identifier` is not a dotted path of property names, or names no property of its schema |
 | `invalid-target-contract` | error | `x-target-contract` is not a non-empty list of contract identifiers |
+| `invalid-units-declaration` | error | `x-units` is not a non-empty list of field paths, each naming an array of the record whose items declare `x-identifier`; the field is not checked |
 | `missing-identifier` | error | a record of a contract whose schema declares `x-identifier` holds no value there |
 | `invalid-identifier` | error | an identifier lies outside the pattern of a record identifier, an item identifier lies outside the pattern of a unit identifier, or a later key path of the metadata source holds another identifier; reported at the field |
 | `duplicate-identifier` | error | two records of the repository hold one identifier; reported at each record |
@@ -178,6 +215,7 @@ reports the identifiers and the targets of the selected files:
 | `retired-target` | error | the target names an identifier retired without a successor, or whose successors reach no record |
 | `unknown-unit` | error | the record of a target holds no unit of its identifier |
 | `ambiguous-unit` | error | two units of the record of a target hold its identifier |
+| `unknown-unit-reference` | error | a value of a field declaring `x-units` names no unit of the arrays that the field admits; reported at the value |
 | `target-contract-mismatch` | error | the contract of the record of a target matches no entry of `x-target-contract` |
 | `unbound-target` | error | the field declares `x-target-contract`, and the record of its target declares no contract |
 | `unreadable-record` | error | the frontmatter or the document of a record cannot be parsed |

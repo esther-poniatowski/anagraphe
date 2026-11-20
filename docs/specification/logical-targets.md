@@ -121,6 +121,27 @@ located at the field of the item, as for a record identifier. A heading is not a
 one record share one namespace, so a unit declared twice is ambiguous. The items of a mapping keyed
 by identifier are not units in this version.
 
+## References to units of the same record
+
+The keyword `x-units` declares a field whose values name units of the same record. It holds a
+non-empty list of field paths, each read as the [field-path specification](field-paths.md) states,
+from the root of the record. Each field path names an array whose items are units of the record:
+a key of the path steps into a property, a position steps into the items of an array, and the
+definition of the items of the named array declares `x-identifier`. A list that is empty, an entry
+that is no field path, and an entry naming no such array make the declaration invalid, a finding
+`invalid-units-declaration` located at the keyword, and the field is then not checked.
+
+The keyword is read on every node of the schema of a contract that has a key path, as
+`x-target-contract` is read. A value of the field is a string, or an array whose strings are each a
+value. Each such string is the identifier of a unit held by one of the named arrays of the record.
+A string naming no unit of those arrays, such as a unit of another array of the record, is a finding
+`unknown-unit-reference`, located at the string. A value of another type names no unit, and the
+validation of the record against its schema judges it. When several nodes of the key path of a
+field declare `x-units`, each string names a unit of the arrays of each declaration.
+
+The identifier of a unit stays its own value: a reference to a unit of the same record names no
+record and no repository, so it is no logical target, and a rename of the record leaves it valid.
+
 ## Identity
 
 The identifier of a repository is derived in this order:
