@@ -1,7 +1,7 @@
 """
 The declarations that the schema of a contract makes for the logical targets.
 
-The walk of :mod:`anagraphe_read._core.schemas` reads four keywords on the nodes of the schema, each node
+The walk of :mod:`anagraphe_read._core.schemas` reads five keywords on the nodes of the schema, each node
 taken with the key path of the values that it describes:
 
 - ``x-identifier`` on a node of the root, reached through ``allOf`` and ``$ref``, names the field
@@ -12,7 +12,9 @@ taken with the key path of the values that it describes:
   ``x-target-contract`` on a node of the same key path lists the contracts that its record must
   satisfy;
 - ``x-implements`` on a node of the root names the contracts that the records of the contract also
-  implement.
+  implement;
+- ``x-units`` on a node lists the field paths, from the root of the record, of the arrays whose
+  units its values name, each array holding items that ``x-identifier`` declares as units.
 
 A node reached through ``anyOf`` or ``oneOf`` describes only the values matching its branch. Its
 ``x-identifier`` is therefore not read, and a value of its target field is read as a target only
@@ -33,7 +35,12 @@ from anagraphe_read._core.schemas import (
     SchemaReader,
     Step,
 )
-from anagraphe_read._targets.kinds import INVALID_IDENTIFIER_DECLARATION, INVALID_TARGET_CONTRACT
+from anagraphe_read._targets.field_paths import FieldPath, FieldPathError, parse_field_path
+from anagraphe_read._targets.kinds import (
+    INVALID_IDENTIFIER_DECLARATION,
+    INVALID_TARGET_CONTRACT,
+    INVALID_UNITS_DECLARATION,
+)
 from anagraphe_read._targets.model import parse_contracts
 from anagraphe_read._targets.resource import ADDRESSING_ID, TARGET_REFERENCE, matches
 
@@ -43,6 +50,8 @@ IDENTIFIER = "x-identifier"
 TARGET_CONTRACT = "x-target-contract"
 #: The keyword naming the contracts that a root schema implements.
 IMPLEMENTS = "x-implements"
+#: The keyword naming the arrays of units of the same record that the values of a field name.
+UNITS = "x-units"
 
 
 @dataclass(frozen=True)
@@ -68,6 +77,26 @@ class UnitDeclaration:
 
 
 @dataclass(frozen=True)
+class UnitList:
+    """An array of units of a record, named by an entry of ``x-units``."""
+
+    #: The entry as written, a field path from the root of the record.
+    text: str
+    path: FieldPath
+    #: The field of the identifier of each item, from its declaration of units.
+    identifier: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class UnitReference:
+    """A field of a record whose values name units of the same record, in the arrays of one
+    declaration of ``x-units``."""
+
+    path: tuple[Step, ...]
+    lists: tuple[UnitList, ...]
+
+
+@dataclass(frozen=True)
 class ContractSchema:
     """What the schema of one contract declares for the targets."""
 
@@ -79,6 +108,9 @@ class ContractSchema:
     targets: tuple[TargetField, ...] = ()
     #: The contracts named by ``x-implements`` at the root.
     implements: tuple[str, ...] = ()
+    #: The fields declaring ``x-units``, one entry per valid declaration; a value of the field
+    #: names a unit of the arrays of each of its declarations.
+    references: tuple[UnitReference, ...] = ()
 
 
 @dataclass
@@ -113,6 +145,7 @@ class Declarations:
         targets: dict[tuple[Step, ...], bool] = {}
         contracts: dict[tuple[Step, ...], list[tuple[str, ...]]] = {}
         implements: dict[str, None] = {}
+        referencing: list[SchemaNode] = []
         for node in nodes:
             assert node.path is not None
             value = node.value
@@ -131,6 +164,14 @@ class Declarations:
                 targets[node.path] = targets.get(node.path, True) and node.conditional
             if IMPLEMENTS in value and not node.path and not node.conditional:
                 implements.update(dict.fromkeys(_names(value[IMPLEMENTS])))
+            if UNITS in value:
+                referencing.append(node)
+        references: dict[UnitReference, None] = {}
+        for node in referencing:
+            lists = self._unit_lists(node, {unit.path: unit.identifier for unit in units})
+            if lists is not None:
+                assert node.path is not None
+                references[UnitReference(node.path, lists)] = None
         return ContractSchema(
             contract,
             identifier,
@@ -140,6 +181,7 @@ class Declarations:
                 for path, conditional in targets.items()
             ),
             tuple(implements),
+            tuple(references),
         )
 
     def _identifier(
@@ -169,6 +211,57 @@ class Declarations:
             )
             return None
         return segments
+
+    def _unit_lists(
+        self, node: SchemaNode, units: dict[tuple[Step, ...], tuple[str, ...]]
+    ) -> tuple[UnitList, ...] | None:
+        """Return the arrays of units named by the ``x-units`` of a node, None after recording why
+        the declaration is invalid.
+
+        Each entry is a field path from the root of the record. A key of the path steps into a
+        property, and a position into the items of an array, so the path names the array whose
+        items a declaration of units covers.
+        """
+        value: Any = node.value[UNITS]
+        at = node.at + pointer(UNITS)
+        if not isinstance(value, list) or not value:
+            self._problem(
+                INVALID_UNITS_DECLARATION,
+                node,
+                at,
+                f"{UNITS} must be a non-empty list of field paths, not {value!r}",
+            )
+            return None
+        lists: list[UnitList] = []
+        for entry in value:
+            try:
+                path = parse_field_path(entry) if isinstance(entry, str) else None
+            except FieldPathError as error:
+                self._problem(
+                    INVALID_UNITS_DECLARATION, node, at, f"{UNITS} entry {entry!r}: {error}"
+                )
+                return None
+            if path is None:
+                self._problem(
+                    INVALID_UNITS_DECLARATION,
+                    node,
+                    at,
+                    f"{UNITS} entry {entry!r} is not a field path",
+                )
+                return None
+            steps = tuple(Items() if isinstance(part, int) else Property(part) for part in path)
+            identifier = units.get((*steps, Items()))
+            if identifier is None:
+                self._problem(
+                    INVALID_UNITS_DECLARATION,
+                    node,
+                    at,
+                    f"{UNITS} entry {entry} names no array of the record whose items declare "
+                    f"{IDENTIFIER}",
+                )
+                return None
+            lists.append(UnitList(entry, path, identifier))
+        return tuple(lists)
 
     def _contracts(self, node: SchemaNode) -> tuple[str, ...] | None:
         """Return the entries of the ``x-target-contract`` of a node, None after recording why the

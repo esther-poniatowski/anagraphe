@@ -11,7 +11,8 @@ five kinds to such a target: an unknown record, an unreadable record, an invalid
 two kinds of a retired identifier. The derivation of the identity of a repository replaces the two
 kinds of its former manifest by two warnings, a disagreement of the derived names and a manifest
 left at the root, and the generation of the record registry refuses a repository without
-identity.
+identity. The keyword ``x-units`` adds two kinds: an invalid declaration, and a value naming no unit
+of the arrays that its field admits.
 """
 
 from __future__ import annotations
@@ -25,6 +26,9 @@ INVALID_TARGET = "invalid-target"
 INVALID_IDENTIFIER_DECLARATION = "invalid-identifier-declaration"
 #: A keyword ``x-target-contract`` that is not a non-empty list of contract identifiers.
 INVALID_TARGET_CONTRACT = "invalid-target-contract"
+#: A keyword ``x-units`` that is not a non-empty list of field paths, each naming an array of the
+#: record whose items are units.
+INVALID_UNITS_DECLARATION = "invalid-units-declaration"
 #: A record of a contract declaring ``x-identifier``, holding no value there.
 MISSING_IDENTIFIER = "missing-identifier"
 #: An identifier outside the pattern of ``record-id``, a unit identifier outside the pattern of
@@ -48,6 +52,8 @@ RETIRED_TARGET = "retired-target"
 UNKNOWN_UNIT = "unknown-unit"
 #: A target naming a unit that two units of its record hold.
 AMBIGUOUS_UNIT = "ambiguous-unit"
+#: A value of a field declaring ``x-units`` naming no unit of the arrays that the field admits.
+UNKNOWN_UNIT_REFERENCE = "unknown-unit-reference"
 #: A target whose record follows no contract that the field admits.
 TARGET_CONTRACT_MISMATCH = "target-contract-mismatch"
 #: A target of a field declaring ``x-target-contract``, whose record declares no contract.
@@ -94,6 +100,11 @@ KINDS: tuple[IssueKind, ...] = (
         "x-target-contract is not a non-empty list of contract identifiers.",
     ),
     IssueKind(
+        INVALID_UNITS_DECLARATION,
+        "x-units is not a non-empty list of field paths, each naming an array of the record whose "
+        "items declare x-identifier.",
+    ),
+    IssueKind(
         MISSING_IDENTIFIER, "A record holds no value at the identifier field of its contract."
     ),
     IssueKind(
@@ -128,6 +139,10 @@ KINDS: tuple[IssueKind, ...] = (
     ),
     IssueKind(UNKNOWN_UNIT, "The record of a target holds no unit of its identifier."),
     IssueKind(AMBIGUOUS_UNIT, "Two units of the record of a target hold its identifier."),
+    IssueKind(
+        UNKNOWN_UNIT_REFERENCE,
+        "A value of a field declaring x-units names no unit of the arrays that the field admits.",
+    ),
     IssueKind(
         TARGET_CONTRACT_MISMATCH,
         "The contract of the record of a target matches no entry of x-target-contract.",

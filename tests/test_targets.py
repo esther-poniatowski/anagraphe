@@ -204,6 +204,93 @@ def test_a_misspelled_key_of_the_section_fails(tmp_path: Path) -> None:
         load_config(tmp_path, tmp_path / "anagraphe.yml")
 
 
+# --- References to units of the same record.
+
+#: A schema whose record holds two arrays of units, and fields naming units of them by ``x-units``.
+DERIVATION_SCHEMA = """\
+properties:
+  _schema: {const: test:derivation@1}
+  moves:
+    type: array
+    items: {$ref: '#/$defs/move'}
+  posits:
+    type: array
+    items:
+      x-identifier: name
+      properties:
+        name: {type: string}
+  root:
+    x-units: [posits]
+    type: [string, 'null']
+$defs:
+  move:
+    x-identifier: id
+    properties:
+      id: {type: string}
+      inputs:
+        x-units: [moves, posits]
+        type: array
+        items: {type: string}
+      after:
+        x-units: ['moves']
+        type: string
+"""
+
+
+def _derivation(root: Path, record: str, schema: str = DERIVATION_SCHEMA) -> list[list[str]]:
+    """Check one record of the contract test:derivation@1, and return its sorted issues."""
+    _write(
+        root,
+        {
+            "registry.yml": (
+                "_schema: kleisis:schema-registry@2\nschemas:\n"
+                "  test:derivation@1: derivation.schema.yml\n"
+            ),
+            "derivation.schema.yml": schema,
+            "d.yml": record,
+        },
+    )
+    return _check(root, {"records": {"registry": "registry.yml"}})
+
+
+def test_a_reference_names_a_unit_of_an_admitted_array(tmp_path: Path) -> None:
+    record = (
+        "_schema: test:derivation@1\nid: d\nroot: p\n"
+        "posits: [{name: p}]\n"
+        "moves:\n  - {id: a, inputs: [p]}\n  - {id: b, inputs: [a, p], after: a}\n"
+    )
+    assert _derivation(tmp_path, record) == []
+
+
+def test_a_reference_naming_no_unit_of_its_arrays_is_reported(tmp_path: Path) -> None:
+    """A unit of an array that the field does not admit counts as no unit, and a value other than a
+    string names none."""
+    record = (
+        "_schema: test:derivation@1\nid: d\nroot: a\n"
+        "posits: [{name: p}]\n"
+        "moves:\n  - {id: a, inputs: [p, ghost, 3]}\n  - {id: b, after: p}\n"
+    )
+    assert _derivation(tmp_path, record) == [
+        ["d.yml", "unknown-unit-reference", "/moves/0/inputs/1"],
+        ["d.yml", "unknown-unit-reference", "/moves/1/after"],
+        ["d.yml", "unknown-unit-reference", "/root"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    ["[]", "posits", "['posits[']", "[3]", "[moves.id]", "['']", "[undeclared]"],
+)
+def test_an_invalid_units_declaration_is_reported(tmp_path: Path, declaration: str) -> None:
+    """A declaration that is no list of field paths, or names no array whose items declare
+    x-identifier, is reported on the schema, and its field is not checked."""
+    schema = DERIVATION_SCHEMA.replace("x-units: [posits]", f"x-units: {declaration}")
+    record = "_schema: test:derivation@1\nid: d\nroot: ghost\nposits: [{name: p}]\nmoves: []\n"
+    assert _derivation(tmp_path, record, schema) == [
+        ["derivation.schema.yml", "invalid-units-declaration", "/properties/root/x-units"]
+    ]
+
+
 # --- Packaged schemas and registry.
 
 

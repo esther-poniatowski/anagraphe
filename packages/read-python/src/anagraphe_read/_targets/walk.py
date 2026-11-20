@@ -18,16 +18,17 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from anagraphe_read._core.files import walk
-from anagraphe_read._core.issues import Issue
+from anagraphe_read._core.issues import Issue, pointer
 from anagraphe_read._core.metadata import MetadataReader
-from anagraphe_read._core.schemas import SchemaReader
+from anagraphe_read._core.schemas import SchemaReader, values_at
 from anagraphe_read._targets.configuration import TargetConfig
-from anagraphe_read._targets.declarations import Declarations
+from anagraphe_read._targets.declarations import Declarations, UnitList, UnitReference
 from anagraphe_read._targets.identity import MANIFEST_FILE
 from anagraphe_read._targets.kinds import (
     DUPLICATE_IDENTIFIER,
     INVALID_IDENTIFIER,
     MISSING_IDENTIFIER,
+    UNKNOWN_UNIT_REFERENCE,
 )
 from anagraphe_read._targets.records import Record, is_record, read_record
 from anagraphe_read._targets.resource import matches
@@ -216,3 +217,61 @@ def unit_issues(record: Record) -> list[Issue]:
         )
         for place, value in record.invalid_units
     ]
+
+
+def unit_reference_issues(record: Record) -> list[Issue]:
+    """Return the issue of each value of a field declaring ``x-units`` that names no unit of the
+    arrays of a declaration of the field.
+
+    A value is a string, or an array whose strings are each a value; any other value names no unit,
+    and the validation of the record against its schema judges it.
+    """
+    issues: list[Issue] = []
+    for reference in record.schema.references if record.schema is not None else ():
+        admitted = _units_of(record, reference)
+        for keys, value in values_at(record.data, reference.path):
+            named = (
+                [(keys, value)]
+                if isinstance(value, str)
+                else (
+                    [((*keys, number), item) for number, item in enumerate(value)]
+                    if isinstance(value, list)
+                    else []
+                )
+            )
+            issues.extend(
+                Issue(
+                    record.rel,
+                    None,
+                    UNKNOWN_UNIT_REFERENCE,
+                    f"{item!r} names no unit of "
+                    f"{', '.join(units.text for units in reference.lists)}",
+                    locus=pointer(*place),
+                )
+                for place, item in named
+                if isinstance(item, str) and item not in admitted
+            )
+    return issues
+
+
+def _units_of(record: Record, reference: UnitReference) -> frozenset[str]:
+    """Return the identifiers of the items of the arrays that a declaration of ``x-units`` names."""
+    return frozenset(unit for units in reference.lists for unit in _identifiers(record.data, units))
+
+
+def _identifiers(data: Any, units: UnitList) -> list[str]:
+    """Return the identifier of each item of the array at the field path of ``units``."""
+    node = data
+    for part in units.path:
+        if isinstance(part, int):
+            node = node[part] if isinstance(node, list) and part < len(node) else None
+        else:
+            node = node.get(part) if isinstance(node, dict) else None
+    identifiers: list[str] = []
+    for item in node if isinstance(node, list) else ():
+        value = item
+        for key in units.identifier:
+            value = value.get(key) if isinstance(value, dict) else None
+        if isinstance(value, str):
+            identifiers.append(value)
+    return identifiers

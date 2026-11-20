@@ -16,6 +16,10 @@ each selected record, the check reports its identifier, then each value of its t
 3. a target of the same repository names a record of the repository, then a unit of that record,
    and its record satisfies each ``x-target-contract`` of the field.
 
+Before its targets, each value of a field declaring ``x-units`` must name a unit of the same record,
+held by an array that each declaration of the field admits; otherwise it is reported as
+``unknown-unit-reference``.
+
 When the section ``records`` is declared, the check also reads the retired identifiers of the
 record registry. A target naming an identifier retired with a successor is reported as
 ``renamed-target``, a warning, and the check follows the successors to the record holding the last
@@ -58,7 +62,12 @@ from anagraphe_read._targets.read_sides import check_read_sides
 from anagraphe_read._targets.records import Record
 from anagraphe_read._targets.registry.contract import Retirement, follow, read_registry
 from anagraphe_read._targets.verification import Finding, held_findings
-from anagraphe_read._targets.walk import RecordWalk, identifier_issues, unit_issues
+from anagraphe_read._targets.walk import (
+    RecordWalk,
+    identifier_issues,
+    unit_issues,
+    unit_reference_issues,
+)
 
 __all__ = ["KINDS", "TargetChecker"]
 
@@ -150,10 +159,15 @@ class TargetChecker:
         return Report(len(selected), tuple(located))
 
     def check_record(self, record: Record) -> list[Issue]:
-        """Return the issues of one record: its identifier, then its targets."""
+        """Return the issues of one record: its identifier, its references to its own units, then
+        its targets."""
         if record.problem is not None:
             return [Issue(record.rel, None, UNREADABLE_RECORD, record.problem)]
-        issues = [*identifier_issues(record, self.walk.table), *unit_issues(record)]
+        issues = [
+            *identifier_issues(record, self.walk.table),
+            *unit_issues(record),
+            *unit_reference_issues(record),
+        ]
         for target_field in record.schema.targets if record.schema is not None else ():
             for keys, value in values_at(record.data, target_field.path):
                 issues.extend(self._target_issues(record, target_field, pointer(*keys), value))
