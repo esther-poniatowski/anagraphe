@@ -32,6 +32,7 @@ anagraphe records retire ID [--replaced-by NEW] [--root PATH] [--config PATH]
 anagraphe records migrate --plan PATH [--dry-run | --check] [--root PATH] [--config PATH] [--format FORMAT] [--output PATH]
 anagraphe states fetch [--root PATH] [--config PATH]
 anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
+anagraphe repository rename OLD NEW [--repository PATH] [--dry-run] [--yes] [--format FORMAT] [--root PATH] [--config PATH]
 ```
 
 | Command | Effect |
@@ -49,6 +50,7 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `anagraphe records migrate` | rewrites the contract named by the binding key of each record whose contract a migration plan replaces, keeping every other byte, and writes no file when a record cannot be read or rewritten; `--dry-run` lists the changes and `--check` reports them, both changing no file |
 | `anagraphe states fetch` | fetches into the cache of the machine each selected state of the resolution context that no Git store of the machine holds; the only command that uses the network |
 | `anagraphe move` | moves a file or a folder, rewrites every pointer to it, and updates the affected indexes, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file |
+| `anagraphe repository rename` | records the rename of a repository identifier in the renamed repository, and rewrites the targets and the entries of the resolution context naming it, in the root and in each submodule checked out under it, once the plan is confirmed on a terminal or by `--yes`; `--dry-run` prints the plan and changes no file, and the command commits nothing |
 
 | Option | Purpose | Default |
 | --- | --- | --- |
@@ -57,14 +59,15 @@ anagraphe move OLD NEW [--dry-run] [--yes] [--root PATH] [--config PATH]
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
 | `--replaced-by NEW` | of `records retire`: the successor of a rename, a record or a retired identifier | no successor |
+| `--repository PATH` | of `repository rename`: the folder of the renamed repository, relative to the current folder, either the root or a submodule checked out under it | the root |
 | `--plan PATH` | of `records migrate`, required: the migration plan in `anagraphe:migration-plan@1`, relative to the current folder | none |
 | `--check` | of `records migrate`: reports each record to migrate as a violation, and changes no file; excludes `--dry-run` | applies the plan |
-| `--format FORMAT` | of the check commands and of `records migrate --check`: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json` | `text` |
+| `--format FORMAT` | of the check commands and of `records migrate --check`: `text`, or `sarif` for a findings log; of `bindings show`: `text`, or `json`; of `repository rename`: `text`, or `json` for the plan, with `--dry-run` or `--yes` | `text` |
 | `-o`, `--output PATH` | with `--format sarif` only: writes the log to `PATH`, relative to the current folder, and creates its missing folders | standard output |
-| `--dry-run` | of `move`: prints the plan and changes no file; of `records migrate`: lists the changes and changes no file | applies the plan |
-| `--yes` | of `move`: applies the plan without asking for a confirmation | asks on a terminal, and stops with status `2` without one |
+| `--dry-run` | of `move` and `repository rename`: prints the plan and changes no file; of `records migrate`: lists the changes and changes no file | applies the plan |
+| `--yes` | of `move` and `repository rename`: applies the plan without asking for a confirmation | asks on a terminal, and stops with status `2` without one |
 
-Every path typed on the command line, a target, `OLD`, `NEW`, `--plan`, `--config` or `--output`, is read from
+Every path typed on the command line, a target, `OLD` and `NEW` of `move`, `--repository`, `--plan`, `--config` or `--output`, is read from
 the current folder; every path written in the configuration is read from the root. For the
 indexes, each path may name an index, a directory, or a member whose parent index must be
 processed. For the references, the bindings and the targets, each path names a file or a directory
@@ -81,8 +84,8 @@ status at `0`.
 | Status | Meaning |
 | --- | --- |
 | `0` | no issue blocks |
-| `1` | at least one violation is reported, `records write`, `records retire` or `records migrate` refuses its change, `records migrate --check` finds a record to migrate, or `states fetch` leaves a state absent from the machine |
-| `2` | the configuration, a named target, a migration plan, or a required section is invalid or absent; two options exclude each other; the log cannot be written; or a move lacks its confirmation without a terminal |
+| `1` | at least one violation is reported, `records write`, `records retire`, `records migrate` or `repository rename` refuses its change, a confirmation of `move` or `repository rename` is declined, `records migrate --check` finds a record to migrate, or `states fetch` leaves a state absent from the machine |
+| `2` | the configuration, a named target, a migration plan, or a required section is invalid or absent; two options exclude each other; the log cannot be written; a move or a rename lacks its confirmation without a terminal; or `repository rename` receives an identifier outside the pattern `repository-id`, two equal identifiers, a folder `--repository` outside its scope, or `--format json` without `--dry-run` or `--yes` |
 
 ## Findings log
 
@@ -112,3 +115,79 @@ and it holds the results of the sections that ran, none when no section ran. In 
 could not be parsed, as `unreadable-file`, `unreadable-metadata`, `unreadable-binding-source` and
 `unreadable-schema` report, or the record registry could not be compared, as
 `invalid-record-registry` reports.
+
+## Plan of a rename
+
+Under the option `--format json`, the command `repository rename` prints its plan on standard
+output, as one JSON object. A tool such as Architekta reads the plan, shows it, and commits once per
+repository. The [targets guide](targets.md) lists the values edited by a rename, and the
+[decision on repository renames](../adr/0012-repository-rename.md) records the reason for each
+choice. The object holds the keys below:
+
+| Key | Value |
+| --- | --- |
+| `version` | the version of the form of the plan, `1`, raised when a key changes its meaning or disappears |
+| `old`, `new` | the identifiers of the rename |
+| `renamed` | the path of the renamed repository from the root, `.` for the root |
+| `applied` | true when the command wrote the files: only under `--yes`, without `--dry-run` and without a refusal |
+| `refusals` | the reason of each refusal, empty when the rename is admitted |
+| `repositories` | the root, then each submodule checked out under it, each with `path` from the root, `identifier` before the rename or null, `files` and `warnings` |
+
+Each entry of the list `files` holds three keys:
+
+- `path`, the path of the file relative to its repository;
+- `created`, true for a file created by the rename;
+- `edits`, the list of its edited values.
+
+Each edit holds its kind under the key `kind`, one of `identifier`, `retired`, `registry`,
+`resolution` and `target`. The key `pointer` holds the JSON Pointer of the value, or of the key
+under its former name for an edit of kind `resolution`. The key `line` holds the line of the value
+after the rename. The keys `old` and `new` hold the values before and after; `old` is null for an
+item added to a list. Each warning holds its `kind` and its `detail`, with a `line` that is always
+null. Its `path` is relative to its repository, empty for the repository itself, and absolute for a
+machine file outside the repository. The plan below renames `x-lab` to `x-hub` at
+`projects/x`, under a root `lab` holding no citer, and rewrites one key of the resolution context
+of `projects/y`:
+
+```json
+{
+  "version": 1,
+  "old": "x-lab",
+  "new": "x-hub",
+  "renamed": "projects/x",
+  "applied": false,
+  "refusals": [],
+  "repositories": [
+    {"path": ".", "identifier": "lab", "files": [], "warnings": []},
+    {
+      "path": "projects/x",
+      "identifier": "x-lab",
+      "files": [
+        {
+          "path": "anagraphe.yml",
+          "created": false,
+          "edits": [
+            {"kind": "identifier", "pointer": "/repository/id", "line": 4, "old": "x-lab", "new": "x-hub"},
+            {"kind": "retired", "pointer": "/repository/retired/1", "line": 5, "old": null, "new": "x-lab"}
+          ]
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "path": "projects/y",
+      "identifier": "y-lab",
+      "files": [
+        {
+          "path": "anagraphe.yml",
+          "created": false,
+          "edits": [
+            {"kind": "resolution", "pointer": "/resolution/repositories/x-lab", "line": 8, "old": "x-lab", "new": "x-hub"}
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}
+```

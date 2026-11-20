@@ -10,7 +10,7 @@ The repository ships two Python distributions, and the dependency runs one way:
 | Distribution | Source | Holds |
 | --- | --- | --- |
 | `anagraphe-read` | `packages/read-python/src/anagraphe_read` | the readers of a repository: its configuration, its identity, its records and their logical targets, the record resolver with its state providers, the reading of record registries, the bindings of texts, and every schema that Anagraphe publishes |
-| `anagraphe` | `src/anagraphe` | the command line and every writer: the indexes, the references, the moves, the record registry as written, the migration of the records, the fetch of the states, and the checks |
+| `anagraphe` | `src/anagraphe` | the command line and every writer: the indexes, the references, the moves, the record registry as written, the migration of the records, the rename of a repository, the fetch of the states, and the checks |
 
 The package `anagraphe` imports `anagraphe_read`, and `anagraphe_read` imports no module of
 `anagraphe`. Three checks enforce that direction:
@@ -57,7 +57,7 @@ on the read distribution:
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
 | core | `anagraphe.core` | the findings log, paths and patterns, Markdown links, the regions of a Markdown file read from Merismos, structured edits, atomic writes |
-| capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings`, `anagraphe.targets` | generating the indexes, checking the references between files, checking the bindings of texts, checking the logical targets between records, writing the record registry and migrating the records |
+| capabilities | `anagraphe.indexes`, `anagraphe.references`, `anagraphe.bindings`, `anagraphe.targets` | generating the indexes, checking the references between files, checking the bindings of texts, checking the logical targets between records, writing the record registry, migrating the records and renaming a repository |
 | composition | `anagraphe.refactor`, `anagraphe.states`, `anagraphe.configuration`, `anagraphe.cli` | the moves, the fetch of the states, the sections of `anagraphe.yml`, and the command line |
 
 No capability imports another. The read distribution parses the sections `targets`, `records`,
@@ -129,6 +129,13 @@ against that table. The module `anagraphe_read._targets.walk` defines the walk, 
 files, and the check of the targets reads its retired identifiers. The committed registry is the
 source of the record resolver of `anagraphe_read._resolution` for a target into another repository,
 whereas the check within one repository keeps its walk.
+
+The module `anagraphe.targets.rename` plans a rename by walking the records of the root and of each
+submodule checked out under it, each repository with its own configuration and walk. The module
+locates each value naming the former identifier through `anagraphe.core.structured`, as the moves
+and the migration do, and checks each edited file by parsing it again before `anagraphe.core.writes`
+writes every changed file at once. [ADR 0012](../adr/0012-repository-rename.md) records the scope of
+a rename and its edits.
 
 ## Moves
 

@@ -518,6 +518,93 @@ from a secret `READ_TOKEN`:
     anagraphe states fetch
 ```
 
+## Rename a repository
+
+A repository identifier is renamed by the command `anagraphe repository rename OLD NEW`. The command
+records the rename in the renamed repository. The command then rewrites the citers of `OLD` in every
+repository checked out under its root, so that their targets and their resolution context name
+`NEW`.
+
+### Run the rename
+
+The root of the command is the composing repository whose submodules hold the projects. The root
+is located as for every command: by the option `--root`, else from the current folder upwards. A
+rename run inside a submodule therefore takes that submodule as its root, and rewrites no citer
+outside it. The option `--repository PATH` names the folder of the renamed repository, read from
+the current folder; it defaults to the root. The command below, run at the composing repository,
+prints the plan of renaming `x-lab` at `projects/x`, and changes no file:
+
+```sh
+anagraphe repository rename x-lab x-hub --repository projects/x --dry-run
+```
+
+The plan holds one line per edited value, in the form `edit PATH:LINE: POINTER: OLD -> NEW`, at the
+path of the file from the root and the line of the value after the rename. An item added to a list
+reads `+ NEW` in place of `OLD -> NEW`, and a file created by the rename opens its line on
+`create`. Each warning follows on a line of its own, and a summary line closes the plan with the
+counts of the edits, the files and the repositories.
+
+Without the option `--dry-run`, the command asks for a confirmation on a terminal. The option
+`--yes` applies the plan without the question. Without a terminal and without `--yes`, the command
+stops with status `2`, and a declined confirmation exits with status `1`. The command writes all
+changed files at once, or none, and commits nothing. A tool such as Architekta commits the files
+of each repository once. The [CLI reference](cli-reference.md) states the JSON form of the plan,
+printed under the option `--format json`.
+
+### Edited values
+
+The scope of the rename is the root and each submodule of its index checked out in its folder. In
+that scope, the rename edits four kinds of value, each in place, so the comments, the quoting and
+the order of the keys of each file are kept:
+
+- in the renamed repository, the identifier `OLD` joins the list `repository.retired`, and an
+  override `repository.id` equal to `OLD` becomes `NEW`. The list, the section and the file
+  `anagraphe.yml` are created when absent;
+- in the renamed repository, the key `repository` of the record registry becomes `NEW` when it
+  names `OLD`;
+- in each repository of the scope, the key `OLD` of the mapping `resolution.repositories` becomes
+  `NEW`, and the commit and the remote of the entry keep their values;
+- in each repository of the scope, every logical target naming `OLD` names `NEW`, in the target
+  fields declared by the schema registry of the repository.
+
+A submodule of a submodule, a repository declared under `resolution.repositories` and a clone
+outside the root lie outside the scope, so their citers keep `OLD`. Once their context selects a
+state of the renamed repository under `NEW`, the resolver follows `OLD` to it with the warning
+`renamed-repository`.
+
+A declared entry keeps its commit, and the researcher moves that commit to a state recording the
+rename. When the renamed repository declares an override, the state at the former commit is
+identified as `OLD`. Until the commit moves, the resolver therefore reports
+`invalid-target-repository` for the entry keyed `NEW`.
+
+### Refusals and warnings
+
+The command refuses the rename, writes no file and exits with status `1` in five cases. Each
+refusal is printed on standard error after the prefix `rename: refused:`, and the five cases are:
+
+- the identifier `NEW` is already a former identifier of the renamed repository;
+- the renamed repository is identified as neither `OLD` nor `NEW`;
+- another repository of the scope is identified as `OLD` or `NEW`;
+- a configuration of the scope already declares `NEW` under `resolution.repositories`;
+- the identity, the key of the record registry or the resolution context cannot be rewritten in
+  place.
+
+The rename prints each value left unchanged as a warning, and a warning keeps the exit status at
+`0`. The warnings take the kinds below:
+
+| Kind | Value left unchanged |
+| --- | --- |
+| `derived-identity` | the renamed repository derives `OLD` from its remote, or from its folder when it has no remote; every command in it stops until that name becomes `NEW` |
+| `kept-clone` | a machine file maps `OLD` to a local clone; the file belongs to one machine, and its owner updates it |
+| `unrewritable-target` | a target cannot be rewritten in place, such as a target of a TOML document, and keeps `OLD` |
+| `unreadable-record` | a record cannot be read, so whether it names `OLD` is unknown |
+| `unread-repository` | the configuration of a submodule other than the renamed repository cannot be loaded, so none of its citers is rewritten |
+| `invalid-record-registry` | the record registry of the renamed repository cannot be read, so its key `repository` keeps `OLD` |
+| the kind of the schema defect, such as `unreadable-schema` | a schema of the schema registry cannot be read, so the targets of the records bound to it are not read |
+
+An invalid configuration of the root or of the renamed repository stops the command with status
+`2`, since both must be edited.
+
 ## Read targets from a tool
 
 A tool written in Python reads targets through the interface of the read distribution
