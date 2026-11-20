@@ -478,17 +478,20 @@ resolution:
       remote: https://github.com/lab/mixture-input-encoding.git
       config: settings/anagraphe.yml
   local: .anagraphe-repositories.yml
+  config: settings/anagraphe.yml
 ```
 
 | Key | Content | Default |
 | --- | --- | --- |
 | `repositories` | each cited repository identifier with its `commit`, 40 or 64 hexadecimal digits, its `remote`, an address in the form `https://`, `http://`, `ssh://`, `git://` or `user@host:path`, without credentials, and optionally its `config`, the path of `anagraphe.yml` in the selected state, relative to the root of that repository | no declared repository |
 | `local` | the machine file of the local clones, relative to the root, which Git must ignore | no machine file |
+| `config` | the default place of `anagraphe.yml` in every selected state, submodules included, relative to the root of that state, read only when no accepted place of the state holds the file | no default place |
 
 A repository declared under `repositories` and also held as a submodule stops the command, and so
-does an entry naming the repository of the root. A key `config` that is not a path inside the
-repository, such as an absolute path or a path climbing above its root, stops the command too. The commit of a declared repository moves when
-the researcher edits it, so two clones of one commit select the same states.
+does an entry naming the repository of the root. A key `config`, of an entry or of the section,
+that is not a path inside the repository, such as an absolute path or a path climbing above its
+root, stops the command too. The commit of a declared repository moves when the researcher edits
+it, so two clones of one commit select the same states.
 
 The machine file maps a repository identifier to the path of a local clone, relative to the folder
 of the file or absolute, as in `mixture-input-encoding: ../mixture-input-encoding`. Its paths
@@ -500,10 +503,16 @@ The clones serve the declared repositories; a submodule is read from its own fol
 
 The resolver selects the state of the named repository and reads its configuration. Hodegos
 locates the file inside the state, through its port of files: at the path named by the key
-`config` of a declared entry, as the option `--config` names a file of a working tree; else at the
-accepted places of the state, its root, `.config/` and `config/`. A state that keeps the file
-elsewhere, such as `settings/anagraphe.yml`, is therefore read only through the key. A
-submodule takes no key, since the gitlink of the root selects its state. The resolver derives the
+`config` of a declared entry, read alone, as the option `--config` names a file of a working
+tree; else at the accepted places of the state, its root, `.config/` and `config/`; else, when none
+of them holds the file, at the default place that the key `config` of the section names. A root
+whose states keep the file at one place outside the accepted places, such as
+`settings/anagraphe.yml`, therefore names that place once, and every selected state, submodule or
+declared repository, is read there. A default place holding no file in a state is no finding by
+itself: the state is read without configuration, as when it holds none. Its identity then derives
+from its remote: a state without identity yields `invalid-target-repository`, or leaves a
+submodule unnamed, and a state with identity leaves its targets unverified, as
+`unverified-target` states. The resolver derives the
 identity of the state from that configuration and the remote of the state. It then reads the record
 registry that the section `records` names, and finally the registered record. A target without `id`
 names the repository itself, and resolves once the identity of the state equals the named

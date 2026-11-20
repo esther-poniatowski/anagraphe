@@ -49,7 +49,8 @@ configuration, so that its submodules still resolve. The provider reads the sele
 defaults to the Git provider returned by `git_provider()`. That provider reads a state from a local
 clone of its repository when the machine holds one, else from the cache of the machine. The
 configuration of a state lies at the same places of that state, unless the key `config` of its entry
-under `resolution.repositories` names another file of the state.
+under `resolution.repositories` names another file of the state. When no accepted place of a state
+holds the file, the default place named by the key `resolution.config` is read.
 
 The script below opens a repository, resolves a target into another repository and reads the record
 that the target names:
