@@ -1,10 +1,11 @@
 # ADR 0012: Repository rename
 
-**Status**: Proposed on 2026-11-20. The record implements the design of renames that the researcher
-ratified on 2026-11-20, recorded in the decision log of the [handoff of Geonexus on tool
-boundaries][handoff]: Anagraphe owns the identity of a renamed repository and every pointer to it,
-and Architekta calls Anagraphe through its command line. The details below are decisions of the
-implementation, and the researcher has not reviewed them yet.
+**Status**: Accepted by the researcher on 2026-11-20; proposed on the same day. The record
+implements the design of renames that the researcher ratified on 2026-11-20, recorded in the
+decision log of the [handoff of Geonexus on tool boundaries][handoff]: Anagraphe owns the identity
+of a renamed repository and every pointer to it. A rename runs as two independent commands:
+`anagraphe repository rename`, and the rename of Architekta, which depends on no tool of Anagraphe.
+Both commands name the renamed repository by its folder, so either runs first.
 
 ---
 
@@ -22,8 +23,8 @@ command `anagraphe repository rename OLD NEW`, with four requirements:
 2. the citers of `OLD` are rewritten in each repository checked out under the composing repository:
    every logical target naming `OLD`, and every entry of the resolution context keyed by `OLD`;
 3. the command prints its plan before acting, as `anagraphe move` does. Under the option
-   `--format json`, the plan is machine-readable, so that Architekta shows it in its own dry run and
-   commits once per repository. Anagraphe commits nothing;
+   `--format json`, the plan is machine-readable. Anagraphe commits nothing: the researcher commits
+   the files that the plan lists, one commit per repository;
 4. the command writes no file outside the repositories that the resolution context knows, and
    changes no text other than the edited values.
 
@@ -52,10 +53,11 @@ places:
 ## Decision Drivers
 
 - **Separation of concerns**: Anagraphe edits the values defined by its specifications, and only
-  those. The folder, the remote, the submodules and the commits stay with Architekta and the
+  those. The folder, the remote and the submodules stay with Architekta, and the commits with the
   researcher.
-- **Decoupling**: Architekta reads the plan without importing a module of Anagraphe, and the plan
-  depends on no stage of Architekta, such as whether the remote is renamed yet.
+- **Decoupling**: Anagraphe and Architekta call no tool of each other. The rename of Anagraphe
+  therefore depends on no stage of Architekta, such as whether the remote is renamed yet, and a
+  reader of the plan imports no module of Anagraphe.
 - **Robustness**: a rename writes every file or none. When a value cannot change in place, the
   identity and the context stay consistent, and every value left unchanged is reported.
 
@@ -103,8 +105,8 @@ places:
    - Pros:
      - Separation of concerns: the root is the repository whose resolution context the command
        reads, as for `anagraphe targets check` and `anagraphe states fetch`.
-     - Decoupling: Architekta owns the folder of the renamed project, so it names that folder at
-       every stage of its run.
+     - Decoupling: the rename of Architekta also names the renamed repository by its folder, so the
+       researcher names one folder in both commands, whichever runs first.
      - Robustness: the renamed repository is named by a path. Therefore, a remote renamed before the
        command does not change which repository is edited.
    - Cons:
@@ -159,12 +161,12 @@ places:
 
 1. **Versioned JSON output**
    - Pros:
-     - Decoupling: Architekta reads the output of a command already called through its command line,
-       and checks one integer.
+     - Decoupling: a program reading the plan, such as a script of the researcher, calls the command
+       line and checks one integer.
      - Separation of concerns: the read distribution stays a reader of repositories, since the plan
        is no file of a repository.
    - Cons:
-     - Robustness: no schema validates the plan for Architekta.
+     - Robustness: no schema validates the plan for its reader.
 2. **Registered contract**
    - Pros:
      - Robustness: a schema validates the plan.
@@ -178,7 +180,7 @@ places:
 
 | Question | Option | Separation of concerns | Decoupling | Robustness |
 | --- | --- | --- | --- | --- |
-| Place | root, naming the folder | high (root reads its context) | high (Architekta names its folder) | high (path, not identity) |
+| Place | root, naming the folder | high (root reads its context) | high (both commands name the folder) | high (path, not identity) |
 | Place | root, finding `OLD` | high (root reads its context) | medium (depends on the stage of the remote) | low (collision undetectable) |
 | Place | renamed repository, naming the root | low (context of another root) | low (option always required) | high (root, not identity) |
 | Editing | located edits | high (one editor of YAML) | high (no new dependency) | high (bytes kept, parse checked) |
@@ -198,8 +200,9 @@ edits; it prints a versioned JSON output.
 
 **Justification**: The scope of the citers is the set of submodules of the composing repository. The
 composing repository is therefore the root, as for every command reading a resolution context. A
-path names the renamed repository at every stage of Architekta. Located edits keep every byte
-outside the edited values, and reuse the module that the moves and the migration share.
+path names the renamed repository whether the rename of Architekta runs before or after. Located
+edits keep every byte outside the edited values, and reuse the module that the moves and the
+migration share.
 
 **Discarded options**:
 
@@ -256,17 +259,19 @@ outside the edited values, and reuse the module that the moves and the migration
   `NEW`. A second run of the same rename is therefore refused when such a configuration exists.
   Otherwise, it plans no edit, and exits with status `0`.
 - **Commits**: the plan lists the files of each repository, relative to that repository, so that
-  Architekta commits them once per repository. The composing repository then records the new
+  the researcher commits them once per repository. The composing repository then records the new
   commit of each submodule in the same commit as its own citers.
 - **Declared commits**: a declared entry keyed `NEW` keeps its commit. When the renamed repository
   declares an override, the identity of that commit is `OLD`. The resolver then reports
   `invalid-target-repository` until the researcher moves the commit to a state recording the
   rename. Without an override, the identity of the state follows the remote of the entry.
-- **Architekta**: Architekta calls the command through its command line. The option `--root` names
-  the composing repository, and the option `--repository` names the folder of the project, read from
-  the current folder of the call. Architekta shows the plan of `--dry-run --format json`, and
-  applies it with `--yes --format json`. Architekta then renames the folder, the remote origin and
-  the address of the submodule in `.gitmodules`, and commits each repository listed in the plan.
+- **Architekta**: a rename runs as two independent commands, `anagraphe repository rename` and the
+  rename of Architekta. Neither command calls the other, and Architekta depends on no tool of
+  Anagraphe. Both commands name the renamed repository by its folder, so either runs first. When
+  Architekta runs first, the option `--repository` names the renamed folder, and the identity of
+  the renamed repository may already derive `NEW` from its remote or its folder, which the rename
+  admits. Architekta commits its own edits, and the researcher commits the files that the plan of
+  Anagraphe lists, one commit per repository.
 
 ---
 
