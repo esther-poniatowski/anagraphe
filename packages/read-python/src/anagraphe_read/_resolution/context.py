@@ -7,12 +7,15 @@ alike in every clone of it. It holds two kinds of entry:
 - a derived entry for each submodule of the root. The gitlink in the index selects the commit. The
   address of the submodule in ``.gitmodules`` is its remote, a relative address being resolved
   against the remote of the root. The identity of the state names the repository: the override
-  ``repository.id`` of the configuration at that commit, read through the provider, else the name
-  of its remote. A gitlink whose state cannot be read, or yields no identity, names no repository,
+  ``repository.id`` of the configuration at that commit, read through the provider at the accepted
+  places, else at the default place ``resolution.config``, else the name of its remote. A gitlink whose state cannot be read, or yields no identity, names no repository,
   and the context keeps it as unnamed, with its remote, so that a fetch can supply its state;
 - a declared entry for each repository of the section ``resolution``, with its full commit, its
   remote address, the place of its configuration when the entry names one, and, when the machine
   file names one, its local clone.
+
+Each entry also carries the default place ``resolution.config``, read in its state only when no
+accepted place of the state holds a configuration and the entry names no place of its own.
 
 A derived and a declared entry of one identifier, or two derived entries of one identifier, stop
 the command, since the context would select two states of one repository.
@@ -53,8 +56,11 @@ class Entry:
     #: The origin of the entry: ``submodule <path>`` or ``resolution.repositories``.
     origin: str
     #: The path of the configuration of Anagraphe in the state, named by the key ``config`` of a
-    #: declared entry; None to search the accepted places of the state.
+    #: declared entry and read alone; None to search the accepted places of the state.
     config: str | None = None
+    #: The default place ``resolution.config`` of the root, read when no accepted place of the
+    #: state holds a configuration; None when the root names none.
+    fallback: str | None = None
 
 
 @dataclass(frozen=True)
@@ -133,9 +139,9 @@ def build_context(
     for link in links:
         remote = submodule_remote(urls.get(link.path), base)
         state = State(link.commit, remote, root / link.path)
-        named = _state_identifier(provider, state)
+        named = _state_identifier(provider, state, config.config)
         if isinstance(named, str):
-            add(Entry(named, state, f"submodule {link.path}"))
+            add(Entry(named, state, f"submodule {link.path}", fallback=config.config))
         else:
             unnamed.append(Unnamed(link.path, link.commit, named.detail, remote))
     for identifier, declared in sorted(config.repositories.items()):
@@ -145,6 +151,7 @@ def build_context(
                 State(declared.commit, declared.remote, config.clones.get(identifier)),
                 "resolution.repositories",
                 declared.config,
+                config.config,
             )
         )
     return ResolutionContext(
@@ -281,7 +288,10 @@ def _unreadable(name: str, reading: Reading) -> Unreadable:
 
 
 def read_configuration(
-    provider: StateProvider, state: State, place: str | None = None
+    provider: StateProvider,
+    state: State,
+    place: str | None = None,
+    fallback: str | None = None,
 ) -> tuple[str, Mapping[str, Any]] | Unreadable | None:
     """Return the place and the content of the configuration of Anagraphe at a state, None when
     no place of the state holds one.
@@ -289,12 +299,41 @@ def read_configuration(
     Hodegos locates the file at the root of the state as it locates it in a working tree: at
     ``place``, a path relative to the root of the state in its normal form, when the entry of the
     state names one, as the option ``--config`` names a file; else at ``anagraphe.yml``, in
-    ``.config/`` or in ``config/``, as the specification of Hodegos states. Hodegos reads the state
-    through its port ``FileSystem``, which :class:`StateFiles` implements over the provider, so no
-    file of the state is copied to disk. Two configuration files, an unavailable state, a link, a
-    folder or a submodule at a place, a ``place`` naming no file, and a file that is not a YAML
-    mapping in UTF-8 make the configuration unreadable.
+    ``.config/`` or in ``config/``, as the specification of Hodegos states; else, when none of
+    these places holds a file, at ``fallback``, the default place of the root, in the same form.
+    Hodegos reads the state through its port ``FileSystem``, which :class:`StateFiles` implements
+    over the provider, so no file of the state is copied to disk. Two configuration files, an
+    unavailable state, a link, a folder or a submodule at a place, a ``place`` naming no file, and
+    a file that is not a YAML mapping in UTF-8 make the configuration unreadable. A ``fallback``
+    naming no file leaves the state without configuration.
     """
+    found = _read_at(provider, state, place)
+    if found is None and place is None and fallback is not None:
+        found = _read_at(provider, state, fallback)
+        if isinstance(found, _Absent):
+            return None
+    return found if not isinstance(found, _Absent) else _absent(found)
+
+
+@dataclass(frozen=True)
+class _Absent:
+    """A named place of a state holding no file."""
+
+    place: str
+
+
+def _absent(found: _Absent) -> Unreadable:
+    """Return why a place named by the key ``config`` of an entry leaves the state unreadable."""
+    return Unreadable(
+        f"the key config names {found.place}, and the state holds no configuration there"
+    )
+
+
+def _read_at(
+    provider: StateProvider, state: State, place: str | None
+) -> tuple[str, Mapping[str, Any]] | Unreadable | _Absent | None:
+    """Read the configuration of a state at a named place, or at the accepted places when
+    ``place`` is None; a named place holding no file is :class:`_Absent`."""
     files = StateFiles(provider, state)
     named = STATE_ROOT / place if place is not None else None
     try:
@@ -304,10 +343,8 @@ def read_configuration(
     except DiscoveryError as error:
         if files.problem is not None:
             return files.problem
-        if error.code is ErrorCode.MISSING_CONFIG:
-            return Unreadable(
-                f"the key config names {place}, and the state holds no configuration there"
-            )
+        if error.code is ErrorCode.MISSING_CONFIG and place is not None:
+            return _Absent(place)
         # Hodegos names the paths below the presented folder; the state names its own paths.
         return Unreadable(str(error).replace(f"{STATE_ROOT}{os.sep}", ""))
     if files.problem is not None:
@@ -333,9 +370,12 @@ class _Unnamed:
     detail: str
 
 
-def _state_identifier(provider: StateProvider, state: State) -> str | _Unnamed:
-    """Return the identifier of the identity of a state, or why the state names no repository."""
-    configuration = read_configuration(provider, state)
+def _state_identifier(
+    provider: StateProvider, state: State, fallback: str | None = None
+) -> str | _Unnamed:
+    """Return the identifier of the identity of a state, or why the state names no repository;
+    ``fallback`` is the default place of the configuration of the root."""
+    configuration = read_configuration(provider, state, fallback=fallback)
     if isinstance(configuration, Unreadable):
         return _Unnamed(configuration.detail)
     name, data = configuration if configuration is not None else ("", None)

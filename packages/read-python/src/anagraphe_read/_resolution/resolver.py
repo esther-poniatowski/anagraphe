@@ -9,7 +9,8 @@ The record resolver: the operations ``resolve`` and ``read`` on the targets of o
    state of the context lists under ``repository.retired`` resolves to the identifier of that
    state, with a warning;
 3. read the configuration of Anagraphe at that state, at the place that the key ``config`` of a
-   declared entry names, else at the accepted places; derive the identity of the state from its
+   declared entry names, else at the accepted places, else at the default place
+   ``resolution.config`` of the root; derive the identity of the state from its
    override ``repository.id``, else from the name of its remote, and require it to equal the
    identifier naming the state; then read the registry at the path that the configuration names.
    A target naming the repository itself resolves once the identity of the state is verified;
@@ -370,7 +371,7 @@ class RecordResolver:
 
     def _configuration(self, entry: Entry) -> tuple[str, Mapping[str, Any]] | Finding | None:
         """Return the place and the content of the configuration of a state, None without one."""
-        configuration = read_configuration(self.provider, entry.state, entry.config)
+        configuration = read_configuration(self.provider, entry.state, entry.config, entry.fallback)
         if not isinstance(configuration, Unreadable):
             return configuration
         if configuration.reading is not None:

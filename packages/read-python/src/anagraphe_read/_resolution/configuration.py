@@ -1,14 +1,17 @@
 """
 The section ``resolution`` of ``anagraphe.yml``, and the machine file of the local clones.
 
-The section declares two optional keys:
+The section declares three optional keys:
 
 - ``repositories``, which maps each cited repository identifier, other than those of the
   submodules, to its selected state: ``commit``, a full commit, and ``remote``, an address without
   credentials. The optional key ``config`` names the configuration of Anagraphe inside that state,
   by its path relative to the root of the repository; without it, the accepted places of the state
   are searched;
-- ``local``, the path, relative to the root, of the machine file inside the repository.
+- ``local``, the path, relative to the root, of the machine file inside the repository;
+- ``config``, the path of the configuration of Anagraphe in every selected state, relative to the
+  root of that state, read only when no accepted place of the state holds one, and replaced by the
+  key ``config`` of an entry for that entry.
 
 The machine file maps a repository identifier to the path of a local clone, relative to the folder
 of the file or absolute. Its paths belong to one machine, so no commit records it. The environment
@@ -39,7 +42,7 @@ from anagraphe_read._resolution.provider import confined
 from anagraphe_read._targets.resource import matches
 
 #: The keys of the section ``resolution``.
-SECTION_KEYS = frozenset({"repositories", "local"})
+SECTION_KEYS = frozenset({"repositories", "local", "config"})
 #: The keys that one declared repository requires.
 REPOSITORY_KEYS = frozenset({"commit", "remote"})
 #: The keys that one declared repository may add.
@@ -74,6 +77,9 @@ class ResolutionConfig:
     clones: Mapping[str, Path] = field(default_factory=dict)
     #: The machine file read, None when none applies.
     machine_file: Path | None = None
+    #: The path of the configuration of Anagraphe in every selected state, read when no accepted
+    #: place of the state holds one, in its normal form; None when the section names none.
+    config: str | None = None
 
 
 def parse_section(
@@ -92,13 +98,14 @@ def parse_section(
     ConfigurationError
         If the section declares another key, an identifier outside the pattern of
         ``repository-id``, an abbreviated commit, a remote address holding credentials or naming a
-        local path, a configuration path leaving the repository, or a machine file that Git would record, that cannot be read, or that maps a
+        local path, a configuration path leaving the repository or the state, or a machine file that Git would record, that cannot be read, or that maps a
         key outside the pattern of ``repository-id``.
     """
     root = root.resolve()
     section = mapping(raw, field_name)
     known_keys(section, SECTION_KEYS, field_name)
     repositories = _repositories(section.get("repositories"), f"{field_name}.repositories")
+    default = _config_path(section, field_name, "each selected state")
     variable = (os.environ if environment is None else environment).get(MACHINE_VARIABLE)
     if variable:
         machine = Path(variable).expanduser().absolute()
@@ -109,10 +116,10 @@ def parse_section(
         machine = repository_path(root, section["local"], f"{field_name}.local")
         origin = f"{field_name}.local"
     else:
-        return ResolutionConfig(repositories)
+        return ResolutionConfig(repositories, config=default)
     _require_ignored(root, machine, origin)
     clones = _clones(machine) if machine.is_file() else {}
-    return ResolutionConfig(repositories, clones, machine)
+    return ResolutionConfig(repositories, clones, machine, default)
 
 
 def _repositories(value: Any, field_name: str) -> dict[str, DeclaredRepository]:
@@ -137,21 +144,25 @@ def _repositories(value: Any, field_name: str) -> dict[str, DeclaredRepository]:
         problem = remote_problem(remote)
         if problem is not None:
             raise ConfigurationError(f"{at}.remote {problem}")
-        declared[identifier] = DeclaredRepository(commit, remote, _config_path(entry, at))
+        declared[identifier] = DeclaredRepository(
+            commit, remote, _config_path(entry, at, identifier)
+        )
     return declared
 
 
-def _config_path(entry: Mapping[str, Any], at: str) -> str | None:
-    """Return the path of the configuration that an entry names in its state, in its normal form,
-    or None when the entry names none."""
-    if "config" not in entry:
+def _config_path(mapping_: Mapping[str, Any], at: str, root: str) -> str | None:
+    """Return the path of the configuration that the key ``config`` of a mapping names in a
+    state, in its normal form, or None when the mapping declares no key ``config``.
+
+    ``root`` names the root from which the path is read, in the message of an invalid path.
+    """
+    if "config" not in mapping_:
         return None
-    value = entry["config"]
+    value = mapping_["config"]
     normal = confined(value) if isinstance(value, str) else None
     if normal is None:
         raise ConfigurationError(
-            f"{at}.config must be a path relative to the root of {at.rsplit('.', 1)[-1]}, inside "
-            f"that repository, not {value!r}"
+            f"{at}.config must be a path relative to the root of {root}, inside it, not {value!r}"
         )
     return normal
 

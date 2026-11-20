@@ -33,7 +33,7 @@ requires-python = ">=3.12"
 # The read distribution lies in packages/read-python and carries its own version, which the pin
 # below names exactly; a commit of Anagraphe installs both distributions from that commit.
 dependencies = [
-    "anagraphe-read==0.7.0",
+    "anagraphe-read==0.8.0",
     "hodegos @ git+https://github.com/esther-poniatowski/hodegos.git@a151a28010058fda08a652aea345422037ff0d3c",
     "jsonschema>=4.23",
     "kleisis @ git+https://github.com/esther-poniatowski/kleisis.git@b098f5e4bbabf7a872784fb6974471ad32205269",

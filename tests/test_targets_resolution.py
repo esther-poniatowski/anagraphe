@@ -73,3 +73,11 @@ def test_without_the_key_config_the_accepted_places_are_searched(tmp_path: Path)
     assert _issues(tmp_path, _state_with_configuration_in_settings()) == [
         ("invalid-target-repository", "error", "/profile")
     ]
+
+
+def test_the_default_place_names_the_configuration_of_a_state(tmp_path: Path) -> None:
+    resolution = _declaring(None)["resolution"]
+    assert isinstance(resolution, dict)
+    resolution["config"] = "settings/anagraphe.yml"
+    consumer_repository(tmp_path, "{repository: other-lab, id: bo}", {"resolution": resolution})
+    assert _issues(tmp_path, _state_with_configuration_in_settings()) == []

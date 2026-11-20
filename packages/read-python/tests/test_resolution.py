@@ -99,6 +99,7 @@ def _context(case: Mapping[str, Any]) -> ResolutionContext:
                 State(commit, remotes.get(identifier)),
                 "resolution.repositories",
                 configs.get(identifier),
+                declared.get("fallback"),
             )
             for identifier, commit in declared["commits"].items()
         },
@@ -300,10 +301,22 @@ def test_an_entry_naming_the_root_stops_the_command(tmp_path: Path) -> None:
         ({"commit": COMMIT, "remote": "/Users/lab/x"}, "names no remote address"),
         ({"commit": COMMIT}, "the keys commit and remote"),
         ({"commit": COMMIT, "remote": "https://h.org/x.git", "file": "a.yml"}, "optionally config"),
-        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": "/x.yml"}, "inside that"),
-        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": "../x.yml"}, "inside that"),
-        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": ""}, "inside that"),
-        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": 3}, "inside that"),
+        (
+            {"commit": COMMIT, "remote": "https://h.org/x.git", "config": "/x.yml"},
+            "relative to the root of x-lab",
+        ),
+        (
+            {"commit": COMMIT, "remote": "https://h.org/x.git", "config": "../x.yml"},
+            "relative to the root of x-lab",
+        ),
+        (
+            {"commit": COMMIT, "remote": "https://h.org/x.git", "config": ""},
+            "relative to the root of x-lab",
+        ),
+        (
+            {"commit": COMMIT, "remote": "https://h.org/x.git", "config": 3},
+            "relative to the root of x-lab",
+        ),
     ],
 )
 def test_a_declared_repository_is_validated(
@@ -362,6 +375,68 @@ def test_the_place_named_by_the_key_config_is_read_alone() -> None:
     assert read_configuration(provider, State(COMMIT)) == (
         "anagraphe.yml",
         {"_schema": "anagraphe:configuration@3", "repository": {"id": "x-lab"}},
+    )
+
+
+def test_a_submodule_is_named_through_the_default_place(tmp_path: Path) -> None:
+    _root_with_gitlink(tmp_path)
+    provider = MemoryProvider({COMMIT: {"settings/anagraphe.yml": _configuration_bytes("x-lab")}})
+    config = parse_section(tmp_path, {"config": "./settings/anagraphe.yml"}, environment={})
+    assert config.config == "settings/anagraphe.yml"
+    context = build_context(tmp_path, ROOT_IDENTITY, config, provider)
+    assert set(context.entries) == {"x-lab"}
+    assert context.entries["x-lab"].fallback == "settings/anagraphe.yml"
+    assert build_context(tmp_path, ROOT_IDENTITY, None, provider).entries == {}
+
+
+def test_a_submodule_whose_default_place_is_absent_stays_unnamed(tmp_path: Path) -> None:
+    """The state is read without configuration, and without remote it names no repository."""
+    _root_with_gitlink(tmp_path)
+    config = parse_section(tmp_path, {"config": "settings/anagraphe.yml"}, environment={})
+    context = build_context(tmp_path, ROOT_IDENTITY, config, MemoryProvider({COMMIT: {}}))
+    assert context.entries == {}
+    assert [item.detail for item in context.unnamed] == [
+        "the configuration of the state declares no repository.id, and its remote names no "
+        "repository identifier"
+    ]
+
+
+def test_a_declared_repository_receives_the_default_place(tmp_path: Path) -> None:
+    config = parse_section(
+        tmp_path,
+        {
+            "config": "settings/anagraphe.yml",
+            "repositories": {"x-lab": {"commit": COMMIT, "remote": "https://h.org/x.git"}},
+        },
+        environment={},
+    )
+    entry = build_context(tmp_path, ROOT_IDENTITY, config, EmptyProvider()).entries["x-lab"]
+    assert (entry.config, entry.fallback) == (None, "settings/anagraphe.yml")
+
+
+@pytest.mark.parametrize("value", ["/x.yml", "../x.yml", "", 3])
+def test_the_default_place_is_validated(tmp_path: Path, value: object) -> None:
+    with pytest.raises(ConfigurationError, match="relative to the root of each selected state"):
+        parse_section(tmp_path, {"config": value}, environment={})
+
+
+def test_the_default_place_is_read_after_the_accepted_places() -> None:
+    provider = MemoryProvider(
+        {
+            COMMIT: {
+                "config/anagraphe.yml": _configuration_bytes("x-lab"),
+                "settings/anagraphe.yml": _configuration_bytes("y-lab"),
+            },
+            OTHER_COMMIT: {"settings/anagraphe.yml": _configuration_bytes("y-lab")},
+        }
+    )
+    fallback = "settings/anagraphe.yml"
+    found = read_configuration(provider, State(COMMIT), fallback=fallback)
+    assert isinstance(found, tuple) and found[0] == "config/anagraphe.yml"
+    found = read_configuration(provider, State(OTHER_COMMIT), fallback=fallback)
+    assert isinstance(found, tuple) and found[0] == fallback
+    assert (
+        read_configuration(MemoryProvider({COMMIT: {}}), State(COMMIT), fallback=fallback) is None
     )
 
 

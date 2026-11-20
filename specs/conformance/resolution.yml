@@ -7,8 +7,9 @@
 # A case declares the resolution context of the consumer: its repository identifier, its former
 # identifiers, the commit selected for each repository identifier, the remote of a selected state
 # when the case declares one under remotes, the place of the configuration of a selected state when
-# the case declares one under configs, as the key config of a declared repository names it, and the
-# submodules whose state names no repository. The identity of a state is the override repository.id of its configuration, else the name of its
+# the case declares one under configs, as the key config of a declared repository names it, the
+# default place of every configuration when the case declares one under fallback, as the key
+# resolution.config names it, and the submodules whose state names no repository. The identity of a state is the override repository.id of its configuration, else the name of its
 # remote. A commit is an opaque name here. The provider serves the states of
 # the case: each state starts from the files of a named shared state, or from no file, then adds the
 # files of the case and drops those listed under remove. A file is its text, or {link: path} for a
@@ -368,6 +369,75 @@ cases:
     the root of the state holds a configuration.
   context: {repository: lab, commits: {other-lab: c1}, configs: {other-lab: settings/anagraphe.yml}}
   states: {c1: {from: other-lab}}
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: configuration-at-the-default-place
+  note: >-
+    No accepted place of the state holds a configuration, so the default place that the root names
+    under resolution.config is read.
+  context: {repository: lab, commits: {other-lab: c1}, fallback: settings/anagraphe.yml}
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: other-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: place-named-by-the-entry-before-the-default
+  note: The key config of the entry replaces the default place for that entry.
+  context:
+    repository: lab
+    commits: {other-lab: c1}
+    configs: {other-lab: named/anagraphe.yml}
+    fallback: settings/anagraphe.yml
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        named/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: other-lab}\nrecords: {}\n"
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: third-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: accepted-place-before-the-default
+  note: The root of the state holds a configuration, so the default place is not read.
+  context: {repository: lab, commits: {other-lab: c1}, fallback: settings/anagraphe.yml}
+  states:
+    c1:
+      from: other-lab
+      files:
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: third-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: default-place-absent
+  note: >-
+    The default place holds no file, so the state is read without configuration: the remote of the
+    state names it, and its targets stay unverified.
+  context:
+    repository: lab
+    commits: {other-lab: c1}
+    remotes: {other-lab: 'https://example.org/lab/other-lab.git'}
+    fallback: settings/anagraphe.yml
+  states: {c1: {from: other-lab, remove: [anagraphe.yml]}}
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [unverified-target]
+- id: default-place-absent-without-identity
+  note: >-
+    The default place holds no file, and the state has no remote, so the state has no identity.
+  context: {repository: lab, commits: {other-lab: c1}, fallback: settings/anagraphe.yml}
+  states: {c1: {from: other-lab, remove: [anagraphe.yml]}}
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]
