@@ -55,7 +55,7 @@ anagraphe repository rename OLD NEW [--repository PATH] [--dry-run] [--yes] [--f
 | Option | Purpose | Default |
 | --- | --- | --- |
 | `-r`, `--root PATH` | selects the repository root, from which every reported path is written | `ANAGRAPHE_ROOT`, else the nearest folder, from the current one upwards, holding `anagraphe.yml` at one of its places, else the current folder |
-| `-c`, `--config PATH` | selects the configuration file, relative to the current folder | `anagraphe.yml` at the root, in its `.config/`, or in a folder that its `hodegos.yml` declares, as the [specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states; two places holding the file is an error |
+| `-c`, `--config PATH` | selects the configuration file, relative to the current folder | `anagraphe.yml` at the root, in its `.config/`, or in its `config/`, as the [specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states; two places holding the file is an error |
 | `--role ROLE` | of `bindings show`: a role to resolve, repeatable | every declared role |
 | `--merge RULE` | of `bindings show`: `override` or `union` | `override` |
 | `--replaced-by NEW` | of `records retire`: the successor of a rename, a record or a retired identifier | no successor |

@@ -172,6 +172,12 @@ of the command line.
   and a test fails while they differ.
 - **Configuration**: `open_repository` keeps the current places of `anagraphe.yml`. Their move to
   the folders declared to Hodegos is a later, separate step.
+  *Amended on 2026-11-20*: that step is done, and the declaration of folders that it names was
+  removed from Hodegos on the same day. Hodegos locates `anagraphe.yml` in a working tree and in a
+  selected state alike: at the root, in `.config/` or in `config/`, as its
+  [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states. The
+  configuration of a state is read through the port `FileSystem` of Hodegos, over the provider,
+  without a copy of the state on disk.
 - **Conda**: the recipe of `anagraphe` copies the requirement `anagraphe-read==<version>`. No conda
   package satisfies that requirement until the channel publishes the read distribution.
 

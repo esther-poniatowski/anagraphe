@@ -472,7 +472,7 @@ repository. Each step adds its findings to those of the check:
 | `unknown-repository` | error | the context selects no state of the named repository |
 | `unreadable-target-state` | warning | the selected state is absent from the machine, or its access is denied; or a submodule whose state names no repository may hold the named repository |
 | `invalid-target-state` | error | the bytes of the selected state fail the verification of the provider |
-| `invalid-target-repository` | error | the state has no identity, or its identity differs from the named identifier; or the state holds two configuration files, an invalid `hodegos.yml`, a configuration that cannot be parsed, an invalid section `repository`, or a configuration naming no registry inside the repository |
+| `invalid-target-repository` | error | the state has no identity, or its identity differs from the named identifier; or the state holds two configuration files, a link or a folder at a place of the configuration, a configuration that cannot be parsed, an invalid section `repository`, or a configuration naming no registry inside the repository |
 | `unverified-target` | note | the state holds no configuration, no section `records`, or no registry at the declared path; or the schemas of the contract of the record, which may declare its identifier field, its units or further contracts, are not held by the checked repository |
 | `invalid-record-registry` | error | the registry of the state violates `anagraphe:record-registry@1`, or names another repository |
 | `unknown-record`, `renamed-target`, `retired-target` | as above | the identifier of the target, looked up in the registry of the state |

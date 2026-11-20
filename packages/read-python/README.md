@@ -42,7 +42,7 @@ without a change of the version.
 
 The entry point `open_repository(root, *, config=None, provider=None)` opens a repository for
 reading. The function locates `anagraphe.yml` through Hodegos, at the root, in its subfolder
-`.config/`, or in a folder that the `hodegos.yml` of the root declares, as the
+`.config/`, or in its subfolder `config/`, as the
 [specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states, unless `config` names another file. Two places
 holding the file is an error. A root holding no file at these places opens with an empty
 configuration, so that its submodules still resolve. The provider reads the selected states of other repositories, and
