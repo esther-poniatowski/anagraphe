@@ -1,9 +1,12 @@
 """
 Edits of a YAML text at the exact characters of one node, without serializing the text again.
 
-A move replaces a value, or removes the item of a list, in a frontmatter or a record. Writing the
-parsed data back would drop the comments, the quoting and the order of the keys, so the edits
-replace characters located by the marks of the parser instead.
+A move replaces a value, or removes the item of a list, in a frontmatter or a record; a rename of a
+repository also adds an item to a list, or a key to a mapping. Writing the parsed data back would
+drop the comments, the quoting and the order of the keys, so the edits replace or insert characters
+located by the marks of the parser instead. An insertion takes the style of its collection: a flow
+collection gains an item after a comma, and a block collection gains a line at the indentation of
+its first entry.
 """
 
 from __future__ import annotations
@@ -15,6 +18,9 @@ import yaml
 
 #: The characters that open a scalar with a meaning other than a plain string.
 INDICATORS = frozenset("[]{},&*!|>'\"%@`#?:-")
+#: The opening line of a frontmatter, and the token closing it.
+FRONTMATTER_OPENING = "---\n"
+FRONTMATTER_CLOSING = "\n---"
 
 
 @dataclass(frozen=True)
@@ -52,17 +58,46 @@ def compose(text: str) -> yaml.Node | None:
     return node
 
 
-def node_at(root: yaml.Node | None, keys: Sequence[str]) -> yaml.Node | None:
-    """Return the node reached from a mapping by a path of keys, None when a key is absent.
+def frontmatter_span(text: str) -> tuple[int, int] | None:
+    """Return the start and the end of the YAML block of a frontmatter, None when the text opens
+    on no frontmatter closed by ``---``.
+
+    Examples
+    --------
+    >>> text = "---\\nid: a\\n---\\n# A\\n"
+    >>> start, end = frontmatter_span(text)
+    >>> text[start:end]
+    'id: a'
+    >>> frontmatter_span("# No frontmatter\\n") is None
+    True
+    """
+    if not text.startswith(FRONTMATTER_OPENING):
+        return None
+    end = text.find(FRONTMATTER_CLOSING, len(FRONTMATTER_OPENING))
+    if end == -1:
+        return None
+    return len(FRONTMATTER_OPENING), end
+
+
+def node_at(root: yaml.Node | None, keys: Sequence[str | int]) -> yaml.Node | None:
+    """Return the node reached by a path of keys, each a key of a mapping or the index of an item
+    of a sequence; None when a step is absent.
 
     Examples
     --------
     >>> node = node_at(compose("metadata:\\n  index: '[I](a.md)'\\n"), ["metadata", "index"])
     >>> node.value, node.start_mark.line
     ('[I](a.md)', 1)
+    >>> node_at(compose("items: [{id: a}, {id: b}]\\n"), ["items", 1, "id"]).value
+    'b'
     """
     node = root
     for key in keys:
+        if isinstance(key, int):
+            if not isinstance(node, yaml.SequenceNode) or not 0 <= key < len(node.value):
+                return None
+            node = node.value[key]
+            continue
         if not isinstance(node, yaml.MappingNode):
             return None
         node = next(
@@ -151,3 +186,82 @@ def remove_item(text: str, sequence: yaml.SequenceNode, item: yaml.Node, offset:
     if comma == -1:
         return Edit(offset + start, offset + end, "")
     return Edit(offset + sequence.start_mark.index + comma, offset + end, "")
+
+
+def append_item(text: str, sequence: yaml.SequenceNode, value: str, offset: int = 0) -> Edit:
+    """Return the edit appending a string item to a sequence, in the style of the sequence.
+
+    A flow sequence gains the item before its closing bracket. A block sequence gains a line
+    after the line of its last item, at the indentation of its first dash.
+
+    Examples
+    --------
+    >>> text = "a: [x]\\nb: []\\nc:\\n  - x  # kept\\n"
+    >>> root = compose(text)
+    >>> edits = [append_item(text, node_at(root, [key]), "y") for key in ("a", "b", "c")]
+    >>> print(apply_edits(text, edits), end="")
+    a: [x, y]
+    b: [y]
+    c:
+      - x  # kept
+      - y
+    """
+    written = quoted(value, None)
+    items = sequence.value
+    if sequence.flow_style:
+        if not items:
+            return _insert(offset + sequence.end_mark.index - 1, written)
+        return _insert(offset + items[-1].end_mark.index, f", {written}")
+    line = " " * sequence.start_mark.column + f"- {written}"
+    return _line_after(text, items[-1].end_mark.index, line, offset)
+
+
+def add_entry(text: str, mapping: yaml.MappingNode, key: str, value: str, offset: int = 0) -> Edit:
+    """Return the edit adding the entry ``key: value`` to a mapping, in the style of the mapping.
+
+    The value is written as given, such as a flow collection. A flow mapping gains the entry before
+    its closing brace. A block mapping gains a line after the line of its last value, at the
+    indentation of its first key.
+
+    Examples
+    --------
+    >>> text = "a: {x: 1}\\nb:\\n  x: 1\\n"
+    >>> root = compose(text)
+    >>> edits = [add_entry(text, node_at(root, [name]), "y", "[2]") for name in ("a", "b")]
+    >>> print(apply_edits(text, edits), end="")
+    a: {x: 1, y: [2]}
+    b:
+      x: 1
+      y: [2]
+    """
+    entries = mapping.value
+    entry = f"{quoted(key, None)}: {value}"
+    if mapping.flow_style:
+        if not entries:
+            return _insert(offset + mapping.end_mark.index - 1, entry)
+        return _insert(offset + entries[-1][1].end_mark.index, f", {entry}")
+    line = " " * entries[0][0].start_mark.column + entry
+    return _line_after(text, entries[-1][1].end_mark.index, line, offset)
+
+
+def _insert(position: int, new: str) -> Edit:
+    """Return the edit inserting a text at a position."""
+    return Edit(position, position, new)
+
+
+def _line_after(text: str, index: int, line: str, offset: int) -> Edit:
+    """Return the edit inserting a line after the line holding ``index``, or at ``index`` when it
+    opens a line, with the line breaks of the text.
+
+    A block collection ends where the next line opens, and a scalar ends inside its line, before a
+    comment that the line keeps.
+    """
+    newline = "\r\n" if "\r\n" in text else "\n"
+    if index > 0 and text[index - 1] == "\n":
+        return _insert(offset + index, line + newline)
+    end = text.find("\n", index)
+    if end == -1:
+        return _insert(offset + len(text), newline + line)
+    if end > 0 and text[end - 1] == "\r":
+        end -= 1
+    return _insert(offset + end, newline + line)

@@ -44,7 +44,13 @@ from anagraphe_read._targets.kinds import UNREADABLE_RECORD
 from anagraphe_read._targets.records import NOTE_SUFFIX, TOML_SUFFIX, Record, parse_record
 from anagraphe_read._targets.walk import RecordWalk
 
-from anagraphe.core.structured import apply_edits, compose, node_at, replace_scalar
+from anagraphe.core.structured import (
+    apply_edits,
+    compose,
+    frontmatter_span,
+    node_at,
+    replace_scalar,
+)
 from anagraphe.core.writes import write_atomically
 
 #: The contract of a migration plan.
@@ -71,9 +77,6 @@ KINDS: tuple[IssueKind, ...] = (
 #: The kinds reporting a record left unanalyzed, which makes a run incomplete.
 UNANALYZED = frozenset({UNREADABLE_RECORD})
 
-#: The opening line of a frontmatter, and the token closing it.
-_OPENING = "---\n"
-_CLOSING = "\n---"
 #: A table header of a TOML document, which ends its top level.
 _TABLE = re.compile(r"^[ \t]*\[", re.MULTILINE)
 
@@ -345,10 +348,10 @@ class MigrationService:
         if record.rel.endswith(TOML_SUFFIX):
             rewritten, line = _toml_rewrite(text, self.binding, new)
         elif record.rel.endswith(NOTE_SUFFIX):
-            if not text.startswith(_OPENING) or text.find(_CLOSING, len(_OPENING)) == -1:
+            span = frontmatter_span(text)
+            if span is None:
                 raise Unmigratable("the frontmatter cannot be located")
-            end = text.find(_CLOSING, len(_OPENING))
-            block, offset = text[len(_OPENING) : end], len(_OPENING)
+            block, offset = text[span[0] : span[1]], span[0]
             rewritten, line = _yaml_rewrite(text, block, offset, self.binding, new)
             line += 1
         else:
