@@ -1,9 +1,10 @@
 """
 The configuration of a repository, ``anagraphe.yml``, as the read side reads it.
 
-The file lies at ``config/tools/anagraphe.yml`` or at ``anagraphe.yml`` below the root, and both
-places holding a file is an error, unless the caller names another file. The file declares its
-format under ``_schema``, the sources of the metadata of its files under ``metadata``, and the files
+Hodegos locates the file, through :func:`anagraphe_read._core.configuration.discover_configuration`:
+the file lies at ``anagraphe.yml`` below the root, in its subfolder ``.config/``, or in a folder that
+the ``hodegos.yml`` of the root declares, and two places holding a file is an error, unless the
+caller names another file. The file declares its format under ``_schema``, the sources of the metadata of its files under ``metadata``, and the files
 that every section excludes under ``exclude``. The read side parses five sections:
 
 - ``targets``, parsed by :mod:`anagraphe_read._targets.configuration`;
@@ -33,7 +34,6 @@ from typing import Any, Mapping
 
 from anagraphe_read._bindings import configuration as bindings
 from anagraphe_read._core.configuration import (
-    CONFIG_LOCATIONS,
     ConfigurationError,
     known_keys,
     load_yaml,
@@ -111,40 +111,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     references: ReadReferences | None = None
     #: The mapping read from the file, which also holds the sections of the command line.
     document: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
-
-
-def locate_config(root: Path, path: Path | None = None) -> Path:
-    """Return the configuration file of the repository at ``root``.
-
-    A given ``path`` is read from the current folder, unless it is absolute, and must name a file.
-    Without one, the file is the one of ``config/tools/anagraphe.yml`` and ``anagraphe.yml`` that
-    exists below the root; both existing is an error that names both.
-
-    Raises
-    ------
-    ConfigurationError
-        If no file lies at the given path or at the places of the search, or if both places hold
-        one.
-    """
-    if path is not None:
-        given = path.absolute()
-        if not given.is_file():
-            raise ConfigurationError(f"no configuration file at {path}")
-        return given
-    found = [root / location for location in CONFIG_LOCATIONS if (root / location).is_file()]
-    if len(found) > 1:
-        raise ConfigurationError(
-            "two configuration files: " + " and ".join(str(item) for item in found) + "; keep one"
-        )
-    if found:
-        return found[0]
-    places = " or ".join(location.as_posix() for location in CONFIG_LOCATIONS)
-    raise ConfigurationError(f"no configuration file at {places} below {root}")
-
-
-def holds_config(root: Path) -> bool:
-    """Whether a configuration file lies at one of the places of the search below ``root``."""
-    return any((root / location).is_file() for location in CONFIG_LOCATIONS)
 
 
 def _require_format(raw: Mapping[str, Any]) -> None:

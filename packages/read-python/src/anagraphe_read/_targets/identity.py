@@ -30,8 +30,8 @@ import yaml
 
 from anagraphe_read._core.configuration import (
     CONFIG_FILE,
-    CONFIG_LOCATIONS,
     ConfigurationError,
+    discover_configuration,
     known_keys,
     mapping,
 )
@@ -251,12 +251,15 @@ def repository_identity(root: Path, declared: DeclaredIdentity | None) -> Identi
 
 
 def configuration_rel(root: Path) -> str:
-    """Return the path of the configuration below the root, the first place of the search that
-    holds a file, else ``anagraphe.yml``."""
-    for location in CONFIG_LOCATIONS:
-        if (root / location).is_file():
-            return location.as_posix()
-    return CONFIG_FILE
+    """Return the path of the configuration below the root, at the place where Hodegos locates it,
+    else ``anagraphe.yml`` when no single place of the root holds the file."""
+    try:
+        _, path = discover_configuration(root)
+    except ConfigurationError:
+        return CONFIG_FILE
+    if path is None or not path.resolve().is_relative_to(root.resolve()):
+        return CONFIG_FILE
+    return path.resolve().relative_to(root.resolve()).as_posix()
 
 
 def _retired_manifest(root: Path, identity: Identity) -> IdentityProblem:

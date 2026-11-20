@@ -1,10 +1,22 @@
 # Configuration
 
 The configuration file `anagraphe.yml` binds Anagraphe to one repository. Without the option
-`--config`, a command reads `config/tools/anagraphe.yml` below the repository root, or
-`anagraphe.yml` at the root; when both files exist, the command stops with an error naming both. A
-file named by `--config` is read from the current folder, and its absence is an error. The [CLI
-reference](cli-reference.md) states how a command finds the root. The file names its format under
+`--config`, a command reads `anagraphe.yml` at the one place of the repository root that holds it:
+the root itself, its subfolder `.config/`, or a folder that the `hodegos.yml` of the root declares.
+When two places hold the file, the command stops with an error naming both. A file named by
+`--config` is read from the current folder, and its absence is an error. Hodegos resolves the root
+and the places, as its [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states, and the
+[CLI reference](cli-reference.md) states how a command finds the root. A repository keeping its
+configuration files in `config/tools/` declares that folder in `hodegos.yml`:
+
+```yaml
+_schema: hodegos:configuration@1
+folders:
+  - config/tools
+```
+
+The configuration of a state of another repository, read by the record resolver, lies at the same
+places of that state, its own `hodegos.yml` included. The file names its format under
 `_schema`, as its first key, and a command stops with status 2 when the key is absent or holds
 another value than `anagraphe:configuration@3`. The file also declares one section per capability:
 `indexes` to generate the indexes, `references` to check the references between files, `bindings` to

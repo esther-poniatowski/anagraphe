@@ -58,7 +58,7 @@ consumer:
 
 states:
   other-lab:
-    config/tools/anagraphe.yml: |
+    anagraphe.yml: |
       _schema: anagraphe:configuration@2
       repository: {id: other-lab, retired: [old-lab]}
       targets:
@@ -221,7 +221,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -232,7 +232,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
   target: {repository: other-lab, id: ada}
   contracts: [[test:person]]
   outcome: record
@@ -245,7 +245,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: third-lab}\nrecords: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: third-lab}\nrecords: {}\n"
   target: {repository: other-lab}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -255,7 +255,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
   target: {repository: other-lab}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -265,7 +265,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: Other_Lab}\nrecords: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: Other_Lab}\nrecords: {}\n"
   target: {repository: other-lab}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -275,7 +275,46 @@ cases:
     c1:
       from: other-lab
       files:
-        anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+        .config/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: configuration-in-a-declared-folder
+  note: The hodegos.yml of the state declares the folder holding its configuration.
+  context: {repository: lab, commits: {other-lab: c1}}
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        hodegos.yml: "_schema: hodegos:configuration@1\nfolders: [shared]\n"
+        shared/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: configuration-in-an-undeclared-folder
+  note: >-
+    A folder that no hodegos.yml declares holds no configuration, so the remote of the state names
+    it, and its targets stay unverified.
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        shared/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [unverified-target]
+- id: invalid-declaration-of-the-state
+  context: {repository: lab, commits: {other-lab: c1}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        hodegos.yml: "_schema: hodegos:configuration@1\nfolders: [../outside]\n"
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]
@@ -285,7 +324,7 @@ cases:
     ADR 0007 admits a repository without registry, so its targets stay unverified; the remote of
     the state names it.
   context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
-  states: {c1: {from: other-lab, remove: [config/tools/anagraphe.yml]}}
+  states: {c1: {from: other-lab, remove: [anagraphe.yml]}}
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [unverified-target]
@@ -295,7 +334,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\ntargets: {}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\ntargets: {}\n"
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [unverified-target]
@@ -312,7 +351,7 @@ cases:
       from: other-lab
       remove: [record-registry.yml]
       files:
-        config/tools/anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {path: meta/records.yml}\n"
+        anagraphe.yml: "_schema: anagraphe:configuration@2\nrepository: {id: other-lab}\nrecords: {path: meta/records.yml}\n"
         meta/records.yml: |
           _schema: anagraphe:record-registry@1
           repository: other-lab
@@ -416,7 +455,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: |
+        anagraphe.yml: |
           _schema: anagraphe:configuration@2
           repository: {id: other-lab, retired: [old-lab]}
           metadata:
@@ -443,7 +482,7 @@ cases:
     c1:
       from: other-lab
       files:
-        config/tools/anagraphe.yml: |
+        anagraphe.yml: |
           _schema: anagraphe:configuration@2
           repository: {id: other-lab, retired: [old-lab]}
           metadata: {from: frontmatter}

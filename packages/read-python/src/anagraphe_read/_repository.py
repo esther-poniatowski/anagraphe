@@ -21,13 +21,8 @@ from typing import Any
 
 from anagraphe_read._bindings.model import Binding, Role
 from anagraphe_read._bindings.resolution import BindingResolver
-from anagraphe_read._configuration import (
-    Configuration,
-    holds_config,
-    load_configuration,
-    locate_config,
-)
-from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._configuration import Configuration, load_configuration
+from anagraphe_read._core.configuration import ConfigurationError, discover_configuration
 from anagraphe_read._core.exclusions import Exemptions
 from anagraphe_read._core.metadata import MetadataReader
 from anagraphe_read._core.published import ADDRESSING_FILE, schema
@@ -420,19 +415,18 @@ def open_repository(
 ) -> Repository:
     """Open the repository at ``root`` for reading.
 
-    The configuration is the file ``config``, read from the current folder, else the file found at
-    ``config/tools/anagraphe.yml`` or ``anagraphe.yml`` below the root. A root holding neither
-    opens with the empty configuration, so that its submodules still resolve. The provider reads
-    the selected states of other repositories, :func:`git_provider` by default.
+    The configuration is the file ``config``, read from the current folder, else the file
+    ``anagraphe.yml`` that Hodegos locates at one place of the root: the root itself, its subfolder
+    ``.config/``, or a folder that the ``hodegos.yml`` of the root declares. A root holding no file
+    at these places opens with the empty configuration, so that its submodules still resolve. The
+    provider reads the selected states of other repositories, :func:`git_provider` by default.
 
     Raises
     ------
     ConfigurationError
-        If the configuration is invalid, or both places of the search hold a file.
+        If the configuration is invalid, if ``config`` names no file, if two places of the root
+        hold a file, or if the declaration ``hodegos.yml`` of the root is invalid.
     """
-    resolved = root.resolve()
-    if config is None and not holds_config(resolved):
-        configuration = Configuration()
-    else:
-        configuration = load_configuration(resolved, locate_config(resolved, config))
+    resolved, path = discover_configuration(root, config)
+    configuration = Configuration() if path is None else load_configuration(resolved, path)
     return Repository(compose(resolved, configuration, provider))

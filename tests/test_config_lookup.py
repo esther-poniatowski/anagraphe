@@ -1,10 +1,10 @@
 """Behavioral tests of the resolution of the root and of the configuration file.
 
-The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else the nearest folder,
-from the current one upwards, holding ``config/tools/anagraphe.yml`` or ``anagraphe.yml``, else the
-current folder. Without ``--config``, a command reads the one of both files that exists below the
-root, and both existing is an error. A given ``--config`` is read from the current folder. The
-former option ``--json`` of ``bindings show`` is retired.
+Hodegos locates both. The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else
+the nearest folder, from the current one upwards, holding ``anagraphe.yml`` at one of its places,
+else the current folder. The places are the root, its ``.config/``, and the folders that its
+``hodegos.yml`` declares; two places holding a file is an error. A given ``--config`` is read from
+the current folder. The former option ``--json`` of ``bindings show`` is retired.
 """
 
 from __future__ import annotations
@@ -17,17 +17,19 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from anagraphe_read._configuration import locate_config
-from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.configuration import ConfigurationError, discover_configuration
 
 from anagraphe.cli import app
-from anagraphe.configuration import find_root, load_config
+from anagraphe.configuration import load_config
 
 #: A valid configuration, which the command ``check`` reads with no issue.
 VALID = "_schema: anagraphe:configuration@3\nreferences: {}\n"
 #: A configuration that the command ``check`` rejects with a message naming the retired version.
 RETIRED = "schema_version: 1\nreferences: {}\n"
-NESTED = Path("config/tools/anagraphe.yml")
+#: The configuration in a folder that the declaration below lists.
+NESTED = Path("shared/anagraphe.yml")
+#: The declaration of a repository keeping its configuration in ``shared/``.
+DECLARATION = "_schema: hodegos:configuration@1\nfolders:\n  - shared\n"
 
 
 def _repository(root: Path, files: dict[Path | str, str]) -> Path:
@@ -46,18 +48,46 @@ def _runner() -> CliRunner:
         return CliRunner()
 
 
-def test_lookup_reads_the_file_of_config_tools(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {NESTED: VALID})
-    assert locate_config(root) == root / NESTED
+def _located(root: Path, config: Path | None = None) -> Path | None:
+    """Return the configuration file that the discovery locates for the root."""
+    return discover_configuration(root, config)[1]
+
+
+def test_lookup_reads_a_folder_that_the_root_declares(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {NESTED: VALID, "hodegos.yml": DECLARATION})
+    assert _located(root) == root / NESTED
     assert CliRunner().invoke(app, ["check", "--root", str(root)]).exit_code == 0
+
+
+def test_lookup_ignores_an_undeclared_folder(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {NESTED: VALID})
+    assert _located(root) is None
+    result = _runner().invoke(app, ["check", "--root", str(root)])
+    assert result.exit_code == 2
+    assert "no configuration" in result.stderr
 
 
 def test_lookup_reads_the_file_at_the_root(tmp_path: Path) -> None:
     root = _repository(tmp_path, {"anagraphe.yml": RETIRED})
-    assert locate_config(root) == root / "anagraphe.yml"
+    assert _located(root) == root / "anagraphe.yml"
     result = CliRunner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
     assert "schema_version is retired: write _schema: anagraphe:configuration@3" in result.output
+
+
+def test_lookup_reads_the_file_of_dot_config(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {".config/anagraphe.yml": VALID})
+    assert _located(root) == root / ".config/anagraphe.yml"
+    assert CliRunner().invoke(app, ["check", "--root", str(root)]).exit_code == 0
+
+
+def test_an_invalid_declaration_stops_with_status_2(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {"anagraphe.yml": VALID, "hodegos.yml": "folders: [shared]\n"})
+    with pytest.raises(ConfigurationError, match="hodegos.yml"):
+        _located(root)
+    result = _runner().invoke(app, ["check", "--root", str(root)])
+    assert result.exit_code == 2
+    assert "configuration: " in result.stderr and "hodegos.yml" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -101,9 +131,11 @@ def test_the_former_format_names_each_move_of_the_vocabulary(tmp_path: Path) -> 
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {NESTED: VALID, "anagraphe.yml": VALID})
-    with pytest.raises(ConfigurationError, match="two configuration files"):
-        locate_config(root)
+    root = _repository(
+        tmp_path, {NESTED: VALID, "anagraphe.yml": VALID, "hodegos.yml": DECLARATION}
+    )
+    with pytest.raises(ConfigurationError, match="two places hold a configuration"):
+        _located(root)
     result = _runner().invoke(app, ["check", "--root", str(root)])
     assert result.exit_code == 2
     assert str(root / NESTED) in result.stderr
@@ -113,9 +145,11 @@ def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> Non
 def test_given_config_is_read_from_the_current_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    root = _repository(tmp_path / "repository", {NESTED: RETIRED, "settings/other.yml": VALID})
+    root = _repository(
+        tmp_path / "repository", {"anagraphe.yml": RETIRED, "settings/other.yml": VALID}
+    )
     monkeypatch.chdir(root / "settings")
-    assert locate_config(root, Path("other.yml")) == root / "settings/other.yml"
+    assert _located(root, Path("other.yml")) == root / "settings/other.yml"
     result = CliRunner().invoke(app, ["check", "-r", str(root), "-c", "other.yml"])
     assert result.exit_code == 0, result.output
     # The same name read from the root would be absent: the root does not anchor --config.
@@ -125,34 +159,37 @@ def test_given_config_is_read_from_the_current_folder(
 
 def test_given_absolute_config_is_kept(tmp_path: Path) -> None:
     root = _repository(tmp_path, {"elsewhere/settings.yml": VALID})
-    assert locate_config(root, root / "elsewhere/settings.yml") == root / "elsewhere/settings.yml"
+    assert _located(root, root / "elsewhere/settings.yml") == root / "elsewhere/settings.yml"
 
 
 def test_given_absent_config_is_an_error(tmp_path: Path) -> None:
-    root = _repository(tmp_path, {NESTED: VALID})
+    root = _repository(tmp_path, {"anagraphe.yml": VALID})
     with pytest.raises(ConfigurationError, match="no configuration file at"):
-        locate_config(root, root / "absent.yml")
+        _located(root, root / "absent.yml")
     command = ["check", "--root", str(root), "--config", str(root / "absent.yml")]
     result = _runner().invoke(app, command)
     assert result.exit_code == 2
     assert "absent.yml" in result.stderr
 
 
-def test_missing_configuration_names_both_places(tmp_path: Path) -> None:
-    with pytest.raises(ConfigurationError, match="config/tools/anagraphe.yml or anagraphe.yml"):
-        locate_config(tmp_path)
+def test_missing_configuration_names_the_places(tmp_path: Path) -> None:
+    assert _located(tmp_path) is None
     result = CliRunner().invoke(app, ["check", "--root", str(tmp_path)])
     assert result.exit_code == 2
-    assert "configuration: no configuration file at config/tools/anagraphe.yml or" in result.output
+    assert (
+        "no configuration: write anagraphe.yml at the root, in .config/, or in a folder that "
+        "hodegos.yml declares, or name it with --config"
+    ) in result.output
 
 
 def test_root_is_found_upwards_from_the_current_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    root = _repository(tmp_path / "repository", {NESTED: VALID, "notes/deep/a.md": "# A\n"})
-    assert find_root(root / "notes/deep") == root.resolve()
-    assert find_root(tmp_path) == tmp_path.resolve()
+    root = _repository(
+        tmp_path / "repository", {"anagraphe.yml": VALID, "notes/deep/a.md": "# A\n"}
+    )
     monkeypatch.chdir(root / "notes/deep")
+    assert discover_configuration()[0] == root.resolve()
     result = CliRunner().invoke(app, ["refs", "check", "a.md"])
     assert result.exit_code == 0, result.output
     assert "references: checked 1 files" in result.output

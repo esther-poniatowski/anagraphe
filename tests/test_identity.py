@@ -116,10 +116,10 @@ def test_the_identity_of_a_root_derives_from_its_remote_then_its_folder(tmp_path
 
 def test_a_disagreement_is_placed_at_the_configuration(tmp_path: Path) -> None:
     root = _repository(tmp_path / "notes", "https://github.com/lab/lab-notes.git")
-    (root / "config" / "tools").mkdir(parents=True)
-    (root / "config" / "tools" / "anagraphe.yml").write_text("", encoding="utf-8")
+    (root / ".config").mkdir()
+    (root / ".config" / "anagraphe.yml").write_text("", encoding="utf-8")
     (problem,) = repository_identity(root, None).problems
-    assert (problem.kind, problem.rel) == ("identity-disagreement", "config/tools/anagraphe.yml")
+    assert (problem.kind, problem.rel) == ("identity-disagreement", ".config/anagraphe.yml")
     assert "the identifier is lab-notes" in problem.detail
     assert repository_identity(root, DeclaredIdentity("notes")).problems == ()
 

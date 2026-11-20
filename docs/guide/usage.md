@@ -77,8 +77,10 @@ of each reported kind.
 ## Use another repository root
 
 A command run without `--root` takes the root from the variable `ANAGRAPHE_ROOT`, and otherwise
-from the nearest folder, from the current one upwards, holding `config/tools/anagraphe.yml` or
-`anagraphe.yml`, so that it runs from any subfolder of the repository. The root option lets an
+from the nearest folder, from the current one upwards, holding `anagraphe.yml` at one of its
+places, so that it runs from any subfolder of the repository. The places are the folder itself, its
+subfolder `.config/`, and the folders that its `hodegos.yml` declares, as the
+[specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states. The root option lets an
 orchestrator invoke Anagraphe without changing its working directory:
 
 ```sh

@@ -2,7 +2,7 @@
 The configuration of a repository for the command line: the sections of the read side, composed
 by the read distribution, and the sections of the commands that write.
 
-The read distribution locates ``anagraphe.yml``, checks its format and its top-level keys, and
+The read distribution locates ``anagraphe.yml`` through Hodegos, checks its format and its top-level keys, and
 parses the sections ``targets``, ``records``, ``bindings``, ``resolution`` and ``repository``, as
 :mod:`anagraphe_read._configuration` states. Its composition, :func:`anagraphe_read._repository.compose`,
 builds the identity of the repository, the walk of its records, its resolution context and its
@@ -11,9 +11,9 @@ resolvers. The command line adds two sections, parsed from the same file:
 - ``indexes``, parsed by :mod:`anagraphe.indexes.configuration`;
 - ``references``, parsed by :mod:`anagraphe.references.configuration`.
 
-The root of a command is the folder given by ``--root``, else by the variable ``ANAGRAPHE_ROOT``,
-else the nearest folder, from the current one upwards, that holds the file at one of its places,
-else the current folder. A command requires one section among ``indexes``, ``references``,
+Hodegos resolves the root of a command: the folder given by ``--root``, else by the variable
+``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, that holds the file at
+one of its places, else the current folder. A command requires one section among ``indexes``, ``references``,
 ``bindings``, ``targets`` and ``records``. A section left out disables its subpackage, so a
 repository adopts each one apart. When the sections ``indexes`` and ``targets`` are both declared, a
 nested group of an index designates a parent by the identifier that the targets resolve, so
@@ -26,7 +26,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from anagraphe_read._bindings.configuration import BindingConfig
-from anagraphe_read._configuration import holds_config, load_configuration
+from anagraphe_read._configuration import load_configuration
 from anagraphe_read._core.configuration import ConfigurationError, mapping
 from anagraphe_read._core.metadata import MetadataReader
 from anagraphe_read._repository import Composition, compose
@@ -39,8 +39,6 @@ from anagraphe_read._targets.registry.configuration import RecordsConfig
 from anagraphe.indexes import configuration as indexes
 from anagraphe.references import configuration as references
 
-#: The environment variable naming the root, read when the command line gives none.
-ROOT_VARIABLE = "ANAGRAPHE_ROOT"
 #: The sections of ``anagraphe.yml`` that enable a command, one per capability.
 SECTIONS = ("indexes", "references", "bindings", "targets", "records")
 
@@ -88,20 +86,6 @@ class RepositoryConfig:
     def metadata(self) -> MetadataReader | None:
         """Return the reader of the metadata of each file."""
         return self.reading.configuration.metadata
-
-
-def find_root(start: Path) -> Path:
-    """Return the root of a command that names none: the nearest folder holding a configuration.
-
-    The search runs from ``start`` up to the top of the file system, and stops at the first folder
-    holding a file at one of the places of the search. Without such a folder, the root is
-    ``start``.
-    """
-    start = start.resolve()
-    for folder in (start, *start.parents):
-        if holds_config(folder):
-            return folder
-    return start
 
 
 def load_config(root: Path, path: Path, provider: StateProvider | None = None) -> RepositoryConfig:

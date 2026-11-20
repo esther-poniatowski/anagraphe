@@ -62,8 +62,9 @@ reference naming no file or anchor.
 
 ## Quick Start
 
-The repository must contain an `anagraphe.yml` configuration, read from `config/tools/` or
-from the root, and the metadata schema and index-type schemas named by that configuration. The write command materializes every managed block:
+The repository must contain an `anagraphe.yml` configuration, read from the root, from its
+subfolder `.config/`, or from a folder that its `hodegos.yml` declares, as the
+[specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states, and the metadata schema and index-type schemas named by that configuration. The write command materializes every managed block:
 
 ```sh
 anagraphe indexes write

@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 import yaml
+from hodegos import Tool, discover
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from typer.testing import CliRunner
 
@@ -438,7 +439,10 @@ def test_registry_of_the_package_exports_the_contract() -> None:
     path = PROJECT / registry["schemas"][REGISTRY_CONTRACT]
     assert yaml.safe_load(path.read_text("utf-8"))["$id"] == REGISTRY_ID
     assert REGISTRY_CONTRACT in registry["exports"]
-    resources = yaml.safe_load((PROJECT / "config/tools/kleisis.yml").read_text("utf-8"))
+    # The configuration of Kleisis lies where Hodegos finds it for Kleisis.
+    found = discover(Tool("kleisis", ("yml",)), root=PROJECT).configuration
+    assert found is not None
+    resources = yaml.safe_load(found.path.read_text("utf-8"))
     assert REGISTRY_CONTRACT in resources["exports"]
 
 

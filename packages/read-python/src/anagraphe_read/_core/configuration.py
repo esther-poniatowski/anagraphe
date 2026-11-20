@@ -3,6 +3,10 @@ Primitives of the configuration of a repository, shared by every subpackage.
 
 Each subpackage parses its own section of ``anagraphe.yml`` with these primitives, so that a
 malformed value raises the same error, with the same wording, in every section.
+
+Hodegos locates the file, as its specification states: the file lies at ``anagraphe.yml`` below the
+root, in its subfolder ``.config/``, or in a folder that the declaration ``hodegos.yml`` of the root
+lists, and two places holding a file is an error.
 """
 
 from __future__ import annotations
@@ -11,15 +15,47 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+from hodegos import DiscoveryError, Tool, discover
 
+#: The convention of Anagraphe for Hodegos: the file ``anagraphe.yml`` and the variable
+#: ``ANAGRAPHE_ROOT``.
+TOOL = Tool("anagraphe", ("yml",))
 #: The name of the configuration file.
-CONFIG_FILE = "anagraphe.yml"
-#: The places of the configuration below the root of a repository, in the order of the search.
-CONFIG_LOCATIONS = (Path("config/tools") / CONFIG_FILE, Path(CONFIG_FILE))
+CONFIG_FILE = TOOL.file_names[0]
 
 
 class ConfigurationError(ValueError):
     """Report an invalid Anagraphe configuration with an actionable message."""
+
+
+def discover_configuration(
+    root: Path | None = None, config: Path | None = None
+) -> tuple[Path, Path | None]:
+    """Return the root of a command and its configuration file, located through Hodegos.
+
+    The root is ``root``, read from the current folder, else the folder named by the variable
+    ``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, holding the file at
+    one of its places, else the current folder. The configuration is the file ``config``, read from
+    the current folder, else the single place of the root holding ``anagraphe.yml``.
+
+    Returns
+    -------
+    tuple[Path, Path | None]
+        The root, resolved, and the configuration file, absolute, or None when no place of the
+        root holds one.
+
+    Raises
+    ------
+    ConfigurationError
+        If ``config`` names no file, if two places of the root hold a file, or if a declaration
+        ``hodegos.yml`` met by the search is invalid.
+    """
+    try:
+        found = discover(TOOL, root=root, config=config)
+    except DiscoveryError as error:
+        raise ConfigurationError(str(error)) from error
+    path = found.configuration.path if found.configuration is not None else None
+    return found.root.resolve(), path
 
 
 def mapping(value: Any, field: str) -> Mapping[str, Any]:

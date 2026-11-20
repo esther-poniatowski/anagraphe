@@ -41,7 +41,15 @@ def test_the_read_distribution_depends_on_no_command_line_package() -> None:
     dependencies = _metadata(READ_PROJECT)["dependencies"]
     assert isinstance(dependencies, list)
     names = {item.split(" ")[0].split(">")[0].split("=")[0].lower() for item in dependencies}
-    assert names == {"jsonschema", "kleisis", "merismos", "pathspec", "pyyaml", "referencing"}
+    assert names == {
+        "hodegos",
+        "jsonschema",
+        "kleisis",
+        "merismos",
+        "pathspec",
+        "pyyaml",
+        "referencing",
+    }
 
 
 def test_the_checks_share_the_composition_of_the_read_side(tmp_path: Path) -> None:

@@ -15,9 +15,12 @@ Command-line interface: one group of commands per subpackage, and one check of a
 - ``anagraphe move OLD NEW`` moves a file or a folder, rewriting every pointer to it and updating
   the indexes, once confirmed on a terminal or by ``--yes``.
 
-The root is the folder given by ``--root``, else by ``ANAGRAPHE_ROOT``, else the nearest folder,
-from the current one upwards, holding a configuration, else the current folder. Every path typed on
-the command line, a target, ``--config`` or ``--output``, is read from the current folder.
+Hodegos resolves the root and the configuration file. The root is the folder given by ``--root``,
+else by ``ANAGRAPHE_ROOT``, else the nearest folder, from the current one upwards, holding a
+configuration, else the current folder. The configuration is the file given by ``--config``, else
+``anagraphe.yml`` at the one place of the root that holds it: the root itself, its subfolder
+``.config/``, or a folder that the ``hodegos.yml`` of the root declares. Every path typed on the
+command line, a target, ``--config`` or ``--output``, is read from the current folder.
 
 Every command prints one line per issue, ``path:line: [warning: |note: ]kind: detail``, then one
 summary line per check. It exits with 0 when no issue blocks, 1 when one does, and 2 when the
@@ -47,8 +50,11 @@ from anagraphe_read._bindings.contract import CONTRACT as BINDINGS_CONTRACT
 from anagraphe_read._bindings.kinds import KINDS as BINDING_KINDS
 from anagraphe_read._bindings.kinds import UNANALYZED as BINDING_UNANALYZED
 from anagraphe_read._bindings.model import Merge, Role
-from anagraphe_read._configuration import locate_config
-from anagraphe_read._core.configuration import ConfigurationError
+from anagraphe_read._core.configuration import (
+    CONFIG_FILE,
+    ConfigurationError,
+    discover_configuration,
+)
 from anagraphe_read._core.exclusions import KINDS as EXCLUSION_KINDS
 from anagraphe_read._core.exclusions import local_issues
 from anagraphe_read._core.files import TargetError
@@ -61,12 +67,7 @@ from anagraphe_read._targets.registry.configuration import RecordsConfig
 
 from anagraphe import __version__
 from anagraphe.bindings.service import BindingChecker
-from anagraphe.configuration import (
-    ROOT_VARIABLE,
-    RepositoryConfig,
-    find_root,
-    load_config,
-)
+from anagraphe.configuration import RepositoryConfig, load_config
 from anagraphe.core.sarif import Section, sarif_log
 from anagraphe.indexes.configuration import IndexConfig
 from anagraphe.indexes.kinds import KINDS as INDEX_KINDS
@@ -123,10 +124,8 @@ Root = Annotated[
     typer.Option(
         "--root",
         "-r",
-        envvar=ROOT_VARIABLE,
-        show_envvar=True,
-        help="Repository root; by default the nearest folder, from the current one upwards, "
-        "holding config/tools/anagraphe.yml or anagraphe.yml, else the current folder.",
+        help="Repository root; by default the folder of ANAGRAPHE_ROOT, else the nearest folder, "
+        "from the current one upwards, holding a configuration, else the current folder.",
     ),
 ]
 Config = Annotated[
@@ -134,8 +133,8 @@ Config = Annotated[
     typer.Option(
         "--config",
         "-c",
-        help="Configuration file, relative to the current folder; by default "
-        "config/tools/anagraphe.yml or anagraphe.yml below the root.",
+        help="Configuration file, relative to the current folder; by default anagraphe.yml at "
+        "the root, in .config/, or in a folder that hodegos.yml declares.",
     ),
 ]
 
@@ -265,9 +264,27 @@ def _fail(error: Exception, findings: Findings | None = None) -> NoReturn:
     raise typer.Exit(2) from error
 
 
-def _root(root: Path | None) -> Path:
-    """Return the root given, or the nearest folder holding a configuration, or the current one."""
-    return root.resolve() if root is not None else find_root(Path.cwd())
+def _locate(
+    root: Path | None, config: Path | None, findings: Findings | None = None
+) -> tuple[Path, Path]:
+    """Return the root and the configuration file of a command, located through Hodegos.
+
+    A configuration that Hodegos rejects, and a root holding no configuration, stop the command
+    with status 2.
+    """
+    try:
+        resolved, path = discover_configuration(root, config)
+    except ConfigurationError as error:
+        _fail(error, findings)
+    if path is None:
+        _fail(
+            ConfigurationError(
+                f"{resolved}: no configuration: write {CONFIG_FILE} at the root, in .config/, or "
+                "in a folder that hodegos.yml declares, or name it with --config"
+            ),
+            findings,
+        )
+    return resolved, path
 
 
 def _here(paths: list[Path] | None) -> tuple[Path, ...]:
@@ -283,9 +300,9 @@ def _load(
     Each file that a rule of ``.git/info/exclude`` alone excludes is reported once, as a note: in
     the report of the command, or on standard error for a command that keeps no report.
     """
-    resolved = _root(root)
+    resolved, path = _locate(root, config_path, findings)
     try:
-        repository = load_config(resolved, locate_config(resolved, config_path))
+        repository = load_config(resolved, path)
     except (ConfigurationError, OSError) as error:
         _fail(error, findings)
     issues = local_issues(_local_exclusions(repository))
@@ -828,7 +845,7 @@ def move(
         )
         raise typer.Exit(2)
     resolved, repository = _load(root, config)
-    config_path = locate_config(resolved, config)
+    _, config_path = _locate(root, config)
     service = MoveService(
         resolved, repository, config_path.resolve().relative_to(resolved).as_posix()
     )

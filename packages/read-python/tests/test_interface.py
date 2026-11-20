@@ -272,6 +272,37 @@ def test_a_root_without_configuration_opens_empty(tmp_path: Path) -> None:
     assert open_repository(root).resolve(Target(None, "x")).outcome is Outcome.LOCAL
 
 
+#: A configuration declaring an override of the identifier, found only at a place of the root.
+IDENTIFIED = "_schema: anagraphe:configuration@3\nrepository: {id: lab}\n"
+#: The declaration of a root keeping its configuration in ``shared/``.
+DECLARATION = "_schema: hodegos:configuration@1\nfolders: [shared]\n"
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        {".config/anagraphe.yml": IDENTIFIED},
+        {"hodegos.yml": DECLARATION, "shared/anagraphe.yml": IDENTIFIED},
+    ],
+)
+def test_open_repository_reads_each_place_of_hodegos(tmp_path: Path, files: dict[str, str]) -> None:
+    root = tmp_path / "plain-lab"
+    write(root, files)
+    assert open_repository(root, provider=MemoryProvider({})).identity.id == "lab"
+
+
+def test_a_folder_that_the_root_does_not_declare_is_not_read(tmp_path: Path) -> None:
+    root = tmp_path / "plain-lab"
+    write(root, {"shared/anagraphe.yml": IDENTIFIED})
+    assert open_repository(root, provider=MemoryProvider({})).identity.id == "plain-lab"
+
+
+def test_two_places_holding_a_configuration_are_an_error(tmp_path: Path) -> None:
+    write(tmp_path, {"anagraphe.yml": IDENTIFIED, ".config/anagraphe.yml": IDENTIFIED})
+    with pytest.raises(ConfigurationError, match="two places hold a configuration"):
+        open_repository(tmp_path)
+
+
 def test_a_named_configuration_must_exist(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError, match="no configuration file at"):
         open_repository(tmp_path, config=tmp_path / "absent.yml")

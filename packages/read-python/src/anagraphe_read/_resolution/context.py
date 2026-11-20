@@ -19,13 +19,22 @@ the command, since the context would select two states of one repository.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 import yaml
+from hodegos import DiscoveryError
+from hodegos.declaration import DECLARATION_PLACES, read_declared_folders
+from hodegos.discovery import DOT_CONFIG
 
-from anagraphe_read._core.configuration import CONFIG_LOCATIONS, ConfigurationError
+from anagraphe_read._core.configuration import (
+    CONFIG_FILE,
+    ConfigurationError,
+    discover_configuration,
+)
 from anagraphe_read._core.git_state import default_remote_url, gitlinks, submodule_urls
 from anagraphe_read._resolution.configuration import ResolutionConfig, remote_problem
 from anagraphe_read._resolution.provider import (
@@ -203,14 +212,56 @@ def read_configuration(
     provider: StateProvider, state: State
 ) -> tuple[str, Mapping[str, Any]] | Unreadable | None:
     """Return the place and the content of the configuration of Anagraphe at a state, None when
-    the state holds none at the places of the search.
+    no place of the state holds one.
 
-    Two configuration files, a folder or a link at a place, and a file that is not a YAML mapping
-    in UTF-8 make the configuration unreadable.
+    Hodegos locates the file at the root of the state as it locates it in a working tree: at
+    ``anagraphe.yml``, in ``.config/``, or in a folder that the ``hodegos.yml`` of the state
+    declares. Since Hodegos reads a file system, the declarations of the state, then the files at
+    the places of the state, are copied into a temporary folder, in which Hodegos applies its rules.
+    Two configuration files, an invalid declaration, a folder or a link at a place, and a file that
+    is not a YAML mapping in UTF-8 make the configuration unreadable.
     """
-    texts: dict[str, bytes] = {}
-    for location in CONFIG_LOCATIONS:
-        name = location.as_posix()
+    copied: dict[str, bytes] = {}
+    with tempfile.TemporaryDirectory(prefix="anagraphe-state-") as folder:
+        tree = Path(folder)
+        declarations = [place.as_posix() for place in DECLARATION_PLACES]
+        problem = _copy(provider, state, tree, declarations, copied)
+        if problem is not None:
+            return problem
+        try:
+            bases = (PurePosixPath(), PurePosixPath(DOT_CONFIG), *read_declared_folders(tree))
+            places = [(base / CONFIG_FILE).as_posix() for base in bases]
+            problem = _copy(provider, state, tree, places, copied)
+            if problem is not None:
+                return problem
+            _, found = discover_configuration(tree)
+        except (ConfigurationError, DiscoveryError) as error:
+            # Hodegos names the copies; the state names its own paths.
+            return Unreadable(str(error).replace(f"{tree}{os.sep}", ""))
+    if found is None:
+        return None
+    name = found.relative_to(tree).as_posix()
+    data = copied[name]
+    try:
+        parsed = yaml.safe_load(data.decode("utf-8"))
+    except (ValueError, yaml.YAMLError):
+        # ValueError covers bytes that are not UTF-8, and a timestamp naming an impossible date.
+        parsed = None
+    if not isinstance(parsed, dict):
+        return Unreadable(f"{name} cannot be parsed as a mapping")
+    return name, parsed
+
+
+def _copy(
+    provider: StateProvider,
+    state: State,
+    tree: Path,
+    names: list[str],
+    copied: dict[str, bytes],
+) -> Unreadable | None:
+    """Copy the files of a state at ``names`` below ``tree``, recording their bytes in ``copied``,
+    or return why the configuration of the state cannot be read."""
+    for name in names:
         reading = provider.read(state, name)
         if isinstance(reading, Unavailable):
             return Unreadable(reading.detail, reading)
@@ -220,20 +271,11 @@ def read_configuration(
             return Unreadable(f"{name} leaves the state")
         if reading.mode is not Mode.FILE:
             return Unreadable(f"{name} is a {reading.mode.value}, not a file")
-        texts[name] = reading.data
-    if len(texts) > 1:
-        return Unreadable(f"the state holds two configuration files: {', '.join(texts)}")
-    if not texts:
-        return None
-    ((name, data),) = texts.items()
-    try:
-        parsed = yaml.safe_load(data.decode("utf-8"))
-    except (ValueError, yaml.YAMLError):
-        # ValueError covers bytes that are not UTF-8, and a timestamp naming an impossible date.
-        parsed = None
-    if not isinstance(parsed, dict):
-        return Unreadable(f"{name} cannot be parsed as a mapping")
-    return name, parsed
+        path = tree / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(reading.data)
+        copied[name] = reading.data
+    return None
 
 
 @dataclass(frozen=True)

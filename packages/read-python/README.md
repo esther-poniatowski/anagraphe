@@ -41,9 +41,11 @@ subpackages and modules below it open on an underscore: they are private, and th
 without a change of the version.
 
 The entry point `open_repository(root, *, config=None, provider=None)` opens a repository for
-reading. The function locates `anagraphe.yml` at `config/tools/anagraphe.yml` or at the root, unless
-`config` names another file. A root holding neither file opens with an empty configuration, so that
-its submodules still resolve. The provider reads the selected states of other repositories, and
+reading. The function locates `anagraphe.yml` through Hodegos, at the root, in its subfolder
+`.config/`, or in a folder that the `hodegos.yml` of the root declares, as the
+[specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states, unless `config` names another file. Two places
+holding the file is an error. A root holding no file at these places opens with an empty
+configuration, so that its submodules still resolve. The provider reads the selected states of other repositories, and
 defaults to the Git provider returned by `git_provider()`. That provider reads a state from a local
 clone of its repository when the machine holds one, else from the cache of the machine.
 

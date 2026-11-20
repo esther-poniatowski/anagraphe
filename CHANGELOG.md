@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@anagraphe/read` takes the metadata source of each file from the host, through the options
   `metadata` and `toml` of `RepositoryIndex`, and exports `builtInSource`, `defaultIdentifier` and
   the type `MetadataSource`.
-- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.3.0`. The
+- The distribution `anagraphe-read`, in `packages/read-python`, with its own version `0.4.0`. The
   distribution holds the Python read side of Anagraphe and depends on no part of the command line.
   Its module `anagraphe_read` is its whole interface:
   - `open_repository` locates and loads the configuration of a repository, derives its identity
@@ -54,6 +54,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** Hodegos locates the root of a command and the file `anagraphe.yml`, as its
+  [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md)
+  states, in the command line, in `open_repository`, and in each state of another repository that
+  the record resolver reads. The file lies at the root, in its subfolder `.config/`, or in a folder
+  that the `hodegos.yml` of the root declares, and two places holding a file is an error.
+  `config/tools/anagraphe.yml` is read only when `hodegos.yml` lists `config/tools`, also at a
+  state. Hodegos reads the variable `ANAGRAPHE_ROOT`, which the help of `--root` no longer shows as
+  an environment variable of the option. A root holding no configuration stops a command with
+  `no configuration: write anagraphe.yml at the root, in .config/, or in a folder that hodegos.yml
+  declares, or name it with --config`, and an invalid `hodegos.yml` stops it with status 2.
+  `discover_configuration` of `anagraphe_read._core.configuration` replaces `find_root`,
+  `locate_config`, `holds_config` and `CONFIG_LOCATIONS`. The distribution `anagraphe-read`
+  requires Hodegos, and raises its version to `0.4.0`.
 - The configuration format is `anagraphe:configuration@3`, and the section `indexes` no longer
   reads a vocabulary. The closed value sets of `key_values` become the enumerations of the metadata
   schema named by `indexes.metadata_schema`: the `enum` of `properties.K`, or of
@@ -107,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   takes the identifier of the repository from the host, through its option `repository` and its
   method `setRepository`.
 - The read side moves from `anagraphe` to the private subpackages of `anagraphe_read`, and the
-  distribution `anagraphe` requires `anagraphe-read==0.3.0`. A consumer imports the names of
+  distribution `anagraphe` requires `anagraphe-read==0.4.0`. A consumer imports the names of
   `anagraphe_read` instead of the moved modules:
   - the modules `configuration`, `conditions`, `filters`, `exclusions`, `git_state`, `issues`,
     `json_text`, `metadata`, `published`, `schemas`, `anchors` and `files` of `anagraphe.core` move
