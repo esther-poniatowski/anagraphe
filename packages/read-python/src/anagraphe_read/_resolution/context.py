@@ -11,7 +11,8 @@ alike in every clone of it. It holds two kinds of entry:
   of its remote. A gitlink whose state cannot be read, or yields no identity, names no repository,
   and the context keeps it as unnamed, with its remote, so that a fetch can supply its state;
 - a declared entry for each repository of the section ``resolution``, with its full commit, its
-  remote address and, when the machine file names one, its local clone.
+  remote address, the place of its configuration when the entry names one, and, when the machine
+  file names one, its local clone.
 
 A derived and a declared entry of one identifier, or two derived entries of one identifier, stop
 the command, since the context would select two states of one repository.
@@ -25,7 +26,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
-from hodegos import DiscoveryError, discover
+from hodegos import DiscoveryError, ErrorCode, discover
 
 from anagraphe_read._core.configuration import TOOL, ConfigurationError
 from anagraphe_read._core.git_state import default_remote_url, gitlinks, submodule_urls
@@ -51,6 +52,9 @@ class Entry:
     state: State
     #: The origin of the entry: ``submodule <path>`` or ``resolution.repositories``.
     origin: str
+    #: The path of the configuration of Anagraphe in the state, named by the key ``config`` of a
+    #: declared entry; None to search the accepted places of the state.
+    config: str | None = None
 
 
 @dataclass(frozen=True)
@@ -140,6 +144,7 @@ def build_context(
                 identifier,
                 State(declared.commit, declared.remote, config.clones.get(identifier)),
                 "resolution.repositories",
+                declared.config,
             )
         )
     return ResolutionContext(
@@ -276,24 +281,33 @@ def _unreadable(name: str, reading: Reading) -> Unreadable:
 
 
 def read_configuration(
-    provider: StateProvider, state: State
+    provider: StateProvider, state: State, place: str | None = None
 ) -> tuple[str, Mapping[str, Any]] | Unreadable | None:
     """Return the place and the content of the configuration of Anagraphe at a state, None when
     no place of the state holds one.
 
     Hodegos locates the file at the root of the state as it locates it in a working tree: at
-    ``anagraphe.yml``, in ``.config/`` or in ``config/``, as the specification of Hodegos states.
-    Hodegos reads the state through its port ``FileSystem``, which :class:`StateFiles` implements
-    over the provider, so no file of the state is copied to disk. Two configuration files, an
-    unavailable state, a link, a folder or a submodule at a place, and a file that is not a YAML
+    ``place``, a path relative to the root of the state in its normal form, when the entry of the
+    state names one, as the option ``--config`` names a file; else at ``anagraphe.yml``, in
+    ``.config/`` or in ``config/``, as the specification of Hodegos states. Hodegos reads the state
+    through its port ``FileSystem``, which :class:`StateFiles` implements over the provider, so no
+    file of the state is copied to disk. Two configuration files, an unavailable state, a link, a
+    folder or a submodule at a place, a ``place`` naming no file, and a file that is not a YAML
     mapping in UTF-8 make the configuration unreadable.
     """
     files = StateFiles(provider, state)
+    named = STATE_ROOT / place if place is not None else None
     try:
-        found = discover(TOOL, root=STATE_ROOT, cwd=STATE_ROOT, environ={}, files=files)
+        found = discover(
+            TOOL, root=STATE_ROOT, config=named, cwd=STATE_ROOT, environ={}, files=files
+        )
     except DiscoveryError as error:
         if files.problem is not None:
             return files.problem
+        if error.code is ErrorCode.MISSING_CONFIG:
+            return Unreadable(
+                f"the key config names {place}, and the state holds no configuration there"
+            )
         # Hodegos names the paths below the presented folder; the state names its own paths.
         return Unreadable(str(error).replace(f"{STATE_ROOT}{os.sep}", ""))
     if files.problem is not None:

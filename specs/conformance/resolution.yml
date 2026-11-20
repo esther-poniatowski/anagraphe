@@ -6,8 +6,9 @@
 #
 # A case declares the resolution context of the consumer: its repository identifier, its former
 # identifiers, the commit selected for each repository identifier, the remote of a selected state
-# when the case declares one under remotes, and the submodules whose state names no repository. The
-# identity of a state is the override repository.id of its configuration, else the name of its
+# when the case declares one under remotes, the place of the configuration of a selected state when
+# the case declares one under configs, as the key config of a declared repository names it, and the
+# submodules whose state names no repository. The identity of a state is the override repository.id of its configuration, else the name of its
 # remote. A commit is an opaque name here. The provider serves the states of
 # the case: each state starts from the files of a named shared state, or from no file, then adds the
 # files of the case and drops those listed under remove. A file is its text, or {link: path} for a
@@ -315,6 +316,58 @@ cases:
       from: other-lab
       files:
         config/anagraphe.yml: "_schema: anagraphe:configuration@2\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: configuration-at-the-place-named-by-the-entry
+  note: >-
+    The key config of the entry names settings/anagraphe.yml, a place that no rule of Hodegos
+    admits, so the configuration and the registry of the state are read there.
+  context: {repository: lab, commits: {other-lab: c1}, configs: {other-lab: settings/anagraphe.yml}}
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: other-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  contracts: [[test:person]]
+  outcome: record
+  provenance: {repository: other-lab, commit: c1, path: people/ada.yml}
+  findings: []
+- id: configuration-outside-the-places-without-the-key
+  note: >-
+    The state of the previous case, without the key config: the accepted places are searched and
+    hold no configuration, so the remote of the state names it, and its targets stay unverified.
+  context: {repository: lab, commits: {other-lab: c1}, remotes: {other-lab: 'https://example.org/lab/other-lab.git'}}
+  states:
+    c1:
+      from: other-lab
+      remove: [anagraphe.yml]
+      files:
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: other-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [unverified-target]
+- id: place-named-by-the-entry-beside-an-accepted-place
+  note: >-
+    The place named by the key config is read alone, so a configuration at the root of the state
+    neither competes with it nor replaces it.
+  context: {repository: lab, commits: {other-lab: c1}, configs: {other-lab: settings/anagraphe.yml}}
+  states:
+    c1:
+      from: other-lab
+      files:
+        settings/anagraphe.yml: "_schema: anagraphe:configuration@3\nrepository: {id: third-lab}\nrecords: {}\n"
+  target: {repository: other-lab, id: ada}
+  outcome: unresolved
+  findings: [invalid-target-repository]
+- id: place-named-by-the-entry-absent
+  note: >-
+    The key config names a file that the state does not hold, so the entry is invalid, even though
+    the root of the state holds a configuration.
+  context: {repository: lab, commits: {other-lab: c1}, configs: {other-lab: settings/anagraphe.yml}}
+  states: {c1: {from: other-lab}}
   target: {repository: other-lab, id: ada}
   outcome: unresolved
   findings: [invalid-target-repository]

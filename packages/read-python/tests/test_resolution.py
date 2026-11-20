@@ -89,12 +89,16 @@ def _context(case: Mapping[str, Any]) -> ResolutionContext:
     """Return the resolution context declared by a case."""
     declared = case["context"]
     remotes = declared.get("remotes", {})
+    configs = declared.get("configs", {})
     return ResolutionContext(
         declared["repository"],
         tuple(declared.get("retired", [])),
         {
             identifier: Entry(
-                identifier, State(commit, remotes.get(identifier)), "resolution.repositories"
+                identifier,
+                State(commit, remotes.get(identifier)),
+                "resolution.repositories",
+                configs.get(identifier),
             )
             for identifier, commit in declared["commits"].items()
         },
@@ -295,6 +299,11 @@ def test_an_entry_naming_the_root_stops_the_command(tmp_path: Path) -> None:
         ({"commit": COMMIT, "remote": "https://u:p@h.org/x.git"}, "credentials"),
         ({"commit": COMMIT, "remote": "/Users/lab/x"}, "names no remote address"),
         ({"commit": COMMIT}, "the keys commit and remote"),
+        ({"commit": COMMIT, "remote": "https://h.org/x.git", "file": "a.yml"}, "optionally config"),
+        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": "/x.yml"}, "inside that"),
+        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": "../x.yml"}, "inside that"),
+        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": ""}, "inside that"),
+        ({"commit": COMMIT, "remote": "https://h.org/x.git", "config": 3}, "inside that"),
     ],
 )
 def test_a_declared_repository_is_validated(
@@ -316,6 +325,56 @@ def test_ssh_and_scp_remotes_are_admitted(tmp_path: Path) -> None:
         environment={},
     )
     assert set(config.repositories) == {"x-lab", "y-lab"}
+
+
+def test_the_key_config_names_the_configuration_of_the_declared_state(tmp_path: Path) -> None:
+    config = parse_section(
+        tmp_path,
+        {
+            "repositories": {
+                "x-lab": {
+                    "commit": COMMIT,
+                    "remote": "https://h.org/x.git",
+                    "config": "./settings/anagraphe.yml",
+                },
+                "y-lab": {"commit": OTHER_COMMIT, "remote": "https://h.org/y.git"},
+            }
+        },
+        environment={},
+    )
+    context = build_context(tmp_path, ROOT_IDENTITY, config, EmptyProvider())
+    assert context.entries["x-lab"].config == "settings/anagraphe.yml"
+    assert context.entries["y-lab"].config is None
+
+
+def test_the_place_named_by_the_key_config_is_read_alone() -> None:
+    provider = MemoryProvider(
+        {
+            COMMIT: {
+                "anagraphe.yml": _configuration_bytes("x-lab"),
+                "settings/anagraphe.yml": _configuration_bytes("y-lab"),
+            }
+        }
+    )
+    found = read_configuration(provider, State(COMMIT), "settings/anagraphe.yml")
+    assert isinstance(found, tuple) and found[0] == "settings/anagraphe.yml"
+    assert found[1]["repository"] == {"id": "y-lab"}
+    assert read_configuration(provider, State(COMMIT)) == (
+        "anagraphe.yml",
+        {"_schema": "anagraphe:configuration@3", "repository": {"id": "x-lab"}},
+    )
+
+
+def test_an_absent_named_configuration_names_the_repository_the_commit_and_the_path(
+    tmp_path: Path,
+) -> None:
+    case = CASES["place-named-by-the-entry-absent"]
+    resolver = RecordResolver(_context(case), _provider(case), _declarations(tmp_path))
+    resolution = resolver.resolve(Target.parse(case["target"]))
+    assert [finding.detail for finding in resolution.findings] == [
+        "{repository: other-lab, id: ada}: the state c1 of other-lab: the key config names "
+        "settings/anagraphe.yml, and the state holds no configuration there"
+    ]
 
 
 def test_a_local_machine_file_must_be_ignored_by_git(tmp_path: Path) -> None:
