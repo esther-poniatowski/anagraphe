@@ -38,6 +38,9 @@ dependencies:
       - merismos @ git+https://github.com/esther-poniatowski/merismos.git@74267731c172676ace9cee9ea224d74d118b1f32
       - kleisis @ git+https://github.com/esther-poniatowski/kleisis.git@7afe7b6fd4e397264a17bc1d2c45a3ce833f1c40
       - hodegos @ git+https://github.com/esther-poniatowski/hodegos.git@e61d0d97eaa80cc0cfdd90c3022c1e3916ef1ad9
+      # The profile interface of Elenchos, which the tests of the findings logs use, without its
+      # extra validate, which would replace the read distribution of this clone.
+      - elenchos @ git+https://github.com/esther-poniatowski/elenchos.git@089a764aafd137d5095a77fe3dbdb9198e6ae85b
       # The read distribution of this clone, which the command line requires by name; pip reads the
       # path from the folder of this file.
       - -e packages/read-python

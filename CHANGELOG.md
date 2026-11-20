@@ -145,6 +145,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `anagraphe_read._repository.Composition`. The function `load_config` takes an optional state
   provider and returns a `RepositoryConfig`, whose attribute `reading` holds the `Composition`.
 - The distribution `anagraphe` no longer declares `pathspec`; the read distribution requires it.
+- The tests of the findings logs check each log of Anagraphe with the profile interface
+  `elenchos.profile`: `violations` judges its conformance, and `identities` states the identity of
+  each result. The validator of `tests/test_sarif.py`, written from the text of the profile, is
+  deleted with its planted breaches, since Elenchos tests its own rules. The extra `test` and
+  `environment.yml` pin Elenchos by commit, without its extra `validate`.
 
 ### Fixed
 

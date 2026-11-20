@@ -22,7 +22,8 @@ jobs:
           # The command line requires anagraphe-read by name; the read distribution of the same
           # commit satisfies it.
           pip install -e packages/read-python
-          pip install -e .
+          # The extra test installs Elenchos, whose profile interface checks the findings logs.
+          pip install -e ".[test]"
           pip install black pylint mypy pytest pytest-cov types-PyYAML
       - name: Check formatting (black)
         run: black --check --config config/tools/black.toml src/ tests/ packages/read-python/src/ packages/read-python/tests/

@@ -43,6 +43,14 @@ dependencies = [
     "typer>=0.12",
 ]
 
+[project.optional-dependencies]
+# The tests check the findings logs of the command line with the profile interface of Elenchos,
+# pinned by commit. The extra `validate` of Elenchos is left out, since it requires a pinned copy of
+# anagraphe-read, which would replace the read distribution of the clone.
+test = [
+    "elenchos @ git+https://github.com/esther-poniatowski/elenchos.git@089a764aafd137d5095a77fe3dbdb9198e6ae85b",
+]
+
 
 # --- Package Source Code --------------------------------------------------------------------------
 

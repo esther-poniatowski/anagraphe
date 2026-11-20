@@ -1,9 +1,9 @@
 """Behavioral tests for the findings log, the SARIF output of the findings profile of Elenchos.
 
-The validator :func:`violations` transcribes the rules of the profile that bind a producer: the log
-and the run (section 3), the result and its locations (section 4), and the rejected input of the
-gate (section 5.6). Each rule is planted in a broken log, so the validator is shown to fire before
-it judges the logs of Anagraphe.
+Each log written by Anagraphe is checked with the profile interface ``elenchos.profile``:
+``violations`` judges its conformance, and ``identities`` returns the identity that the gate builds
+for each result. The rules of the profile and its test vectors belong to Elenchos, so these tests
+check only the logs of Anagraphe: its rules, its loci, its discriminators and its failed runs.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 import yaml
+from elenchos.profile import identities, violations
 from typer.testing import CliRunner
 
 from anagraphe_read._core.issues import Issue, IssueKind, Report
@@ -27,209 +28,12 @@ from anagraphe.core.sarif import Section, logical_name, sarif_log
 from anagraphe.references.rules import RULES
 
 SOURCES = Path(__file__).resolve().parents[1] / "src" / "anagraphe"
-RULE_ID = re.compile(r"[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*")
-DRIVER = re.compile(r"[a-z][a-z0-9-]*")
-VERSIONED_KEY = re.compile(r"(?:[^/]+/)*v[0-9]+")
-LEVELS = {"error", "warning", "note"}
-
-
-def _name_violations(name: str) -> list[str]:
-    """Return the breaches of a logical name ``<resource>[#<locus>]`` (profile, section 4.5)."""
-    resource, _, locus = name.partition("#")
-    problems = []
-    if name.endswith("#"):
-        problems.append(f"name ends with #: {name}")
-    if re.search(r"%(?!25|23)", resource):
-        problems.append(f"resource holds an escape other than %25 and %23: {name}")
-    if resource.startswith("path:"):
-        path = resource[len("path:") :]
-        if path.startswith(("/", "./")) and path != "./":
-            problems.append(f"path is not repository-relative: {name}")
-        if any(segment in {"", ".", ".."} for segment in path.rstrip("/").split("/")):
-            problems.append(f"path holds an empty, . or .. segment: {name}")
-    elif not resource.startswith("id:"):
-        problems.append(f"resource opens on neither path: nor id: {name}")
-    if locus.startswith("/") and re.search(r"~(?![01])", locus):
-        problems.append(f"pointer holds ~ not followed by 0 or 1: {name}")
-    if (
-        locus
-        and not locus.startswith("/")
-        and locus.split(":")[0]
-        not in {
-            "link",
-            "task",
-            "slot",
-            "term",
-            "symbol",
-        }
-    ):
-        problems.append(f"locus of no admitted type: {name}")
-    return problems
-
-
-def violations(log: Any) -> list[str]:
-    """Return every breach of the findings profile by a log, an empty list when it conforms."""
-    if not isinstance(log, dict) or log.get("version") != "2.1.0":
-        return ["log is not an object of version 2.1.0"]
-    runs = log.get("runs")
-    if not isinstance(runs, list) or not runs:
-        return ["log holds no non-empty array of runs"]
-    problems: list[str] = []
-    for run in runs:
-        driver = run.get("tool", {}).get("driver", {})
-        name = driver.get("name")
-        if not isinstance(name, str) or not DRIVER.fullmatch(name) or name == "elenchos":
-            problems.append(f"driver name outside its form: {name!r}")
-        if "version" not in driver and "semanticVersion" not in driver:
-            problems.append("driver declares no version")
-        rules = driver.get("rules")
-        if not isinstance(rules, list):
-            problems.append("driver lists no rules")
-            rules = []
-        declared = set()
-        for rule in rules:
-            if not rule.get("shortDescription", {}).get("text"):
-                problems.append(f"rule without description: {rule.get('id')}")
-            if rule.get("defaultConfiguration", {}).get("level") not in LEVELS:
-                problems.append(f"rule without default level: {rule.get('id')}")
-            declared.add(rule.get("id"))
-        invocations = run.get("invocations", [])
-        failed = any(
-            not item.get("executionSuccessful")
-            or any(
-                note.get("level") == "error" for note in item.get("toolExecutionNotifications", [])
-            )
-            for item in invocations
-        )
-        if failed and (
-            len(invocations) != 1
-            or not any(
-                note.get("level") == "error" and note.get("message", {}).get("text")
-                for note in invocations[0].get("toolExecutionNotifications", [])
-            )
-        ):
-            problems.append("incomplete run without one invocation stating its error")
-        results = run.get("results")
-        if results is None:
-            if not failed:
-                problems.append("complete run without results")
-            continue
-        if results and run.get("columnKind") != "unicodeCodePoints":
-            problems.append("run with results declares no columnKind unicodeCodePoints")
-        for result in results:
-            problems.extend(_result_violations(result, declared))
-    return problems
-
-
-def _result_violations(result: dict[str, Any], declared: set[Any]) -> list[str]:
-    """Return the breaches of one result (profile, sections 4 and 5.6)."""
-    problems = []
-    rule_id = result.get("ruleId")
-    if not isinstance(rule_id, str) or not RULE_ID.fullmatch(rule_id):
-        problems.append(f"ruleId outside its form: {rule_id!r}")
-    elif rule_id not in declared:
-        problems.append(f"ruleId names no rule of the driver: {rule_id}")
-    if result.get("level") not in LEVELS:
-        problems.append(f"result of {rule_id} has no admitted level")
-    if not result.get("message", {}).get("text"):
-        problems.append(f"result of {rule_id} has no message text")
-    for reserved in ("suppressions", "fingerprints", "baselineState"):
-        if reserved in result:
-            problems.append(f"result of {rule_id} holds {reserved}, which the gate alone writes")
-    locations = result.get("locations")
-    if not isinstance(locations, list) or len(locations) != 1:
-        return problems + [f"result of {rule_id} holds not exactly one location"]
-    logical = locations[0].get("logicalLocations")
-    if not isinstance(logical, list) or len(logical) != 1 or "name" not in logical[0]:
-        problems.append(f"result of {rule_id} holds not exactly one named logical location")
-    else:
-        problems.extend(_name_violations(logical[0]["name"]))
-    artifact = locations[0].get("physicalLocation", {}).get("artifactLocation", {})
-    if artifact and artifact.get("uriBaseId") != "SRCROOT":
-        problems.append(f"result of {rule_id} has a relative URI without SRCROOT")
-    for key, value in result.get("partialFingerprints", {}).items():
-        if not VERSIONED_KEY.fullmatch(key) or not isinstance(value, str) or not value:
-            problems.append(f"partial fingerprint outside its form: {key}={value!r}")
-    return problems
 
 
 def _results(log: dict[str, Any]) -> list[dict[str, Any]]:
     """Return the results of the one run of a log."""
     results: list[dict[str, Any]] = log["runs"][0]["results"]
     return results
-
-
-def _identity(result: dict[str, Any]) -> tuple[str, str, str]:
-    """Return the rule, the logical name and the discriminator of a result."""
-    name = result["locations"][0]["logicalLocations"][0]["name"]
-    return result["ruleId"], name, result.get("partialFingerprints", {}).get("discriminator/v1", "")
-
-
-# --- The validator fires on each planted breach.
-
-VALID = sarif_log(
-    [
-        Section(
-            "references",
-            (IssueKind("broken", "A path names no file."),),
-            (Issue("a.md", 2, "broken", "b.md: names no file", locus="link:b.md"),),
-        )
-    ],
-    "1.0.0",
-)
-
-
-def _planted(edit: str) -> dict[str, Any]:
-    """Return a copy of the valid log with one breach."""
-    log: dict[str, Any] = json.loads(json.dumps(VALID))
-    run = log["runs"][0]
-    result = run["results"][0]
-    location = result["locations"][0]
-    if edit == "driver":
-        run["tool"]["driver"]["name"] = "elenchos"
-    elif edit == "rule":
-        result["ruleId"] = "references/unknown"
-    elif edit == "level":
-        result["level"] = "info"
-    elif edit == "suppressions":
-        result["suppressions"] = []
-    elif edit == "two-locations":
-        result["locations"].append(location)
-    elif edit == "escape":
-        location["logicalLocations"][0]["name"] = "path:a%20b.md"
-    elif edit == "locus":
-        location["logicalLocations"][0]["name"] = "path:a.md#href:b.md"
-    elif edit == "fingerprint":
-        result["partialFingerprints"] = {"discriminator": "x"}
-    elif edit == "column":
-        del run["columnKind"]
-    elif edit == "results":
-        del run["results"]
-    elif edit == "failed":
-        run["invocations"] = [{"executionSuccessful": False}]
-    return log
-
-
-@pytest.mark.parametrize(
-    "edit",
-    [
-        "driver",
-        "rule",
-        "level",
-        "suppressions",
-        "two-locations",
-        "escape",
-        "locus",
-        "fingerprint",
-        "column",
-        "results",
-        "failed",
-    ],
-)
-def test_validator_fires_on_planted_breach(edit: str) -> None:
-    """Each planted breach of the profile is reported, and the unbroken log conforms."""
-    assert violations(VALID) == []
-    assert violations(_planted(edit))
 
 
 # --- The writer.
@@ -278,6 +82,7 @@ def test_result_maps_an_issue() -> None:
         "partialFingerprints": {"discriminator/v1": "t-1"},
     }
     assert violations(log) == []
+    assert identities(log) == ["anagraphe|indexes/unknown-task|path:m/a #1.md|/blocked_by|t-1"]
 
 
 def test_a_note_keeps_its_level_in_the_rule_and_the_result() -> None:
@@ -295,8 +100,12 @@ def test_a_note_keeps_its_level_in_the_rule_and_the_result() -> None:
 
 def test_empty_discriminator_writes_no_fingerprint() -> None:
     """A result writes ``partialFingerprints`` only when its discriminator is not empty."""
-    (result,) = _results(VALID)
+    issue = Issue("a.md", 2, "broken", "b.md: names no file", locus="link:b.md")
+    log = sarif_log([Section("references", (IssueKind("broken", "x"),), (issue,))], "1")
+    (result,) = _results(log)
     assert "partialFingerprints" not in result
+    assert violations(log) == []
+    assert identities(log) == ["anagraphe|references/broken|path:a.md|link:b.md"]
     assert logical_name(Issue("a%.md", 1, "k", "d")) == "path:a%25.md"
 
 
@@ -417,10 +226,10 @@ def test_cli_writes_the_planted_link_findings(tmp_path: Path) -> None:
     log = json.loads(log_path.read_text(encoding="utf-8"))
     assert violations(log) == []
     assert log["runs"][0]["invocations"] == [{"executionSuccessful": True}]
-    assert {_identity(item) for item in _results(log)} == {
-        ("references/broken", "path:notes/a.md#link:missing.md", ""),
-        ("references/heading-fragment", "path:notes/a.md#link:b.md#heading", ""),
-        ("references/broken-anchor", "path:notes/a.md#link:b.md#^absent", ""),
+    assert set(identities(log)) == {
+        "anagraphe|references/broken|path:notes/a.md|link:missing.md",
+        "anagraphe|references/heading-fragment|path:notes/a.md|link:b.md#heading",
+        "anagraphe|references/broken-anchor|path:notes/a.md|link:b.md#^absent",
     }
 
 
@@ -451,9 +260,7 @@ def test_identity_ignores_the_line(tmp_path: Path) -> None:
     second = json.loads(
         _invoke("refs", "check", "--root", str(tmp_path), "--format", "sarif").stdout
     )
-    assert {_identity(item) for item in _results(first)} == {
-        _identity(item) for item in _results(second)
-    }
+    assert identities(first) == identities(second)
     lines = {
         item["locations"][0]["physicalLocation"]["region"]["startLine"] for item in _results(second)
     }
@@ -474,9 +281,9 @@ def test_cli_check_writes_index_findings_with_pointers(tmp_path: Path) -> None:
     assert result.exit_code == 1
     log = json.loads(result.stdout)
     assert violations(log) == []
-    identities = {_identity(item) for item in _results(log)}
-    assert ("indexes/retired-key", "path:m/note.md#/cites", "") in identities
-    assert ("indexes/missing-alias", "path:m/note.md#/aliases", "") in identities
+    found = identities(log)
+    assert "anagraphe|indexes/retired-key|path:m/note.md|/cites" in found
+    assert "anagraphe|indexes/missing-alias|path:m/note.md|/aliases" in found
     # An issue of a key of the metadata has no line, so its location holds no region.
     assert all("region" not in item["locations"][0]["physicalLocation"] for item in _results(log))
     text = _invoke("check", "--root", str(tmp_path)).stdout
@@ -505,9 +312,7 @@ def test_cli_declares_an_unreadable_file(tmp_path: Path) -> None:
     (invocation,) = log["runs"][0]["invocations"]
     assert invocation["executionSuccessful"] is False
     assert "specs/terms.yml" in invocation["toolExecutionNotifications"][0]["message"]["text"]
-    assert [_identity(item) for item in _results(log)] == [
-        ("references/unreadable-file", "path:specs/terms.yml", "")
-    ]
+    assert identities(log) == ["anagraphe|references/unreadable-file|path:specs/terms.yml"]
     assert "region" not in _results(log)[0]["locations"][0]["physicalLocation"]
 
 

@@ -23,6 +23,14 @@ executable `anagraphe`:
 pip install -e .
 ```
 
+The tests check the findings logs with the profile interface of Elenchos, which the environment
+declaration installs at a pinned commit. Outside that environment, the extra `test` installs the
+same commit:
+
+```sh
+pip install -e ".[test]"
+```
+
 ## Pin the distributions in a consumer
 
 When a tool only reads records, the tool pins the read distribution alone, as the
