@@ -84,7 +84,7 @@ The returned `Repository` exposes thirteen members:
 | `exempt(path)` | whether the shared exclusions leave a file out: the hidden paths, the top-level `exclude`, and the paths that Git ignores when the configuration says so |
 | `bindings(path, role)` | the `Binding` of a text for a `Role`, resolved along the directory chain |
 
-The other public names fall into four groups:
+The other public names fall into five groups:
 
 - the value types of the results: `Finding`, `Outcome`, `Provenance`, `InvalidTarget`, `Merge`;
 - the port of a repository-state provider, `StateProvider`, with the types of the values that it
@@ -92,6 +92,11 @@ The other public names fall into four groups:
   and the in-memory provider `MemoryProvider` for tests;
 - the kinds of the findings carried by a resolution, a read or an identity, such as
   `RENAMED_REPOSITORY`, `RENAMED_TARGET` and `UNVERIFIED_TARGET`;
+- the field paths, as the [specification of field paths](../../docs/specification/field-paths.md)
+  states: `parse_field_path` and `print_field_path` read and write the text naming one node,
+  `to_pointer`, `from_pointer` and `pointer_tokens` convert it to and from a JSON Pointer,
+  `parse_field_path_pattern`, `match_nodes` and `expand` read a pattern with the wildcards
+  `ANY_ITEM` and `ANY_KEY`, and `FieldPathError` and `PointerError` carry the reason of a defect;
 - the published specification: the identifier `ADDRESSING_ID` of the resource `addressing.v1`, the
   function `addressing_schema()` returning a copy of that resource, and the mapping
   `IMPLEMENTED_SPECIFICATION` of the versions that the distribution implements.

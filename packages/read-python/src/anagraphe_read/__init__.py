@@ -5,6 +5,8 @@ The distribution ``anagraphe-read`` is the Python read side of Anagraphe. A cons
 repository with :func:`open_repository`, which locates and loads its ``anagraphe.yml``, derives its
 identity and builds its resolution context, then resolves the logical targets of its records,
 walks its records and reads the bindings of its texts through the returned :class:`Repository`.
+The functions of field paths, such as :func:`parse_field_path` and :func:`to_pointer`, convert the
+text naming one node of a document to and from a JSON Pointer, as every tool writes it.
 
 This module is the interface of the distribution, and every name of ``__all__`` is part of it. The
 subpackages and modules whose names open on an underscore are private: their names and their
@@ -48,6 +50,28 @@ from anagraphe_read._resolution.provider import (
     Unavailable,
 )
 from anagraphe_read._resolution.resolver import Outcome, Provenance, RecordRead, Resolution
+from anagraphe_read._targets.field_paths import (
+    ANY_ITEM,
+    ANY_KEY,
+    FieldPath,
+    FieldPathError,
+    FieldPathReason,
+    PatternSegment,
+    PointerError,
+    PointerReason,
+    Segment,
+    Wildcard,
+    expand,
+    from_pointer,
+    is_field_path,
+    is_field_path_pattern,
+    match_nodes,
+    parse_field_path,
+    parse_field_path_pattern,
+    pointer_tokens,
+    print_field_path,
+    to_pointer,
+)
 from anagraphe_read._targets.identity import Identity
 from anagraphe_read._targets.kinds import (
     AMBIGUOUS_UNIT,
@@ -136,6 +160,28 @@ __all__ = [
     "UNREADABLE_RECORD",
     "UNREADABLE_TARGET_STATE",
     "UNVERIFIED_TARGET",
+    # The field paths: their parsing, their printing, their conversions to and from a JSON Pointer,
+    # and the expansion of a pattern, as `docs/specification/field-paths.md` states.
+    "ANY_ITEM",
+    "ANY_KEY",
+    "FieldPath",
+    "FieldPathError",
+    "FieldPathReason",
+    "PatternSegment",
+    "PointerError",
+    "PointerReason",
+    "Segment",
+    "Wildcard",
+    "expand",
+    "from_pointer",
+    "is_field_path",
+    "is_field_path_pattern",
+    "match_nodes",
+    "parse_field_path",
+    "parse_field_path_pattern",
+    "pointer_tokens",
+    "print_field_path",
+    "to_pointer",
     # The published specification.
     "ADDRESSING_ID",
     "IMPLEMENTED_SPECIFICATION",

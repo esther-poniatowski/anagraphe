@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `anagraphe-read` publishes the field paths in its interface: their parsing, their printing,
+  their conversions to and from a JSON Pointer and the expansion of a pattern, so that every tool
+  converts a field path through Anagraphe.
 - The command `anagraphe records migrate --plan PATH [--dry-run | --check]`, which rewrites the
   contract named by the binding key of the records under a migration plan in the new contract
   `anagraphe:migration-plan@1`, keeping every other byte of each file. A plan is rejected when a
